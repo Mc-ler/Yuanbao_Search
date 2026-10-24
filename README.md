@@ -27,10 +27,10 @@
 ## 1. 项目定位与当前状态
 
 - <strong>深度研究</strong>：问题 → 1–3 条需求（focus）→ 每需求最多 3 条查询 → 检索 → 全局去重 → 来源分册 → 截图 → 研究综述/报告。输出综述与来源，<strong>不输出成立/不成立</strong>。
-- <strong>断言查证</strong>：说法 → 断言抽取 → 定向查询 → 检索 → 去重 → 分级 → 匹配（引文校验）→ <strong>R1–R5 确定性判定</strong> → 报告。R5 时附加“非判定”模型参考意见。
+- <strong>一句话查证</strong>：说法 → 断言抽取 → 定向查询 → 检索 → 去重 → 分级 → 匹配（引文校验）→ <strong>R1–R5 确定性判定</strong> → 报告。R5 时附加“非判定”模型参考意见。
 - 共用检索网关、来源分级、安全护栏、缓存/预算/审计。
 
-当前基线：v3.2；<strong>109 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；预算 4/28/400。
+当前基线：v3.2；<strong>111 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；预算 4/28/400。
 
 ---
 
@@ -219,7 +219,7 @@ curl（bash）：
 2. test_deepseek.py 返回 OK。
 3. 重启 python -m claimlab.api。
 4. /api/health 确认 provider=deepseek、key_present=true。
-5. 先跑短问题确认 answer.engine=llm，再跑断言查证确认 R1–R5。
+5. 先跑短问题确认 answer.engine=llm，再跑一句话查证确认 R1–R5。
 6. 失败时看 HTTP 状态、logs/app-*.log、test_deepseek 输出；不要把 key 贴到聊天/日志。
 
 ---
@@ -259,12 +259,16 @@ curl（bash）：
     netstat -ano | findstr :8000
     Get-NetTCPConnection -LocalPort 8000 -State Listen
 
-UI：
+UI（v3.2 双模式工作台）：
 
-- 深度研究：输入问题 → 生成查询计划（可选）→ 开始研究 → 综述/指标/来源分册/截图。
-- 断言查证：输入说法 → 开始查证 → SSE 进度 → 判定卡。
-- 报告：查看/打印最近报告。
-- 无示例按钮；演示视频用真实问题。
+- 顶部栏：品牌；LLM 状态；元宝搜索状态；截图开关；主题、语言、配置。LLM/搜索状态为绿色=已配置，琥珀=未配置；点击状态或齿轮打开右侧配置抽屉。
+- 页面中心：唯一查询框；上方切换「深度研究 / 一句话查证」，下方是运行/清空按钮和状态徽标。两种模式共用同一个输入框，切换模式会恢复该模式上次的日志与报告。
+- 下方双栏：左侧执行日志（约 35%），右侧最终报告（约 65%，面积大于日志）；报告区可打印。日志按模式分别保留；深度研究在完成后展示步骤日志，一句话查证通过 SSE 实时追加并自动回退轮询。
+- 配置抽屉：LLM（Provider / API Key / Base URL / Model）、元宝搜索（Key / Base URL）、截图证据开关。保存后立即重建客户端；Key 只写本地 .env，不写浏览器存储。
+- 截图开关：仅当检测到 Chrome/Edge 且 websockets 可用时可开启；不可用时禁用并显示原因；保存到 EVIDENCE_SCREENSHOTS。
+- 主题/语言：右上角切换；localStorage 持久化；语言切换覆盖界面标签、按钮、状态、日志阶段名，服务端生成的报告正文保留原文。
+
+无示例按钮；演示视频用真实问题。
 
 ---
 
@@ -275,7 +279,7 @@ UI：
     问题 → S1 需求拆分（focus）→ S2 共享 planner（3 条/需求）→ S3 检索网关
       → S4 全局去重 → S5 分级/来源分册 → S8 综述（截图 + [n]）→ 报告
 
-断言查证：
+一句话查证：
 
     说法 → S1 断言抽取 → S2 定向查询 → S3 检索 → S4 去重 → S5 分级
       → S6 匹配（引文校验）→ S7 R1–R5 → 报告；R5 附 advisory（非判定）
@@ -286,7 +290,7 @@ UI：
       api.py            FastAPI：研究/计划/查证/报告/截图
       planning.py       共享 planner + PlanStore
       research.py       深度研究
-      pipeline.py       断言查证 R1–R5
+      pipeline.py       一句话查证 R1–R5
       runtime.py        Sandbox
       contracts.py      数据契约
       config.py         Settings/.env
@@ -300,7 +304,7 @@ UI：
     config/             domains / queries / lexicons / llm_providers.json
     fixtures/           测试夹具
     scripts/            configure_keys / test_deepseek / run_research / run_verify / run_plan / probes / git_push
-    tests/              109 个测试
+    tests/              111 个测试
     framework.html      v3.0 双板块架构图
     README.md           本文件
 
@@ -312,10 +316,13 @@ UI：
 |---|---|---|
 | GET | / | Web UI |
 | GET | /api/health | 版本/key/模型/缓存/截图 |
+| POST | /api/config/llm | 保存 LLM key/base/model 并重建客户端 |
+| POST | /api/config/search | 保存元宝 Search key/base 并重建检索客户端 |
+| POST | /api/config/screenshots | 开关截图证据（校验 Chrome/websockets） |
 | GET | /api/skills | 技能及适用板块 |
 | POST | /api/plan | 共享 planner，返回 plan_id |
 | POST | /api/research | 深度研究 |
-| POST | /api/runs | 断言查证（异步） |
+| POST | /api/runs | 一句话查证（异步） |
 | GET | /api/runs/{run_id} | 快照 |
 | POST | /api/runs/{run_id}/cancel | 取消 |
 | GET | /api/runs/{run_id}/events | SSE |
@@ -346,7 +353,7 @@ UI：
 
 返回 run_id；用 /api/runs/{id}/events 接收 SSE，或轮询 /api/runs/{id}。
 
-错误码：400 空/安全/plan_id 不匹配；422 字段/超长；503 未配置 Search；502 研究异常；404 不存在/过期。
+错误码：400 空/安全/plan_id 不匹配/配置校验；422 字段/超长；429 研究并发已满；503 未配置 Search；504 研究超时；502 研究异常；404 不存在/过期。
 
 Python 客户端：
 
@@ -367,7 +374,7 @@ Python 客户端：
 | scripts/configure_keys.py show | 查看 key/模型选择 |
 | scripts/test_deepseek.py | 真实 DeepSeek 连接测试 |
 | scripts/run_research.py --text "..." --report | 终端深度研究 |
-| scripts/run_verify.py --text "..." --report | 终端断言查证 |
+| scripts/run_verify.py --text "..." --report | 终端一句话查证 |
 | scripts/run_plan.py --text "..." | 只生成计划 |
 | scripts/broad_search.py --focus "..." --field ... | 时间序列扩展 |
 | scripts/probe_search.py | SearchPro 探针 |
@@ -390,9 +397,9 @@ Python 客户端：
 
     ./.Search/Scripts/python.exe -m pytest -q
 
-当前 109 passed。覆盖：需求拆分/focus/plan_id、去重与指标、R1–R5、advisory、回答不含 passage、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
+当前 111 passed。覆盖：需求拆分/focus/plan_id、去重与指标、R1–R5、advisory、回答不含 passage、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
 
-真实 DeepSeek 验证：配置 key → test_deepseek.py OK → 重启 → 深度研究 answer.engine=llm → 断言查证 R1–R5。没有 key 时 test_deepseek.py 明确提示；应用层回退规则摘要，不抛 500。
+真实 DeepSeek 验证：配置 key → test_deepseek.py OK → 重启 → 深度研究 answer.engine=llm → 一句话查证 R1–R5。没有 key 时 test_deepseek.py 明确提示；应用层回退规则摘要，不抛 500。
 
 ---
 
@@ -410,7 +417,7 @@ Python 客户端：
 | 截图超时 | 登录墙/反爬；可 EVIDENCE_SCREENSHOTS=false；全局最多 2 个 Chrome |
 | Failed to fetch / 连接中断 | 本地服务已停止或重启；确认 8000 正在运行；UI 已有 300s 超时与明确提示 |
 | 研究返回 429/504 | 并发研究已满或超过 180s；等待后重试/关闭截图 |
-| 断言查证无响应 | 确认服务在线；SSE 断开会自动轮询；刷新页面加载新 app.js |
+| 一句话查证无响应 | 确认服务在线；SSE 断开会自动轮询；刷新页面加载新 app.js |
 | 旧客户端 422 | 删除 subject/city/example_id/fixture_id |
 | 端口占用 | 查 PID 后停止旧进程 |
 | 缓存旧结果 | 删除 cache/ 或用 refresh（CLI） |
@@ -423,11 +430,11 @@ Python 客户端：
 
 边界：深度研究是综述不是判定；不抓全文；主路径不持久化（刷新/重启丢报告，/api/db/* 旧数据只读）；截图 best-effort；DeepSeek 当前未配置 vision；无鉴权限流；plan_id 存内存；仅文字输入，不做 OCR/持续盯梢/B 端后台/公网部署。
 
-### 14.1 深度研究与断言查证是否应该合并
+### 14.1 深度研究与一句话查证是否应该合并
 
 结论：不建议合并成单一 verdict 管道；建议“统一入口 + 共享证据 + 双模式后端”。
 
-可行性：两者约 70% 可共享（输入、检索网关、去重、来源分级、引用、安全、截图、任务存储），但核心产物不同：深度研究是开放式综述/来源分册，断言查证是逐条 Claim 的 R1–R5 判定。把开放问题强行转成断言会产生伪精确；把 R1–R5 塞进研究综述会让用户误以为“综述=判决”。
+可行性：两者约 70% 可共享（输入、检索网关、去重、来源分级、引用、安全、截图、任务存储），但核心产物不同：深度研究是开放式综述/来源分册，一句话查证是逐条 Claim 的 R1–R5 判定。把开放问题强行转成断言会产生伪精确；把 R1–R5 塞进研究综述会让用户误以为“综述=判决”。
 
 建议方案：保留 /api/research 与 /api/runs 两个端点；UI 可合并为一个工作台，按输入自动建议模式；共享 source ledger/引用/截图；提供“从研究结论生成断言”显式 handoff，而不是自动判定。这样既减少重复，又保留确定性边界。
 
@@ -437,7 +444,7 @@ Python 客户端：
 
 ## 15. 变更记录
 
-- v3.2（2026-10-25）：修复 configure_keys 交互卡住；统一 DeepSeek 测试脚本（--all-models/--apply）；/api/research 并发/超时与截图全局限流；前端 300s 超时/连接诊断/缓存破坏；真实 DeepSeek 与断言查证实测。
+- v3.2（2026-10-25）：修复 configure_keys 交互卡住；统一 DeepSeek 测试脚本（--all-models/--apply）；/api/research 并发/超时与截图全局限流；前端 300s 超时/连接诊断/缓存破坏；真实 DeepSeek 与一句话查证实测。
 - v3.1（2026-10-25）：DeepSeek provider（默认）、密钥隔离、重试/超时、test_deepseek.py、configure_keys deepseek、README 统一整合、清理冗余文档/运行产物。
 - v3.0（2026-10-25）：双板块、删除预置、focus/plan_id、全局去重/来源分册、截图/vision、引用校验、R1–R5 UI、不持久化、预算 4/28/400。
 - v2.6（2026-10-25）：极简 UI、demo 快路径（已删除）、subject/city 不注入、85 测试。
@@ -445,4 +452,4 @@ Python 客户端：
 
 ---
 
-相关文件：.env.example、config/llm_providers.json、web/rules.html、framework.html、deliverables/screenshots/v3-*.png。
+相关文件：.env.example、config/llm_providers.json、web/rules.html、framework.html、deliverables/screenshots/v3*.png。

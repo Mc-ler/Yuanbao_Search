@@ -72,7 +72,7 @@ def report_to_dict(report: ResearchReport) -> dict[str, Any]:
 def render_markdown(report: ResearchReport) -> str:
     lines: list[str] = []
     title = next((unit.assertion.get("text", "") for unit in report.units if unit.assertion.get("text")), "")
-    lines.append(f"# {title[:60] or '断言查证报告'}")
+    lines.append(f"# {title[:60] or '一句话查证报告'}")
     lines.append("")
     lines.append(f"> 输入：{report.task.text[:160]}")
     lines.append(f"> 生成：{report.generated_at}")

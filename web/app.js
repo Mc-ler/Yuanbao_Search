@@ -1,61 +1,235 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const state = { health: null, report: null, planId: null, busy: false, eventSource: null, verifyRunId: null, pollTimer: null };
+const state = {
+  health: null,
+  mode: 'research',
+  busy: false,
+  lang: localStorage.getItem('ui.lang') || 'zh',
+  theme: localStorage.getItem('ui.theme') || 'light',
+  logs: { research: [], verify: [] },
+  reports: { research: null, verify: null },
+  data: { research: null, verify: null },
+  eventSource: null,
+  verifyRunId: null,
+  pollTimer: null,
+  runState: 'ready'
+};
+
+const I18N = {
+  zh: {
+    'brand.sub': 'Research Agent',
+    'status.llm': 'LLM', 'status.search': '搜索', 'status.screenshot': '截图',
+    'status.llmTitle': 'LLM 配置状态', 'status.searchTitle': '元宝搜索配置状态',
+    'status.screenshotTitle': '截图证据开关（需要 Chrome）', 'status.theme': '切换主题',
+    'status.lang': '切换语言', 'status.settings': '配置',
+    'status.checking': '检查中', 'status.missing': '未配置', 'status.ready': '就绪',
+    'status.unavailable': '不可用', 'status.available': '可用',
+    'hero.eyebrow': '深度研究 · 一句话查证',
+    'hero.title': '把问题变成可核查的证据链',
+    'hero.sub': '检索、去重、来源分级、截图证据；研究给综述，查证给 R1–R5 判定。',
+    'mode.research': '深度研究', 'mode.researchHint': '检索、来源分册、研究综述',
+    'mode.verify': '一句话查证', 'mode.verifyHint': 'R1–R5 确定性判定',
+    'input.label': '输入', 'input.placeholderResearch': '输入一个具体的研究问题，例如：2024年全国居民人均可支配收入41314元的数据来源和统计口径是什么？',
+    'input.placeholderVerify': '输入一句可被公开事实证明的话，例如：该店人均68元，周一闭店。',
+    'input.hintResearch': '研究综述不是判决；需要成立/不成立请切到「一句话查证」。',
+    'input.hintVerify': '判定由 R1–R5 代码完成；证据不足时才附加模型参考意见。',
+    'action.runResearch': '开始研究', 'action.runVerify': '开始查证', 'action.clear': '清空',
+    'action.clearLog': '清空日志', 'action.configure': '配置', 'action.print': '打印', 'action.save': '保存',
+    'state.ready': '就绪', 'state.researching': '研究中…', 'state.verifying': '查证中…',
+    'state.done': '已完成', 'state.failed': '失败', 'state.saving': '保存中…',
+    'setup.llmMissing': 'LLM 未配置：请填写 API Key、Base URL 与模型。',
+    'log.eyebrow': 'Trace', 'log.title': '执行日志', 'log.emptyMeta': '运行后在这里保留每一步', 'log.noLogs': '当前模式还没有日志。',
+    'report.eyebrow': 'Report', 'report.title': '最终报告', 'report.emptyTitle': '还没有报告',
+    'report.emptyText': '选择模式、输入问题并运行；日志和报告会分别保留。',
+    'report.summary': '研究综述', 'report.metrics': '指标', 'report.citations': '引用来源',
+    'report.sources': '来源分册', 'report.gaps': '证据缺口', 'report.issues': '引用校验',
+    'report.verdict': '判定', 'report.rule': '规则', 'report.cluster': '计票',
+    'report.evidence': '证据', 'report.action': '行动含义', 'report.disclaimer': '免责声明',
+    'report.aiAdvisory': '模型参考意见（非判定）', 'report.noSources': '没有可用来源。',
+    'metric.requirements': '需求覆盖 A/B', 'metric.ab': 'A/B 来源占比', 'metric.unique': '去重后页数',
+    'metric.duplicates': '去重条数', 'metric.directed': '定向查询占比', 'metric.screenshots': '截图',
+    'footer.disclaimer': '只核对公开信息与来源，不评价个人，不构成消费或法律建议。',
+    'config.eyebrow': 'Settings', 'config.title': '配置', 'config.provider': 'Provider',
+    'config.apiKey': 'API Key', 'config.baseUrl': 'Base URL', 'config.model': 'Model',
+    'config.searchTitle': '元宝搜索', 'config.screenshotTitle': '截图证据',
+    'config.screenshotEnable': '启用页面截图',
+    'config.llmHint': 'Key 只写入本地 .env；保存后立即重建 LLM 客户端，不写入前端存储。',
+    'config.searchHint': '用于元宝 SearchPro；保存后立即重建检索客户端。',
+    'config.screenshotHint': '需要 Chrome/Edge 与 websockets；不可用时按钮禁用并显示原因。',
+    'config.statusReady': '已配置', 'config.statusMissing': '未配置', 'config.saved': '已保存',
+    'config.saveFailed': '保存失败', 'config.keyStored': 'Key 仅保存在本地 .env',
+    'config.searchReady': '已连接', 'config.searchMissing': '未配置',
+    'config.shotEnabled': '已启用', 'config.shotDisabled': '已关闭', 'config.shotUnavailable': '不可用',
+    'log.startResearch': '已提交深度研究请求', 'log.startVerify': '已提交一句话查证请求',
+    'log.plan': '计划：{n} 条需求，方法 {method}', 'log.query': '查询：{query}',
+    'log.ledger': '来源分册：{field} / {tier} / 去重后 {unique} 页 / {clusters} 簇',
+    'log.dedup': '去重：原始 {raw} 页 → 唯一 {unique} 页，移除 {removed} 条重复', 'log.screenshot': '截图证据：{n} 张',
+    'log.answer': '研究综述：引擎 {engine}，引用 {citations} 条', 'log.done': '完成：{reason}',
+    'log.split': '拆出 {n} 条断言', 'log.searchResult': '检索：{pages} 页{error}', 'log.round': '第 {round} 轮：{verdict}（{rule}）',
+    'log.unit': '判定：{text} → {verdict}（{rule}）', 'log.stats': '统计：检索 {calls} 次，缓存 {hits} 次，簇 {clusters} 个',
+    'log.advisory': '已生成 R5 参考意见（非判定）', 'log.connected': 'SSE 已连接，等待事件…', 'log.polling': 'SSE 中断，切换轮询',
+    'log.requestSubmitted': '请求已提交：{id}', 'log.error': '错误：{message}',
+    'stage.start': '开始', 'stage.plan': '计划', 'stage.query': '查询', 'stage.search': '检索',
+    'stage.dedup': '去重', 'stage.ledger': '分册', 'stage.screenshot': '截图', 'stage.answer': '综述',
+    'stage.split': '拆分', 'stage.judge': '判定', 'stage.advisory': '参考', 'stage.stats': '统计',
+    'stage.done': '完成', 'stage.error': '错误', 'stage.connected': '连接',
+    'status.mode': '模式'
+  },
+  en: {
+    'brand.sub': 'Research Agent',
+    'status.llm': 'LLM', 'status.search': 'Search', 'status.screenshot': 'Shots',
+    'status.llmTitle': 'LLM configuration status', 'status.searchTitle': 'Yuanbao Search status',
+    'status.screenshotTitle': 'Screenshot evidence toggle (Chrome required)', 'status.theme': 'Toggle theme',
+    'status.lang': 'Switch language', 'status.settings': 'Settings',
+    'status.checking': 'checking', 'status.missing': 'not configured', 'status.ready': 'ready',
+    'status.unavailable': 'unavailable', 'status.available': 'available',
+    'hero.eyebrow': 'Deep research · one-sentence check',
+    'hero.title': 'Turn a question into a verifiable evidence chain',
+    'hero.sub': 'Search, dedupe, grade sources and attach screenshots. Research gives a synthesis; check gives an R1–R5 verdict.',
+    'mode.research': 'Deep research', 'mode.researchHint': 'sources, source ledger, synthesis',
+    'mode.verify': 'One-sentence check', 'mode.verifyHint': 'deterministic R1–R5 verdict',
+    'input.label': 'Input', 'input.placeholderResearch': 'Ask a concrete research question, e.g. what is the source and methodology behind the 2024 national per-capita disposable income figure of 41,314 CNY?',
+    'input.placeholderVerify': 'Enter a falsifiable sentence, e.g. the restaurant costs 68 CNY per person and closes on Mondays.',
+    'input.hintResearch': 'A research synthesis is not a verdict. Switch to One-sentence check for a verdict.',
+    'input.hintVerify': 'R1–R5 is deterministic code. A model note is added only when evidence is insufficient.',
+    'action.runResearch': 'Start research', 'action.runVerify': 'Start check', 'action.clear': 'Clear',
+    'action.clearLog': 'Clear log', 'action.configure': 'Configure', 'action.print': 'Print', 'action.save': 'Save',
+    'state.ready': 'ready', 'state.researching': 'researching…', 'state.verifying': 'checking…',
+    'state.done': 'done', 'state.failed': 'failed', 'state.saving': 'saving…',
+    'setup.llmMissing': 'LLM is not configured: enter an API key, base URL and model.',
+    'log.eyebrow': 'Trace', 'log.title': 'Execution log', 'log.emptyMeta': 'Each step is kept here after a run', 'log.noLogs': 'No log for this mode yet.',
+    'report.eyebrow': 'Report', 'report.title': 'Final report', 'report.emptyTitle': 'No report yet',
+    'report.emptyText': 'Choose a mode, enter a question and run. Logs and reports are kept separately.',
+    'report.summary': 'Research summary', 'report.metrics': 'Metrics', 'report.citations': 'Citations',
+    'report.sources': 'Source ledger', 'report.gaps': 'Evidence gaps', 'report.issues': 'Citation checks',
+    'report.verdict': 'Verdict', 'report.rule': 'Rule', 'report.cluster': 'Cluster votes',
+    'report.evidence': 'Evidence', 'report.action': 'Action', 'report.disclaimer': 'Disclaimer',
+    'report.aiAdvisory': 'Model note (not a verdict)', 'report.noSources': 'No usable sources.',
+    'metric.requirements': 'Requirements A/B', 'metric.ab': 'A/B source rate', 'metric.unique': 'Unique pages',
+    'metric.duplicates': 'Duplicates removed', 'metric.directed': 'Directed queries', 'metric.screenshots': 'Screenshots',
+    'footer.disclaimer': 'Only public information and sources are checked. No personal evaluation, no consumer or legal advice.',
+    'config.eyebrow': 'Settings', 'config.title': 'Configuration', 'config.provider': 'Provider',
+    'config.apiKey': 'API Key', 'config.baseUrl': 'Base URL', 'config.model': 'Model',
+    'config.searchTitle': 'Yuanbao Search', 'config.screenshotTitle': 'Screenshot evidence',
+    'config.screenshotEnable': 'Enable page screenshots',
+    'config.llmHint': 'The key is written only to local .env; the client is rebuilt immediately and never stored in the browser.',
+    'config.searchHint': 'Used by Yuanbao SearchPro; the search client is rebuilt immediately.',
+    'config.screenshotHint': 'Requires Chrome/Edge and websockets; disabled with a reason when unavailable.',
+    'config.statusReady': 'configured', 'config.statusMissing': 'not configured', 'config.saved': 'saved',
+    'config.saveFailed': 'save failed', 'config.keyStored': 'Key is stored only in local .env',
+    'config.searchReady': 'connected', 'config.searchMissing': 'not configured',
+    'config.shotEnabled': 'enabled', 'config.shotDisabled': 'disabled', 'config.shotUnavailable': 'unavailable',
+    'log.startResearch': 'Deep research submitted', 'log.startVerify': 'One-sentence check submitted',
+    'log.plan': 'Plan: {n} requirements, method {method}', 'log.query': 'Query: {query}',
+    'log.ledger': 'Source ledger: {field} / {tier} / {unique} unique pages / {clusters} clusters',
+    'log.dedup': 'Dedupe: {raw} raw pages → {unique} unique, {removed} duplicates', 'log.screenshot': 'Screenshot evidence: {n}',
+    'log.answer': 'Synthesis: engine {engine}, {citations} citations', 'log.done': 'Done: {reason}',
+    'log.split': 'Extracted {n} claims', 'log.searchResult': 'Search: {pages} pages{error}', 'log.round': 'Round {round}: {verdict} ({rule})',
+    'log.unit': 'Verdict: {text} → {verdict} ({rule})', 'log.stats': 'Stats: {calls} searches, {hits} cache hits, {clusters} clusters',
+    'log.advisory': 'R5 model note generated (not a verdict)', 'log.connected': 'SSE connected, waiting for events…', 'log.polling': 'SSE interrupted; falling back to polling',
+    'log.requestSubmitted': 'Request submitted: {id}', 'log.error': 'Error: {message}',
+    'stage.start': 'start', 'stage.plan': 'plan', 'stage.query': 'query', 'stage.search': 'search',
+    'stage.dedup': 'dedupe', 'stage.ledger': 'ledger', 'stage.screenshot': 'shot', 'stage.answer': 'answer',
+    'stage.split': 'split', 'stage.judge': 'judge', 'stage.advisory': 'note', 'stage.stats': 'stats',
+    'stage.done': 'done', 'stage.error': 'error', 'stage.connected': 'connect',
+    'status.mode': 'Mode'
+  }
+};
+
+function t(key, vars) {
+  const lang = I18N[state.lang] ? state.lang : 'zh';
+  let text = I18N[lang][key] || I18N.zh[key] || key;
+  if (vars) {
+    Object.keys(vars).forEach((name) => {
+      text = text.split('{' + name + '}').join(String(vars[name]));
+    });
+  }
+  return text;
+}
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ESC[ch]);
 const pct = (value) => (Number(value || 0) * 100).toFixed(1) + '%';
 
-const GRADE_LABEL = { A: 'A 政府/官方', B: 'B 主流媒体', C: 'C 平台/百科', D: 'D 自媒体', E: 'E UGC' };
-const TIER_LABEL = { 'A/B': 'A/B 来源', 'B/C': 'B/C 降级', insufficient: '未找到可靠来源' };
-
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+  applyTheme();
+  applyI18n();
   bind();
+  setMode('research');
   try {
-    const health = await api('/api/health');
-    state.health = health;
-    renderHealth(health);
+    await refreshHealth();
   } catch (error) {
-    showError('无法连接本地服务：' + error.message);
+    showToast(t('log.error', { message: error.message }), 'error');
+    $('llmStatus').className = 'status-chip warn';
+    $('searchStatus').className = 'status-chip warn';
   }
 }
 
 function bind() {
-  document.querySelectorAll('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  $('modeResearch').addEventListener('click', () => setMode('research'));
+  $('modeVerify').addEventListener('click', () => setMode('verify'));
+  $('runBtn').addEventListener('click', execute);
+  $('clearBtn').addEventListener('click', clearActive);
+  $('clearLogBtn').addEventListener('click', clearActiveLog);
+  $('printBtn').addEventListener('click', () => window.print());
+  $('themeToggle').addEventListener('click', toggleTheme);
+  $('langToggle').addEventListener('click', toggleLang);
+  $('settingsBtn').addEventListener('click', () => openDrawer());
+  $('llmStatus').addEventListener('click', () => openDrawer('llm'));
+  $('searchStatus').addEventListener('click', () => openDrawer('search'));
+  $('setupLlmBtn').addEventListener('click', () => openDrawer('llm'));
+  $('closeDrawer').addEventListener('click', closeDrawer);
+  $('drawerBackdrop').addEventListener('click', closeDrawer);
+  $('saveLlm').addEventListener('click', saveLlm);
+  $('saveSearch').addEventListener('click', saveSearch);
+  $('screenshotToggle').addEventListener('change', (event) => setScreenshots(event.target.checked));
+  $('screenshotToggleDrawer').addEventListener('change', (event) => setScreenshots(event.target.checked));
+  $('queryInput').addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') execute();
   });
-  $('planBtn').addEventListener('click', loadPlan);
-  $('researchRunBtn').addEventListener('click', runResearch);
-  $('researchClearBtn').addEventListener('click', clearResearch);
-  $('verifyRunBtn').addEventListener('click', runVerify);
-  $('verifyCancelBtn').addEventListener('click', cancelVerify);
-  $('verifyClearBtn').addEventListener('click', clearVerify);
-  $('reportPrint').addEventListener('click', () => window.print());
-  $('researchInput').addEventListener('keydown', (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') runResearch();
-  });
-  $('verifyInput').addEventListener('keydown', (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') runVerify();
-  });
-  $('researchInput').addEventListener('input', () => {
-    state.planId = null;
-    $('planPanel').hidden = true;
+  $('queryInput').addEventListener('input', () => {
+    if (state.busy) return;
+    setRunState('ready');
   });
 }
 
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach((tab) => {
-    const active = tab.dataset.tab === name;
-    tab.classList.toggle('active', active);
-    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+function applyI18n() {
+  document.documentElement.lang = state.lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
   });
-  $('tab-research').hidden = name !== 'research';
-  $('tab-verify').hidden = name !== 'verify';
-  $('tab-report').hidden = name !== 'report';
-  if (name === 'report') renderReport();
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => {
+    node.setAttribute('placeholder', t(node.dataset.i18nPlaceholder));
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach((node) => {
+    node.setAttribute('title', t(node.dataset.i18nTitle));
+  });
+  $('langToggle').textContent = state.lang === 'zh' ? 'EN' : '中';
+  $('themeToggle').textContent = state.theme === 'dark' ? '☀' : '☾';
+  renderModeUI();
+  if (state.health) renderStatus();
+  renderLogs();
+  renderReport();
+}
+
+function toggleLang() {
+  state.lang = state.lang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('ui.lang', state.lang);
+  applyI18n();
+}
+
+function applyTheme() {
+  document.documentElement.dataset.theme = state.theme;
+  localStorage.setItem('ui.theme', state.theme);
+}
+
+function toggleTheme() {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  applyTheme();
+  $('themeToggle').textContent = state.theme === 'dark' ? '☀' : '☾';
 }
 
 async function api(url, options, timeoutMs = 300000) {
@@ -69,16 +243,16 @@ async function api(url, options, timeoutMs = 300000) {
       try { data = JSON.parse(text); } catch { data = text; }
     }
     if (!response.ok) {
-      const detail = data && typeof data === 'object' && data.detail ? data.detail : (data || response.statusText || '请求失败');
+      const detail = data && typeof data === 'object' && data.detail ? data.detail : (data || response.statusText || 'Request failed');
       throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
     }
     return data;
   } catch (error) {
     if (error && error.name === 'AbortError') {
-      throw new Error('请求超时（300 秒）：服务可能仍在处理，请稍后查看结果或重试。');
+      throw new Error(state.lang === 'zh' ? '请求超时（300 秒）：服务可能仍在处理，请稍后查看或重试。' : 'Request timed out after 300s; the service may still be working.');
     }
     if (error && (error.name === 'TypeError' || /Failed to fetch|NetworkError|fetch failed/i.test(String(error.message)))) {
-      throw new Error('本地服务连接中断（可能已停止或重启）。请确认 http://127.0.0.1:8000 正在运行后重试。');
+      throw new Error(state.lang === 'zh' ? '本地服务连接中断（可能已停止或重启）。请确认 http://127.0.0.1:8000 正在运行。' : 'Local service connection lost (stopped or restarting). Confirm http://127.0.0.1:8000 is running.');
     }
     throw error;
   } finally {
@@ -86,233 +260,247 @@ async function api(url, options, timeoutMs = 300000) {
   }
 }
 
-function showNotice(message, kind) {
-  const notice = $('notice');
-  notice.hidden = false;
-  notice.className = 'notice ' + (kind || 'ok');
-  notice.textContent = String(message);
+async function refreshHealth() {
+  const health = await api('/api/health', {}, 30000);
+  state.health = health;
+  renderStatus();
+  return health;
 }
 
-function showError(message) {
-  showNotice(message, 'error');
-}
-
-function renderHealth(health) {
+function renderStatus() {
+  const health = state.health;
+  if (!health) return;
   const settings = health.settings || {};
-  const ready = Boolean(health.search_ready || settings.search_ready);
   const llm = health.llm || {};
-  const badge = $('modeBadge');
-  badge.className = 'badge ' + (ready ? 'live' : 'warn');
-  badge.textContent = ready ? 'LIVE · API' : '未配置检索';
-  if (!ready) {
-    showNotice('未配置 SEARCH_API_KEY：无法执行真实检索。请配置 .env 后重启服务。', 'warn');
+  const llmReady = Boolean(llm.key_present);
+  const llmChip = $('llmStatus');
+  llmChip.className = 'status-chip ' + (llmReady ? 'ok' : 'warn');
+  $('llmStatusText').textContent = llmReady
+    ? (llm.provider || 'LLM') + ' / ' + (llm.model || t('status.ready'))
+    : t('status.missing');
+  llmChip.title = t('status.llmTitle');
+
+  const searchReady = Boolean(health.search_ready || settings.search_ready);
+  const searchChip = $('searchStatus');
+  searchChip.className = 'status-chip ' + (searchReady ? 'ok' : 'warn');
+  $('searchStatusText').textContent = searchReady ? t('status.ready') : t('status.missing');
+  searchChip.title = t('status.searchTitle');
+
+  const shots = health.screenshots || {};
+  const canShots = Boolean(shots.chrome) && !String(shots.reason || '').includes('websockets');
+  const enabled = Boolean(shots.enabled);
+  ['screenshotToggle', 'screenshotToggleDrawer'].forEach((id) => {
+    const node = $(id);
+    node.checked = enabled;
+    node.disabled = !canShots || state.busy;
+    node.title = !canShots
+      ? (shots.reason || t('status.unavailable'))
+      : (enabled ? t('config.shotEnabled') : t('config.shotDisabled'));
+  });
+  $('screenshotConfigStatus').textContent = canShots
+    ? (enabled ? t('config.shotEnabled') : t('config.shotDisabled'))
+    : t('config.shotUnavailable');
+  $('screenshotConfigStatus').className = 'config-status ' + (canShots ? (enabled ? 'ok' : '') : 'warn');
+
+  $('llmConfigStatus').textContent = llmReady ? t('config.statusReady') : t('config.statusMissing');
+  $('llmConfigStatus').className = 'config-status ' + (llmReady ? 'ok' : 'warn');
+  $('searchConfigStatus').textContent = searchReady ? t('config.searchReady') : t('config.searchMissing');
+  $('searchConfigStatus').className = 'config-status ' + (searchReady ? 'ok' : 'warn');
+
+  const providers = llm.providers || [];
+  const current = providers.find((item) => item.name === llm.provider) || providers[0];
+  if (current) {
+    $('llmProvider').value = current.name;
+    $('llmBase').value = current.base_url || '';
+    if (!$('llmModel').value) $('llmModel').value = llm.model || current.default_model || '';
+  }
+  $('searchBase').value = settings.search_base_url || $('searchBase').value;
+
+  const callout = $('setupCallout');
+  callout.hidden = llmReady;
+  if (!llmReady) $('setupText').textContent = t('setup.llmMissing');
+}
+
+function setMode(mode) {
+  if (state.busy && mode !== state.mode) return;
+  state.mode = mode;
+  document.querySelectorAll('.mode-btn').forEach((btn) => {
+    const active = btn.dataset.mode === mode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  renderModeUI();
+  renderLogs();
+  renderReport();
+}
+
+function renderModeUI() {
+  const research = state.mode === 'research';
+  $('queryInput').setAttribute('placeholder', t(research ? 'input.placeholderResearch' : 'input.placeholderVerify'));
+  $('inputHint').textContent = t(research ? 'input.hintResearch' : 'input.hintVerify');
+  $('runBtn').textContent = state.busy
+    ? t(research ? 'state.researching' : 'state.verifying')
+    : t(research ? 'action.runResearch' : 'action.runVerify');
+  setRunState(state.runState);
+}
+
+function setRunState(kind) {
+  state.runState = kind;
+  const node = $('runState');
+  node.className = 'state-pill ' + kind;
+  node.textContent = t('state.' + kind);
+  if ($('logMeta')) {
+    const logs = state.logs[state.mode] || [];
+    $('logMeta').textContent = t(state.mode === 'research' ? 'mode.research' : 'mode.verify') + ' · ' + logs.length + ' · ' + t('state.' + kind);
+  }
+}
+
+function setBusy(busy) {
+  state.busy = busy;
+  $('runBtn').disabled = busy;
+  $('clearBtn').disabled = busy;
+  $('modeResearch').disabled = busy;
+  $('modeVerify').disabled = busy;
+  $('screenshotToggle').disabled = busy || !canShots();
+  $('screenshotToggleDrawer').disabled = busy || !canShots();
+  $('saveLlm').disabled = busy;
+  $('saveSearch').disabled = busy;
+  renderModeUI();
+  if (state.health) renderStatus();
+}
+
+function canShots() {
+  const shots = (state.health && state.health.screenshots) || {};
+  return Boolean(shots.chrome) && !String(shots.reason || '').includes('websockets');
+}
+
+async function execute() {
+  if (state.busy) return;
+  const text = $('queryInput').value.trim();
+  if (!text) {
+    showToast(state.lang === 'zh' ? '请先输入问题或说法。' : 'Enter a question or claim first.', 'error');
+    $('queryInput').focus();
     return;
   }
-  const llmText = llm.key_present
-    ? (llm.provider || 'provider') + ' / ' + (llm.model || '自动选择')
-    : '未配置 LLM（只输出来源分册/规则摘要）';
-  const shot = health.screenshots || {};
-  const shotText = shot.enabled ? ('截图证据：' + (shot.reason ? shot.reason : '已启用')) : '截图证据：未启用（' + (shot.reason || '未知') + '）';
-  showNotice('真实检索已连接：元宝 SearchPro API。LLM：' + llmText + '。' + shotText, 'ok');
-}
+  const mode = state.mode;
+  state.logs[mode] = [];
+  state.reports[mode] = null;
+  state.data[mode] = null;
+  setBusy(true);
+  setRunState(mode === 'research' ? 'researching' : 'verifying');
+  addLog(mode, 'start', t(mode === 'research' ? 'log.startResearch' : 'log.startVerify'));
+  if (mode === 'research') {
+    try {
+      const data = await api('/api/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      state.data.research = data;
+      state.reports.research = data.report || null;
+      buildResearchLogs(data);
+      renderLogs();
+      renderReport();
+      setRunState('done');
+    } catch (error) {
+      addLog('research', 'error', error.message, 'error');
+      setRunState('failed');
+      showToast(error.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+    return;
+  }
 
-function setBusy(busy, mode) {
-  state.busy = busy;
-  ['planBtn', 'researchRunBtn', 'researchClearBtn', 'verifyRunBtn', 'verifyClearBtn'].forEach((id) => {
-    const node = $(id);
-    if (node) node.disabled = busy;
-  });
-  $('planBtn').textContent = busy && mode === 'plan' ? '生成中…' : '生成查询计划';
-  $('researchRunBtn').textContent = busy && mode === 'research' ? '研究中…' : '开始研究';
-  $('verifyRunBtn').textContent = busy && mode === 'verify' ? '查证中…' : '开始查证';
-  $('verifyCancelBtn').disabled = !(busy && mode === 'verify');
-}
-
-function formPayload(inputId) {
-  return { text: $(inputId).value.trim() };
-}
-
-function clearResearch() {
-  $('researchInput').value = '';
-  $('planPanel').hidden = true;
-  $('researchPanel').hidden = true;
-  state.planId = null;
-  $('researchInput').focus();
-}
-
-function clearVerify() {
-  stopVerify();
-  $('verifyInput').value = '';
-  $('verifyPanel').hidden = true;
-  $('verifyLog').innerHTML = '';
-  $('verifyResults').innerHTML = '';
-  $('verifyInput').focus();
-}
-
-async function loadPlan() {
-  const payload = formPayload('researchInput');
-  if (!payload.text) { showError('请先输入研究问题。'); return; }
-  $('planPanel').hidden = false;
-  $('researchPanel').hidden = true;
-  $('planState').textContent = '生成中…';
-  $('planSub').textContent = payload.text;
-  $('planSummary').textContent = '';
-  $('planId').textContent = '-';
-  $('planQueries').textContent = '正在拆分需求并构造查询…';
-  $('planFallbacks').textContent = '';
-  setBusy(true, 'plan');
   try {
-    const data = await api('/api/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    state.planId = data.plan_id;
-    renderPlan(data);
-    $('planState').textContent = '已生成';
+    const run = await api('/api/runs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    state.verifyRunId = run.run_id;
+    addLog('verify', 'connected', t('log.requestSubmitted', { id: run.run_id }));
+    connectEvents(run.run_id);
   } catch (error) {
-    $('planState').textContent = '失败';
-    $('planQueries').textContent = '';
-    showError('查询计划失败：' + error.message);
-  } finally {
+    addLog('verify', 'error', error.message, 'error');
+    setRunState('failed');
     setBusy(false);
+    showToast(error.message, 'error');
   }
 }
 
-function renderPlan(data) {
-  const requirements = data.requirements || [];
-  const initial = data.queries || [];
-  const fallbacks = data.fallback_queries || [];
-  $('planSummary').textContent = (data.method || '规则') + ' · ' + requirements.length + ' 条需求 · ' + initial.length + ' 条初始查询 · ' + fallbacks.length + ' 条候选回退';
-  $('planId').textContent = data.plan_id || '-';
-  const byId = new Map(requirements.map((item) => [item.requirement_id, item]));
-  $('planQueries').innerHTML = queryList(initial, byId);
-  $('planFallbacks').innerHTML = queryList(fallbacks, byId);
+function clearActive() {
+  if (state.busy) return;
+  $('queryInput').value = '';
+  state.logs[state.mode] = [];
+  state.reports[state.mode] = null;
+  state.data[state.mode] = null;
+  setRunState('ready');
+  renderLogs();
+  renderReport();
+  $('queryInput').focus();
 }
 
-function queryList(items, byId) {
-  if (!items.length) return '<p class="muted">暂无</p>';
-  return items.map((item) => {
-    const requirement = byId.get(item.requirement_id);
-    const field = requirement ? requirement.field : '';
-    const focus = requirement ? (requirement.focus || '') : '';
-    const directed = item.site || item.industry || '无定向';
-    return '<div class="query-row"><div class="query-text">' + esc(item.query) + '</div>' +
-      '<div class="query-meta">' + esc(field) + ' · ' + esc(item.precision || '') + ' · ' + esc(directed) + ' · ' + esc(item.freshness || '') + (focus ? ' · focus=' + esc(focus) : '') + '</div></div>';
+function clearActiveLog() {
+  state.logs[state.mode] = [];
+  renderLogs();
+}
+
+function addLog(mode, stage, message, level) {
+  const now = new Date();
+  state.logs[mode].push({
+    time: now.toLocaleTimeString(),
+    stage: stage,
+    message: message,
+    level: level || 'info'
+  });
+  if (mode === state.mode) renderLogs();
+}
+
+function renderLogs() {
+  const list = $('logList');
+  const logs = state.logs[state.mode] || [];
+  $('logMeta').textContent = t(state.mode === 'research' ? 'mode.research' : 'mode.verify') + ' · ' + logs.length + ' · ' + t('state.' + state.runState);
+  if (!logs.length) {
+    list.innerHTML = '<li class="log-empty">' + esc(t('log.noLogs')) + '</li>';
+    return;
+  }
+  list.innerHTML = logs.map((entry) => {
+    const stage = t('stage.' + entry.stage) || entry.stage;
+    return '<li class="log-entry ' + esc(entry.level || 'info') + '">' +
+      '<time>' + esc(entry.time) + '</time>' +
+      '<span class="log-stage">' + esc(stage) + '</span>' +
+      '<span class="log-message">' + esc(entry.message) + '</span></li>';
   }).join('');
 }
 
-async function runResearch() {
-  const payload = formPayload('researchInput');
-  if (!payload.text) { showError('请先输入研究问题。'); return; }
-  $('researchPanel').hidden = false;
-  $('planPanel').hidden = true;
-  $('researchState').textContent = '研究中…';
-  $('researchSub').textContent = payload.text;
-  $('researchAnswer').innerHTML = '<p class="muted">正在执行需求拆分、查询构造、检索、去重、分级和截图；通常需要十几秒。</p>';
-  $('researchMetrics').innerHTML = '';
-  $('sourceLedger').innerHTML = '';
-  $('researchIssues').innerHTML = '';
-  state.report = null;
-  setBusy(true, 'research');
-  try {
-    const body = { text: payload.text };
-    if (state.planId) body.plan_id = state.planId;
-    const data = await api('/api/research', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    state.report = data.report || null;
-    if (data.plan_id) state.planId = data.plan_id;
-    renderResearch(data);
-    $('researchState').textContent = '已完成';
-  } catch (error) {
-    $('researchState').textContent = '失败';
-    $('researchAnswer').innerHTML = '';
-    showError('研究失败：' + error.message);
-  } finally {
-    setBusy(false);
-  }
-}
-
-function metricCard(label, value) {
-  return '<div class="metric"><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong></div>';
-}
-
-function renderResearch(data) {
+function buildResearchLogs(data) {
   const metrics = data.metrics || {};
   const answer = data.answer || {};
-  const citations = answer.citations || [];
-  const valid = new Set(citations.map((item) => Number(item.n)));
-  $('researchSub').textContent = (data.domain || '研究问题') + ' · ' + (data.method || 'llm') + ' · ' + (data.question || '');
-  $('researchAnswer').innerHTML = answerCard(answer, valid);
-  const issues = data.citation_issues || answer.citation_issues || [];
-  $('researchIssues').innerHTML = issues.length
-    ? '<div class="notice warn">引用校验：' + issues.map((item) => '[' + esc(item.n) + '] ' + esc(item.reason)).join('；') + '</div>'
-    : '';
-  $('researchMetrics').innerHTML = [
-    metricCard('需求覆盖 A/B', (metrics.requirements_with_ab || 0) + '/' + (metrics.requirements || 0)),
-    metricCard('A/B 来源占比', pct(metrics.ab_source_rate)),
-    metricCard('去重后页数', String(metrics.pages_unique || 0)),
-    metricCard('去重条数', String(metrics.duplicates_removed || 0)),
-    metricCard('定向查询占比', pct(metrics.directed_query_rate)),
-    metricCard('截图', String(metrics.screenshots || 0)),
-  ].join('');
-  $('sourceLedger').innerHTML = (data.source_ledger || []).map(ledgerCard).join('') || '<p class="muted">没有可展示的来源分册。</p>';
-}
-
-function answerCard(answer, valid) {
-  const raw = esc(String(answer.text || answer.answer || ''));
-  const text = raw.replace(/\n/g, '<br>').replace(/\[(\d+)\]/g, (match, number) => {
-    return valid.has(Number(number)) ? '<a class="cite-ref" href="#cite-' + number + '">[' + number + ']</a>' : match;
+  state.logs.research = [];
+  addLog('research', 'plan', t('log.plan', { n: metrics.requirements || 0, method: data.method || '-' }));
+  (data.queries || []).forEach((query) => {
+    addLog('research', 'query', t('log.query', { query: query.query || '' }));
   });
-  const citations = (answer.citations || []).map((citation) => sourceCard(citation, citation.n)).join('');
-  const fallback = answer.engine === 'llm' ? '' : '<span class="muted">（规则摘要，未调用大模型）</span>';
-  return '<div class="answer-box"><div class="answer-head"><span class="eyebrow">研究综述（非断言判定）</span>' + fallback + '</div>' +
-    '<div class="answer-text">' + text + '</div>' +
-    (answer.uncertainty ? '<p class="answer-note">' + esc(answer.uncertainty) + '</p>' : '') +
-    (citations ? '<details class="citations" open><summary>引用来源（' + answer.citations.length + '）</summary><ul class="sources">' + citations + '</ul></details>' : '') +
-    '</div>';
-}
-
-function ledgerCard(entry) {
-  const sources = (entry.sources || []).map((source) => sourceCard(source, source.n)).join('');
-  const tier = TIER_LABEL[entry.tier] || entry.tier || '未知';
-  return '<article class="result-card"><div class="result-head"><div><p class="eyebrow">' + esc(entry.field || '') + '</p>' +
-    '<h3>' + esc(entry.text || entry.field || '') + '</h3></div><span class="tier">' + esc(tier) + '</span></div>' +
-    '<p class="result-summary">去重后 ' + (entry.unique_pages || 0) + ' 页 · ' + (entry.clusters || 0) + ' 个来源簇 · ' +
-    'A/B ' + ((entry.grade_counts && (entry.grade_counts.A + entry.grade_counts.B)) || 0) + ' 条</p>' +
-    (sources ? '<ul class="sources">' + sources + '</ul>' : '<p class="empty-source">没有找到可用的 A/B 或 C 级来源。</p>') +
-    '</article>';
-}
-
-function sourceCard(source, number) {
-  const id = number ? ' id="cite-' + number + '"' : '';
-  const cluster = source.cluster_size > 1 ? ' · ' + source.cluster_size + ' 条同源' : '';
-  const screenshot = source.screenshot_url
-    ? '<a class="shot-link" href="' + esc(safeUrl(source.screenshot_url)) + '" target="_blank" rel="noopener"><img class="shot" loading="lazy" src="' + esc(safeUrl(source.screenshot_url)) + '" alt="来源截图"></a>'
-    : '';
-  const passage = source.passage ? '<p class="snippet">' + esc(source.passage.slice(0, 220)) + '</p>' : '';
-  return '<li class="source"' + id + '><span class="grade grade-' + esc(source.grade) + '">' + esc(source.grade || '?') + '</span>' +
-    '<div class="source-body"><a href="' + esc(safeUrl(source.url)) + '" target="_blank" rel="noopener">' +
-    (number ? '[' + number + '] ' : '') + esc(source.title || source.domain) + '</a>' +
-    '<p>' + esc(source.domain || '') + (source.date ? ' · ' + esc(source.date) : '') + esc(cluster) + '</p>' +
-    passage + screenshot + '</div></li>';
-}
-
-async function runVerify() {
-  const payload = formPayload('verifyInput');
-  if (!payload.text) { showError('请先输入待查证说法。'); return; }
-  stopVerify();
-  $('verifyPanel').hidden = false;
-  $('verifySub').textContent = payload.text;
-  $('verifyState').textContent = '查证中…';
-  $('verifyLog').innerHTML = '';
-  $('verifyResults').innerHTML = '';
-  state.report = null;
-  setBusy(true, 'verify');
-  try {
-    const data = await api('/api/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    state.verifyRunId = data.run_id;
-    connectEvents(data.run_id);
-  } catch (error) {
-    $('verifyState').textContent = '失败';
-    showError('查证失败：' + error.message);
-    setBusy(false);
-  }
+  addLog('research', 'dedup', t('log.dedup', {
+    raw: metrics.pages_raw || 0,
+    unique: metrics.pages_unique || 0,
+    removed: metrics.duplicates_removed || 0
+  }));
+  (data.source_ledger || []).forEach((entry) => {
+    addLog('research', 'ledger', t('log.ledger', {
+      field: entry.field || '',
+      tier: entry.tier || '',
+      unique: entry.unique_pages || 0,
+      clusters: entry.clusters || 0
+    }));
+  });
+  addLog('research', 'screenshot', t('log.screenshot', { n: metrics.screenshots || 0 }));
+  addLog('research', 'answer', t('log.answer', {
+    engine: answer.engine || '-',
+    citations: (answer.citations || []).length
+  }));
+  addLog('research', 'done', t('log.done', { reason: data.stop_reason || 'completed' }));
 }
 
 function connectEvents(runId) {
@@ -325,7 +513,7 @@ function connectEvents(runId) {
   const types = ['run.started', 'split.done', 'query.planned', 'search.result', 'round.judged', 'unit.verdict', 'advisory.ready', 'run.stats', 'run.done', 'error'];
   types.forEach((type) => source.addEventListener(type, (event) => handleEvent(type, event.data)));
   source.onerror = () => {
-    appendLog('SSE 连接中断，切换为轮询');
+    addLog('verify', 'connected', t('log.polling'));
     stopEvents();
     startPolling(runId);
   };
@@ -334,71 +522,51 @@ function connectEvents(runId) {
 function handleEvent(type, raw) {
   let data = {};
   try { data = JSON.parse(raw || '{}'); } catch { data = {}; }
-  if (type === 'split.done') {
-    appendLog('拆分出 ' + (data.facts || []).length + ' 条断言');
+  if (type === 'run.started') {
+    addLog('verify', 'connected', t('log.connected'));
+  } else if (type === 'split.done') {
+    addLog('verify', 'split', t('log.split', { n: (data.facts || []).length }));
   } else if (type === 'query.planned') {
-    appendLog('查询：' + (data.query || ''));
+    addLog('verify', 'query', t('log.query', { query: data.query || '' }));
   } else if (type === 'search.result') {
-    appendLog('检索：' + (data.pages || 0) + ' 页' + (data.error ? '，错误：' + data.error : ''));
+    addLog('verify', 'search', t('log.searchResult', {
+      pages: data.pages || 0,
+      error: data.error ? ' / ' + data.error : ''
+    }));
   } else if (type === 'round.judged') {
-    appendLog('第 ' + ((data.round || 0) + 1) + ' 轮：' + (data.verdict || '') + '（' + (data.rule_id || '') + '）');
+    addLog('verify', 'judge', t('log.round', {
+      round: (data.round || 0) + 1,
+      verdict: data.verdict || '',
+      rule: data.rule_id || ''
+    }));
   } else if (type === 'unit.verdict') {
-    renderUnit(data);
+    addLog('verify', 'judge', t('log.unit', {
+      text: (data.assertion && data.assertion.text) || '',
+      verdict: data.verdict || '',
+      rule: data.rule_id || ''
+    }));
   } else if (type === 'advisory.ready') {
-    applyAdvisories(data.items || {});
+    addLog('verify', 'advisory', t('log.advisory'));
   } else if (type === 'run.stats') {
-    appendLog('统计：检索 ' + (data.calls || 0) + ' 次，缓存 ' + (data.cache_hits || 0) + ' 次，簇 ' + (data.clusters || 0) + ' 个');
+    addLog('verify', 'stats', t('log.stats', {
+      calls: data.calls || 0,
+      hits: data.cache_hits || 0,
+      clusters: data.clusters || 0
+    }));
   } else if (type === 'run.done') {
-    state.report = data.report || null;
-    $('verifyState').textContent = '已完成';
-    appendLog('完成：' + (data.stop_reason || 'completed'));
+    state.reports.verify = data.report || null;
+    addLog('verify', 'done', t('log.done', { reason: data.stop_reason || 'completed' }));
+    setRunState('done');
     stopVerify();
     setBusy(false);
     renderReport();
   } else if (type === 'error') {
-    $('verifyState').textContent = '失败';
-    showError('查证失败：' + (data.message || '未知错误'));
+    addLog('verify', 'error', data.message || 'unknown error', 'error');
+    setRunState('failed');
     stopVerify();
     setBusy(false);
+    showToast(data.message || 'Run failed', 'error');
   }
-}
-
-function appendLog(text) {
-  const item = document.createElement('li');
-  item.textContent = String(text);
-  $('verifyLog').appendChild(item);
-}
-
-function renderUnit(unit) {
-  const id = unit.unit_id || ('unit-' + Date.now());
-  const layered = unit.layered || {};
-  const votes = unit.cluster_votes || {};
-  const evidence = (unit.evidence || []).map((item) => {
-    const quote = item.quote ? '<blockquote>' + esc(item.quote) + '</blockquote>' : '';
-    return '<li class="source"><span class="grade grade-' + esc(item.grade) + '">' + esc(item.grade || '?') + '</span>' +
-      '<div class="source-body"><a href="' + esc(safeUrl(item.url)) + '" target="_blank" rel="noopener">' + esc(item.title || item.domain) + '</a>' +
-      '<p>' + esc(item.relation || '') + (item.date ? ' · ' + esc(item.date) : '') + '</p>' + quote + '</div></li>';
-  }).join('');
-  const advisory = unit.advisory ? '<p class="advisory">模型参考意见（非判定）：' + esc(unit.advisory.text || '') + '</p>' : '';
-  const card = '<article class="result-card" id="' + esc(id) + '"><div class="result-head"><div><p class="eyebrow">' + esc(unit.assertion && unit.assertion.field || '') + '</p>' +
-    '<h3>' + esc(unit.assertion && unit.assertion.text || '') + '</h3></div>' +
-    '<span class="tier">' + esc(unit.verdict || '') + ' · ' + esc(unit.rule_id || '') + '</span></div>' +
-    '<p class="result-summary">只看 A 级：' + esc(layered.a_level_only || '') + ' · 支持 ' + (votes.support || 0) + ' / 反驳 ' + (votes.refute || 0) +
-    ' · 检索 ' + (unit.calls_used || 0) + ' 次' + (votes.note ? ' · ' + esc(votes.note) : '') + '</p>' +
-    '<p>' + esc(unit.action || '') + '</p>' + advisory +
-    (evidence ? '<ul class="sources">' + evidence + '</ul>' : '<p class="empty-source">没有可用证据。</p>') + '</article>';
-  const existing = document.getElementById(id);
-  if (existing) existing.outerHTML = card;
-  else $('verifyResults').insertAdjacentHTML('beforeend', card);
-}
-
-function applyAdvisories(items) {
-  Object.keys(items || {}).forEach((unitId) => {
-    const card = document.getElementById(unitId);
-    if (!card || card.querySelector('.advisory')) return;
-    const item = items[unitId] || {};
-    card.insertAdjacentHTML('beforeend', '<p class="advisory">模型参考意见（非判定）：' + esc(item.text || '') + '</p>');
-  });
 }
 
 function stopEvents() {
@@ -418,61 +586,63 @@ function stopPolling() {
 function stopVerify() {
   stopEvents();
   stopPolling();
+  state.verifyRunId = null;
 }
 
 function startPolling(runId) {
   stopPolling();
   state.pollTimer = setInterval(async () => {
     try {
-      const data = await api('/api/runs/' + encodeURIComponent(runId));
+      const data = await api('/api/runs/' + encodeURIComponent(runId), {}, 30000);
       if (data.status === 'done' || data.status === 'error' || data.status === 'cancelled') {
-        if (data.report) state.report = data.report;
-        $('verifyState').textContent = data.status === 'done' ? '已完成' : data.status;
+        if (data.report) state.reports.verify = data.report;
+        addLog('verify', data.status === 'done' ? 'done' : 'error', t('log.done', { reason: data.status }));
+        setRunState(data.status === 'done' ? 'done' : 'failed');
         stopVerify();
         setBusy(false);
         renderReport();
       }
     } catch (error) {
+      addLog('verify', 'error', error.message, 'error');
+      setRunState('failed');
       stopVerify();
       setBusy(false);
-      showError('查证轮询中断：' + error.message);
+      showToast(error.message, 'error');
     }
   }, 1500);
 }
 
-async function cancelVerify() {
-  if (!state.verifyRunId) return;
-  try {
-    await api('/api/runs/' + encodeURIComponent(state.verifyRunId) + '/cancel', { method: 'POST' });
-    appendLog('已请求取消');
-  } catch (error) {
-    showError('取消失败：' + error.message);
-  }
-}
-
 function renderReport() {
-  if (!state.report) return;
-  $('reportBox').innerHTML = reportCard(state.report);
-}
-
-function reportCard(report) {
-  if (!report) return '';
-  if (report.kind === 'verification') return verificationReport(report);
-  return researchReport(report);
+  const report = state.reports[state.mode];
+  if (!report) {
+    $('reportBox').innerHTML = '<div class="empty-state"><strong>' + esc(t('report.emptyTitle')) + '</strong><p>' + esc(t('report.emptyText')) + '</p></div>';
+    return;
+  }
+  $('reportBox').innerHTML = state.mode === 'research' ? researchReport(report) : verificationReport(report);
 }
 
 function researchReport(report) {
-  const citations = (report.citations || []).map((citation) => sourceCard(citation, citation.n)).join('');
-  const ledger = (report.source_ledger || []).map(ledgerCard).join('');
+  const metrics = report.metrics || {};
+  const citations = (report.citations || []).map((item) => sourceCard(item, item.n)).join('');
+  const ledger = (report.source_ledger || []).map((entry) => ledgerCard(entry)).join('');
   const issues = (report.citation_issues || []).length
-    ? '<p class="answer-note">引用校验：' + report.citation_issues.map((item) => '[' + esc(item.n) + '] ' + esc(item.reason)).join('；') + '</p>'
+    ? '<p class="answer-note">' + esc(t('report.issues')) + ': ' + report.citation_issues.map((item) => '[' + esc(item.n) + '] ' + esc(item.reason)).join('; ') + '</p>'
     : '';
-  return '<div class="answer-box"><div class="answer-head"><span class="eyebrow">研究报告 · 非断言判定</span></div>' +
-    '<div class="answer-text">' + esc(String(report.summary || '')).replace(/\n/g, '<br>') + '</div>' +
+  return '<section class="report-content">' +
+    '<div class="report-summary"><h3>' + esc(t('report.summary')) + '</h3><p>' + esc(String(report.summary || '')).replace(/\n/g, '<br>') + '</p></div>' +
     (report.uncertainty ? '<p class="answer-note">' + esc(report.uncertainty) + '</p>' : '') + issues +
-    (citations ? '<details class="citations" open><summary>引用来源（' + report.citations.length + '）</summary><ul class="sources">' + citations + '</ul></details>' : '') +
-    (ledger ? '<h4>来源分册</h4>' + ledger : '') +
-    '<p class="answer-note">' + esc(report.disclaimer || '') + '</p></div>';
+    '<div class="metric-grid">' +
+      metricCard(t('metric.requirements'), (metrics.requirements_with_ab || 0) + '/' + (metrics.requirements || 0)) +
+      metricCard(t('metric.ab'), pct(metrics.ab_source_rate)) +
+      metricCard(t('metric.unique'), String(metrics.pages_unique || 0)) +
+      metricCard(t('metric.duplicates'), String(metrics.duplicates_removed || 0)) +
+      metricCard(t('metric.directed'), pct(metrics.directed_query_rate)) +
+      metricCard(t('metric.screenshots'), String(metrics.screenshots || 0)) +
+    '</div>' +
+    (citations ? '<details class="citations" open><summary>' + esc(t('report.citations')) + ' (' + report.citations.length + ')</summary><ul class="sources">' + citations + '</ul></details>' : '') +
+    (ledger ? '<h3 class="report-subhead">' + esc(t('report.sources')) + '</h3><div class="source-ledger">' + ledger + '</div>' : '') +
+    (report.disclaimer ? '<p class="answer-note">' + esc(report.disclaimer) + '</p>' : '') +
+    '</section>';
 }
 
 function verificationReport(report) {
@@ -483,19 +653,139 @@ function verificationReport(report) {
         '<div class="source-body"><a href="' + esc(safeUrl(item.url)) + '" target="_blank" rel="noopener">' + esc(item.title || item.domain) + '</a>' +
         '<p>' + esc(item.relation || '') + (item.date ? ' · ' + esc(item.date) : '') + '</p>' + quote + '</div></li>';
     }).join('');
-    const advisory = unit.advisory ? '<p class="advisory">模型参考意见（非判定）：' + esc(unit.advisory.text || '') + '</p>' : '';
-    return '<article class="result-card"><div class="result-head"><div><h3>' + esc(unit.assertion && unit.assertion.text || '') + '</h3></div>' +
-      '<span class="tier">' + esc(unit.verdict || '') + ' · ' + esc(unit.rule_id || '') + '</span></div>' +
-      '<p class="result-summary">只看 A 级：' + esc(unit.layered && unit.layered.a_level_only || '') + ' · 支持 ' + (unit.cluster_votes && unit.cluster_votes.support || 0) +
-      ' / 反驳 ' + (unit.cluster_votes && unit.cluster_votes.refute || 0) + '</p><p>' + esc(unit.action || '') + '</p>' + advisory +
+    const advisory = unit.advisory ? '<p class="advisory">' + esc(t('report.aiAdvisory')) + ': ' + esc(unit.advisory.text || '') + '</p>' : '';
+    return '<article class="result-card"><div class="result-head"><div><p class="eyebrow">' + esc(unit.assertion && unit.assertion.field || '') + '</p>' +
+      '<h3>' + esc(unit.assertion && unit.assertion.text || '') + '</h3></div>' +
+      '<span class="tier tier-' + esc(String(unit.verdict || '').toLowerCase()) + '">' + esc(unit.verdict || '') + ' · ' + esc(unit.rule_id || '') + '</span></div>' +
+      '<p class="result-summary">' + esc(t('report.verdict')) + ': ' + esc(unit.layered && unit.layered.a_level_only || '') +
+      ' · ' + esc(t('report.cluster')) + ': ' + (unit.cluster_votes && unit.cluster_votes.support || 0) + ' / ' + (unit.cluster_votes && unit.cluster_votes.refute || 0) + '</p>' +
+      '<p>' + esc(unit.action || '') + '</p>' + advisory +
       (evidence ? '<ul class="sources">' + evidence + '</ul>' : '') + '</article>';
   }).join('');
-  return '<div class="answer-box"><div class="answer-head"><span class="eyebrow">断言查证报告</span></div>' +
-    '<div class="answer-text">' + esc(report.task && report.task.text || '') + '</div>' + units +
-    '<p class="answer-note">' + esc(report.disclaimer || '') + '</p></div>';
+  return '<section class="report-content"><div class="report-summary"><h3>' + esc(t('report.verdict')) + '</h3>' +
+    '<p>' + esc(report.task && report.task.text || '') + '</p></div>' + units +
+    '<p class="answer-note">' + esc(report.disclaimer || '') + '</p></section>';
+}
+
+function ledgerCard(entry) {
+  const sources = (entry.sources || []).map((source) => sourceCard(source, source.n)).join('');
+  return '<article class="result-card"><div class="result-head"><div><p class="eyebrow">' + esc(entry.field || '') + '</p>' +
+    '<h3>' + esc(entry.text || entry.field || '') + '</h3></div><span class="tier">' + esc(entry.tier || '') + '</span></div>' +
+    '<p class="result-summary">' + (entry.unique_pages || 0) + ' pages · ' + (entry.clusters || 0) + ' clusters</p>' +
+    (sources ? '<ul class="sources">' + sources + '</ul>' : '<p class="empty-source">' + esc(t('report.noSources')) + '</p>') + '</article>';
+}
+
+function sourceCard(source, number) {
+  const cluster = source.cluster_size > 1 ? ' · ' + source.cluster_size + ' same-cluster' : '';
+  const screenshot = source.screenshot_url
+    ? '<a class="shot-link" href="' + esc(safeUrl(source.screenshot_url)) + '" target="_blank" rel="noopener"><img class="shot" loading="lazy" src="' + esc(safeUrl(source.screenshot_url)) + '" alt="source screenshot"></a>'
+    : '';
+  const passage = source.passage ? '<p class="snippet">' + esc(String(source.passage).slice(0, 220)) + '</p>' : '';
+  return '<li class="source"><span class="grade grade-' + esc(source.grade) + '">' + esc(source.grade || '?') + '</span>' +
+    '<div class="source-body"><a href="' + esc(safeUrl(source.url)) + '" target="_blank" rel="noopener">' +
+    (number ? '[' + number + '] ' : '') + esc(source.title || source.domain) + '</a>' +
+    '<p>' + esc(source.domain || '') + (source.date ? ' · ' + esc(source.date) : '') + esc(cluster) + '</p>' + passage + screenshot + '</div></li>';
+}
+
+function metricCard(label, value) {
+  return '<div class="metric"><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong></div>';
 }
 
 function safeUrl(value) {
   const raw = String(value || '').trim();
   return /^https?:\/\//i.test(raw) || /^\/api\/evidence\//.test(raw) ? raw : '#';
+}
+
+function openDrawer(section) {
+  $('drawerBackdrop').hidden = false;
+  $('configDrawer').hidden = false;
+  if (section) {
+    const target = section === 'llm' ? $('llmConfigSection') : section === 'search' ? $('searchConfigSection') : $('screenshotSection');
+    if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+  setTimeout(() => $('llmKey').focus(), 150);
+}
+
+function closeDrawer() {
+  $('drawerBackdrop').hidden = true;
+  $('configDrawer').hidden = true;
+}
+
+async function saveLlm() {
+  const provider = $('llmProvider').value;
+  const key = $('llmKey').value.trim();
+  const base = $('llmBase').value.trim();
+  const model = $('llmModel').value.trim();
+  const payload = { provider };
+  if (key) payload.api_key = key;
+  if (base) payload.base_url = base;
+  if (model) payload.model = model;
+  $('llmSaveState').textContent = t('state.saving');
+  try {
+    await api('/api/config/llm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    $('llmKey').value = '';
+    $('llmSaveState').textContent = t('config.saved');
+    showToast(t('config.saved'), 'ok');
+    await refreshHealth();
+  } catch (error) {
+    $('llmSaveState').textContent = t('config.saveFailed');
+    showToast(error.message, 'error');
+  }
+}
+
+async function saveSearch() {
+  const key = $('searchKey').value.trim();
+  const base = $('searchBase').value.trim();
+  const payload = {};
+  if (key) payload.api_key = key;
+  if (base) payload.base_url = base;
+  $('searchSaveState').textContent = t('state.saving');
+  try {
+    await api('/api/config/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    $('searchKey').value = '';
+    $('searchSaveState').textContent = t('config.saved');
+    showToast(t('config.saved'), 'ok');
+    await refreshHealth();
+  } catch (error) {
+    $('searchSaveState').textContent = t('config.saveFailed');
+    showToast(error.message, 'error');
+  }
+}
+
+async function setScreenshots(enabled) {
+  if (!canShots()) {
+    $('screenshotToggle').checked = false;
+    $('screenshotToggleDrawer').checked = false;
+    showToast(t('config.shotUnavailable') + ': ' + ((state.health && state.health.screenshots && state.health.screenshots.reason) || ''), 'error');
+    return;
+  }
+  try {
+    await api('/api/config/screenshots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: enabled })
+    });
+    showToast(enabled ? t('config.shotEnabled') : t('config.shotDisabled'), 'ok');
+    await refreshHealth();
+  } catch (error) {
+    await refreshHealth().catch(() => null);
+    showToast(error.message, 'error');
+  }
+}
+
+function showToast(message, kind) {
+  const node = $('toast');
+  node.textContent = String(message);
+  node.className = 'toast ' + (kind || 'info');
+  node.hidden = false;
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => { node.hidden = true; }, 5000);
 }

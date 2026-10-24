@@ -1,89 +1,179 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>说法鉴定所 · Research Agent</title>
-  <link rel="stylesheet" href="/static/styles.css?v=3.1">
+  <link rel="stylesheet" href="/static/styles.css?v=3.3">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="说法鉴定所首页">
-      <span class="brand-mark" aria-hidden="true"></span>
-      <span><strong>说法鉴定所</strong><small>Research Agent</small></span>
-    </a>
-    <span id="modeBadge" class="badge muted">连接中</span>
+  <header class="app-header">
+    <div class="shell header-inner">
+      <a class="brand" href="/" aria-label="说法鉴定所">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span><strong>说法鉴定所</strong><small data-i18n="brand.sub">Research Agent</small></span>
+      </a>
+      <div class="header-actions">
+        <button id="llmStatus" class="status-chip warn" type="button" data-i18n-title="status.llmTitle">
+          <span class="dot"></span><span data-i18n="status.llm">LLM</span><b id="llmStatusText">检查中</b>
+        </button>
+        <button id="searchStatus" class="status-chip warn" type="button" data-i18n-title="status.searchTitle">
+          <span class="dot"></span><span data-i18n="status.search">搜索</span><b id="searchStatusText">检查中</b>
+        </button>
+        <label class="switch" data-i18n-title="status.screenshotTitle">
+          <input id="screenshotToggle" type="checkbox">
+          <span class="switch-track" aria-hidden="true"></span>
+          <span data-i18n="status.screenshot">截图</span>
+        </label>
+        <button id="themeToggle" class="icon-btn" type="button" data-i18n-title="status.theme">◐</button>
+        <button id="langToggle" class="icon-btn" type="button" data-i18n-title="status.lang">EN</button>
+        <button id="settingsBtn" class="icon-btn" type="button" data-i18n-title="status.settings">⚙</button>
+      </div>
+    </div>
   </header>
 
-  <main class="page">
-    <div id="notice" class="notice" role="alert" hidden></div>
+  <main class="shell main">
+    <section class="hero">
+      <p class="eyebrow" data-i18n="hero.eyebrow">深度研究 · 一句话查证</p>
+      <h1 data-i18n="hero.title">把问题变成可核查的证据链</h1>
+      <p class="hero-sub" data-i18n="hero.sub">检索、去重、来源分级、截图证据；研究给综述，查证给 R1–R5 判定。</p>
 
-    <nav class="tabs" id="tabs" role="tablist" aria-label="功能板块">
-      <button class="tab active" data-tab="research" type="button" role="tab" aria-selected="true">深度研究</button>
-      <button class="tab" data-tab="verify" type="button" role="tab" aria-selected="false">断言查证</button>
-      <button class="tab" data-tab="report" type="button" role="tab" aria-selected="false">报告</button>
-    </nav>
-
-    <section id="tab-research" class="tab-panel" role="tabpanel">
-      <div class="composer">
-        <label class="field-label" for="researchInput">研究问题</label>
-        <textarea id="researchInput" rows="3" placeholder="输入一个具体问题，例如：2024年全国居民人均可支配收入41314元的数据来源和统计口径是什么？"></textarea>
-        <div class="actions">
-          <button id="planBtn" class="btn" type="button">生成查询计划</button>
-          <button id="researchRunBtn" class="btn btn-primary" type="button">开始研究</button>
-          <button id="researchClearBtn" class="btn btn-quiet" type="button">清空</button>
-        </div>
-        <p class="hint">研究综述不是断言判定；需要成立/不成立请用「断言查证」。</p>
+      <div class="mode-switch" role="tablist" aria-label="Mode">
+        <button id="modeResearch" class="mode-btn active" data-mode="research" type="button" role="tab" aria-selected="true">
+          <strong data-i18n="mode.research">深度研究</strong>
+          <small data-i18n="mode.researchHint">检索、来源分册、研究综述</small>
+        </button>
+        <button id="modeVerify" class="mode-btn" data-mode="verify" type="button" role="tab" aria-selected="false">
+          <strong data-i18n="mode.verify">一句话查证</strong>
+          <small data-i18n="mode.verifyHint">R1–R5 确定性判定</small>
+        </button>
       </div>
 
-      <section id="planPanel" class="card panel" hidden>
-        <div class="panel-head"><div><h2>查询计划</h2><p id="planSub" class="muted"></p></div><span id="planState" class="state">准备中</span></div>
-        <p id="planSummary" class="summary"></p>
-        <p class="muted small">计划 ID：<code id="planId">-</code>；回退查询按检索结果条件触发。</p>
-        <div class="panel-grid">
-          <div><h3>初始查询</h3><div id="planQueries" class="query-list"></div></div>
-          <div><h3>候选回退</h3><div id="planFallbacks" class="query-list"></div></div>
-        </div>
-      </section>
-
-      <section id="researchPanel" class="card panel" hidden>
-        <div class="panel-head"><div><h2>研究结果</h2><p id="researchSub" class="muted"></p></div><span id="researchState" class="state">准备中</span></div>
-        <div id="researchAnswer" class="answer"></div>
-        <div id="researchIssues"></div>
-        <div id="researchMetrics" class="metrics"></div>
-        <div id="sourceLedger" class="source-ledger"></div>
-      </section>
-    </section>
-
-    <section id="tab-verify" class="tab-panel" role="tabpanel" hidden>
       <div class="composer">
-        <label class="field-label" for="verifyInput">待查证说法</label>
-        <textarea id="verifyInput" rows="3" placeholder="输入一条可被外部事实证明的说法，例如：该店人均68元，周一闭店。"></textarea>
-        <div class="actions">
-          <button id="verifyRunBtn" class="btn btn-primary" type="button">开始查证</button>
-          <button id="verifyCancelBtn" class="btn" type="button" disabled>取消</button>
-          <button id="verifyClearBtn" class="btn btn-quiet" type="button">清空</button>
+        <label class="sr-only" for="queryInput" data-i18n="input.label">输入</label>
+        <textarea id="queryInput" rows="3" data-i18n-placeholder="input.placeholderResearch" placeholder="输入一个具体的研究问题，例如：2024年全国居民人均可支配收入41314元的数据来源和统计口径是什么？"></textarea>
+        <div class="composer-actions">
+          <button id="runBtn" class="btn btn-primary" type="button" data-i18n="action.runResearch">开始研究</button>
+          <button id="clearBtn" class="btn btn-quiet" type="button" data-i18n="action.clear">清空</button>
+          <span id="runState" class="state-pill" data-i18n="state.ready">就绪</span>
         </div>
-        <p class="hint">判定由 R1–R5 代码完成；证据不足时附加模型参考意见，但不改变判定。</p>
+        <p id="inputHint" class="hint" data-i18n="input.hintResearch">研究综述不是判决；需要成立/不成立请切到「一句话查证」。</p>
       </div>
-      <section id="verifyPanel" class="card panel" hidden>
-        <div class="panel-head"><div><h2>查证进度</h2><p id="verifySub" class="muted"></p></div><span id="verifyState" class="state">准备中</span></div>
-        <ol id="verifyLog" class="progress-log"></ol>
-        <div id="verifyResults" class="results"></div>
-      </section>
+
+      <div id="setupCallout" class="setup-callout" hidden>
+        <span id="setupText" data-i18n="setup.llmMissing">LLM 未配置：请填写 API Key、Base URL 与模型。</span>
+        <button id="setupLlmBtn" class="btn btn-small" type="button" data-i18n="action.configure">配置</button>
+      </div>
     </section>
 
-    <section id="tab-report" class="tab-panel" role="tabpanel" hidden>
-      <div class="panel-head"><h2>报告</h2><button id="reportPrint" class="btn btn-quiet" type="button">打印</button></div>
-      <div id="reportBox" class="report-box"><p class="muted">尚未生成报告。请先运行「深度研究」或「断言查证」。</p></div>
+    <section class="workspace">
+      <section class="panel log-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow" data-i18n="log.eyebrow">Trace</p>
+            <h2 data-i18n="log.title">执行日志</h2>
+          </div>
+          <button id="clearLogBtn" class="btn btn-small btn-quiet" type="button" data-i18n="action.clearLog">清空日志</button>
+        </div>
+        <p id="logMeta" class="panel-meta" data-i18n="log.emptyMeta">运行后在这里保留每一步</p>
+        <ol id="logList" class="log-list"></ol>
+      </section>
+
+      <section class="panel report-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow" data-i18n="report.eyebrow">Report</p>
+            <h2 data-i18n="report.title">最终报告</h2>
+          </div>
+          <button id="printBtn" class="btn btn-small btn-quiet" type="button" data-i18n="action.print">打印</button>
+        </div>
+        <div id="reportBox" class="report-box">
+          <div class="empty-state">
+            <strong data-i18n="report.emptyTitle">还没有报告</strong>
+            <p data-i18n="report.emptyText">选择模式、输入问题并运行；日志和报告会分别保留。</p>
+          </div>
+        </div>
+      </section>
     </section>
 
     <footer class="footer">
-      <p>只核对公开信息与来源，不评价个人，不构成消费或法律建议。</p>
+      <p data-i18n="footer.disclaimer">只核对公开信息与来源，不评价个人，不构成消费或法律建议。</p>
     </footer>
   </main>
 
-  <script src="/static/app.js?v=3.1"></script>
+  <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
+  <aside id="configDrawer" class="drawer" hidden aria-label="Configuration">
+    <div class="drawer-head">
+      <div>
+        <p class="eyebrow" data-i18n="config.eyebrow">Settings</p>
+        <h2 data-i18n="config.title">配置</h2>
+      </div>
+      <button id="closeDrawer" class="icon-btn" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="drawer-body">
+      <section id="llmConfigSection" class="config-section">
+        <div class="section-title">
+          <h3>LLM</h3>
+          <span id="llmConfigStatus" class="config-status warn">未配置</span>
+        </div>
+        <label class="field"><span data-i18n="config.provider">Provider</span>
+          <select id="llmProvider">
+            <option value="deepseek">DeepSeek</option>
+            <option value="gpt">GPT (Toklens)</option>
+            <option value="codex">Codex (Toklens)</option>
+          </select>
+        </label>
+        <label class="field"><span data-i18n="config.apiKey">API Key</span>
+          <input id="llmKey" type="password" autocomplete="off" placeholder="sk-...">
+        </label>
+        <label class="field"><span data-i18n="config.baseUrl">Base URL</span>
+          <input id="llmBase" type="url" placeholder="https://api.deepseek.com/v1">
+        </label>
+        <label class="field"><span data-i18n="config.model">Model</span>
+          <input id="llmModel" type="text" placeholder="deepseek-flash">
+        </label>
+        <div class="config-actions">
+          <button id="saveLlm" class="btn btn-small btn-primary" type="button" data-i18n="action.save">保存</button>
+          <span id="llmSaveState" class="config-hint"></span>
+        </div>
+        <p class="config-hint" data-i18n="config.llmHint">Key 只写入本地 .env；保存后立即重建 LLM 客户端，不写入前端存储。</p>
+      </section>
+
+      <section id="searchConfigSection" class="config-section">
+        <div class="section-title">
+          <h3 data-i18n="config.searchTitle">元宝搜索</h3>
+          <span id="searchConfigStatus" class="config-status warn">未配置</span>
+        </div>
+        <label class="field"><span data-i18n="config.apiKey">API Key</span>
+          <input id="searchKey" type="password" autocomplete="off" placeholder="SearchPro key">
+        </label>
+        <label class="field"><span data-i18n="config.baseUrl">Base URL</span>
+          <input id="searchBase" type="url" placeholder="https://api.wsa.cloud.tencent.com">
+        </label>
+        <div class="config-actions">
+          <button id="saveSearch" class="btn btn-small btn-primary" type="button" data-i18n="action.save">保存</button>
+          <span id="searchSaveState" class="config-hint"></span>
+        </div>
+        <p class="config-hint" data-i18n="config.searchHint">用于元宝 SearchPro；保存后立即重建检索客户端。</p>
+      </section>
+
+      <section id="screenshotSection" class="config-section">
+        <div class="section-title">
+          <h3 data-i18n="config.screenshotTitle">截图证据</h3>
+          <span id="screenshotConfigStatus" class="config-status">检查中</span>
+        </div>
+        <label class="switch">
+          <input id="screenshotToggleDrawer" type="checkbox">
+          <span class="switch-track" aria-hidden="true"></span>
+          <span data-i18n="config.screenshotEnable">启用页面截图</span>
+        </label>
+        <p class="config-hint" data-i18n="config.screenshotHint">需要 Chrome/Edge 与 websockets；不可用时按钮禁用并显示原因。</p>
+      </section>
+    </div>
+  </aside>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/static/app.js?v=3.3"></script>
 </body>
 </html>

@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
@@ -18,10 +20,14 @@ from pydantic import BaseModel, ConfigDict, Field
 from . import __version__
 from .config import Settings, load_settings
 from .contracts import ResearchTask, jsonable
+from .envfile import read_env, upsert, write_env
+from .keys import normalize_base_url, strip_bearer
+from .llm.client import build_llm
 from .logging import configure_logging, event
 from .planning import build_research_plan
 from .research import run_research
 from .runtime import build_sandbox
+from .search.api import ApiSearchProvider
 from .runs import RunRecord, RunStore
 from .skills.reporting import render_markdown
 from .skills.safety import SafetyError, check_task
@@ -50,6 +56,22 @@ class ResearchRequest(StrictModel):
     text: str = Field(min_length=1, max_length=4000)
     refresh: bool = False
     plan_id: str | None = None
+
+
+class LLMConfigRequest(StrictModel):
+    provider: Literal["deepseek", "gpt", "codex"] = "deepseek"
+    api_key: str | None = Field(default=None, max_length=512)
+    base_url: str | None = Field(default=None, max_length=300)
+    model: str | None = Field(default=None, max_length=100)
+
+
+class SearchConfigRequest(StrictModel):
+    api_key: str | None = Field(default=None, max_length=512)
+    base_url: str | None = Field(default=None, max_length=300)
+
+
+class ScreenshotConfigRequest(StrictModel):
+    enabled: bool
 
 
 SKILLS = [
@@ -144,6 +166,99 @@ def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> 
         payload["llm_ready"] = bool((payload.get("llm") or {}).get("key_present"))
         payload["screenshots_ready"] = sandbox.screenshots.enabled
         return payload
+
+    def _save_updates(updates: dict[str, str]) -> None:
+        path = settings.root / ".env"
+        lines = read_env(path)
+        for key, value in updates.items():
+            upsert(lines, key, value)
+            os.environ[key] = value
+        write_env(path, lines)
+
+    def _checked_base_url(value: str) -> str:
+        parts = urlsplit(value.strip())
+        if parts.scheme not in {"http", "https"} or not parts.hostname:
+            raise HTTPException(status_code=400, detail="Base URL 必须是 http(s) 地址")
+        return normalize_base_url(value.strip())
+
+    @app.post("/api/config/llm")
+    async def config_llm(request: LLMConfigRequest) -> dict[str, Any]:
+        prefix = {"deepseek": "DEEPSEEK", "gpt": "GPT", "codex": "CODEX"}[request.provider]
+        updates: dict[str, str] = {"LLM_PROVIDER": request.provider}
+        if request.api_key is not None:
+            updates[f"{prefix}_API_KEY"] = strip_bearer(request.api_key.strip())
+        if request.base_url:
+            updates[f"{prefix}_BASE_URL"] = _checked_base_url(request.base_url)
+        if request.model and request.model.strip():
+            updates["LLM_MODEL"] = request.model.strip()
+        _save_updates(updates)
+        settings.llm_provider = request.provider
+        if request.model and request.model.strip():
+            settings.llm_model = request.model.strip()
+        old_llm = sandbox.llm
+        try:
+            sandbox.llm = build_llm(settings)
+        except Exception as exc:
+            sandbox.llm = old_llm
+            event(api_log, "config.llm.error", provider=request.provider, error=type(exc).__name__)
+            raise HTTPException(status_code=400, detail=f"LLM 配置失败: {type(exc).__name__}") from exc
+        try:
+            await old_llm.close()
+        except Exception:
+            pass
+        event(api_log, "config.llm", provider=request.provider, key_present=settings.llm_key_present)
+        return {
+            "ok": True,
+            "provider": settings.llm_provider,
+            "model": settings.llm_model or None,
+            "key_present": settings.llm_key_present,
+        }
+
+    @app.post("/api/config/search")
+    async def config_search(request: SearchConfigRequest) -> dict[str, Any]:
+        updates: dict[str, str] = {}
+        if request.api_key is not None:
+            updates["SEARCH_API_KEY"] = strip_bearer(request.api_key.strip())
+        if request.base_url:
+            updates["SEARCH_BASE_URL"] = _checked_base_url(request.base_url)
+        _save_updates(updates)
+        if request.api_key is not None:
+            settings.search_api_key = strip_bearer(request.api_key.strip())
+        if request.base_url:
+            settings.search_base_url = _checked_base_url(request.base_url)
+        old_providers = list(sandbox.providers.values())
+        sandbox.providers = (
+            {"api": ApiSearchProvider(settings)} if settings.search_api_key else {}
+        )
+        settings.search_provider = "api"
+        for provider in old_providers:
+            try:
+                await provider.close()
+            except Exception:
+                pass
+        event(api_log, "config.search", key_present=settings.search_key_present)
+        return {
+            "ok": True,
+            "key_present": settings.search_key_present,
+            "base_url": settings.search_base_url,
+        }
+
+    @app.post("/api/config/screenshots")
+    async def config_screenshots(request: ScreenshotConfigRequest) -> dict[str, Any]:
+        capturer = sandbox.screenshots
+        if request.enabled:
+            if not capturer.chrome:
+                raise HTTPException(status_code=400, detail="未找到 Chrome/Edge，无法启用截图")
+            if "websockets" in (capturer.reason or ""):
+                raise HTTPException(status_code=400, detail="websockets 未安装，无法启用截图")
+        settings.screenshot_enabled = request.enabled
+        capturer.enabled = bool(request.enabled and capturer.chrome)
+        capturer.reason = "" if capturer.enabled else (
+            "EVIDENCE_SCREENSHOTS disabled" if not request.enabled else capturer.reason
+        )
+        _save_updates({"EVIDENCE_SCREENSHOTS": "true" if request.enabled else "false"})
+        event(api_log, "config.screenshots", enabled=request.enabled)
+        return {"ok": True, "enabled": capturer.enabled, "reason": capturer.reason}
 
     @app.get("/api/skills")
     async def skills() -> list[dict[str, Any]]:

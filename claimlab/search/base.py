@@ -1,4 +1,5 @@
-"""Search provider contract shared by API, MCP and fake providers."""
+"""Search provider contract shared by the active API provider and the fake provider.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +15,9 @@ class ProviderHealth:
     configured: bool
     available: bool
     detail: str = ""
+    live_probe: bool = False
+    endpoint: str = ""
+    transport: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -21,6 +25,9 @@ class ProviderHealth:
             "configured": self.configured,
             "available": self.available,
             "detail": self.detail,
+            "live_probe": self.live_probe,
+            "endpoint": self.endpoint,
+            "transport": self.transport,
         }
 
 

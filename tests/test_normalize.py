@@ -1,6 +1,6 @@
 import json
 
-from claimlab.search.normalize import normalize_api_response, normalize_mcp_result, normalize_page, parse_pages_field
+from claimlab.search.normalize import normalize_api_response, normalize_page, parse_pages_field
 
 
 def test_official_pages_string_array():
@@ -59,30 +59,17 @@ def test_api_error_object():
     )
     assert not batch.ok
     assert "UnauthorizedOperation" in (batch.error or "")
+    assert batch.error_kind == "auth"
 
 
-def test_mcp_content_blocks():
-    result = {
-        "content": [
-            {
-                "type": "text",
-                "text": json.dumps(
-                    {"Pages": [json.dumps({"title": "mcp", "url": "https://www.gov.cn/a"})], "Version": "standard"}
-                ),
-            }
-        ]
-    }
-    batch = normalize_mcp_result(result, "mcp")
-    assert batch.ok
-    assert batch.pages[0].domain == "gov.cn"
-
-
-def test_mcp_plain_text_is_error():
-    batch = normalize_mcp_result({"content": [{"type": "text", "text": "not json"}]}, "mcp")
+def test_api_unexpected_shape_is_server_error():
+    batch = normalize_api_response(["not an object"], "api")
     assert not batch.ok
+    assert batch.error_kind == "server"
 
 
 def test_empty_pages_is_ok():
     batch = normalize_api_response({"Response": {"Pages": [], "Version": "standard"}})
     assert batch.ok
     assert batch.pages == []
+

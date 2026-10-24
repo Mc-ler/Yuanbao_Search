@@ -15,10 +15,10 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 from ..config import CONFIG_DIR
-from ..contracts import Claim, QueryPlan, Requirement, make_id
+from ..contracts import Claim, QueryPlan, Requirement, make_id, normalize_cnt
 
 
 @lru_cache(maxsize=1)
@@ -136,6 +136,7 @@ def plan_queries(
         industry: str | None = None,
         precision: str,
         strategy: str,
+        cnt: int = 10,
     ) -> QueryPlan:
         query = _fill(
             template,
@@ -151,7 +152,7 @@ def plan_queries(
             query=query,
             mode=0,
             site=site,
-            cnt=10,
+            cnt=cnt,
             industry=industry,
             freshness=freshness,
             precision=precision,  # type: ignore[arg-type]
@@ -337,3 +338,160 @@ def plan_requery_queries(
         if len(plans) >= max_plans:
             break
     return _dedupe(plans)
+
+def plan_time_series_queries(
+    target: Claim | Requirement,
+    subject: str | None = None,
+    city: str | None = None,
+    windows: list[str] | None = None,
+    years: list[str] | None = None,
+    used: set[tuple[str, str | None, str | None]] | None = None,
+    max_plans: int = 8,
+) -> list[QueryPlan]:
+    """Sweep Freshness windows / year terms to expand evidence coverage.
+
+    Each plan gets a distinct Freshness window (and an optional year prepended
+    to the query text) so successive queries hit different time slices instead
+    of returning the same top pages. Used by the broad-search script.
+    """
+    config = load_queries()
+    field = getattr(target, "field", "unknown") or "unknown"
+    field_cfg = config["fields"].get(field) or config["fields"]["unknown"]
+    city_value = city or getattr(target, "city", None) or config.get("default_city", "西安")
+    subject_value = (subject or getattr(target, "subject", None) or city_value or "").strip()
+    target_text = str(getattr(target, "text", "") or "").strip()
+    terms = [str(x).strip() for x in (getattr(target, "search_terms", []) or []) if str(x).strip()]
+    variants = field_cfg.get("variants") or [f"{{subject}} {target_text}"]
+    windows = [str(w) for w in (windows or ["d30", "m3", "m6", "y1", "y2", "y5"])]
+    years = [str(y) for y in (years or []) if str(y).strip()]
+    used = used or set()
+    target_id = str(getattr(target, "claim_id", "") or getattr(target, "requirement_id", "") or "")
+    plans: list[QueryPlan] = []
+    seen: set[tuple] = set()
+
+    def ts_key(plan: QueryPlan) -> tuple:
+        return (plan.query, plan.site, plan.industry, plan.freshness)
+
+    for window in windows:
+        for year in years or [None]:
+            for template in variants:
+                query = _fill(
+                    template,
+                    subject_value,
+                    city_value,
+                    target_text,
+                    " ".join(_clean_terms(terms, subject_value, city_value, template)),
+                )
+                if year and str(year) not in query:
+                    query = f"{year} {query}"
+                if not query:
+                    continue
+                plan = QueryPlan(
+                    plan_id=make_id("q", target_id, "ts", window, year or "", query),
+                    claim_id=str(getattr(target, "claim_id", "") or ""),
+                    requirement_id=str(getattr(target, "requirement_id", "") or ""),
+                    query=query,
+                    mode=0,
+                    cnt=10,
+                    industry="gov" if field in OFFICIAL_FIELDS else None,
+                    freshness=window,
+                    precision="precise" if field in OFFICIAL_FIELDS else "fuzzy",
+                    strategy=f"时间序列/{window}" + (f"/{year}" if year else ""),
+                )
+                if ts_key(plan) in seen or plan_key(plan) in used:
+                    continue
+                seen.add(ts_key(plan))
+                plans.append(plan)
+                if len(plans) >= max_plans:
+                    return plans
+    return plans
+
+_ALLOWED_INDUSTRY = {"gov", "news", "acad", "finance"}
+_ALLOWED_FRESHNESS = {"d30", "m3", "m6", "y1", "y2", "y5"}
+
+
+def coerce_llm_queries(
+    data: Any,
+    requirement: Requirement,
+    subject: str | None = None,
+    city: str | None = None,
+) -> list[QueryPlan]:
+    """Validate/coerce LLM-built SearchPro request fields into QueryPlans."""
+    if not isinstance(data, dict):
+        return []
+    raw_items = data.get("queries")
+    if not isinstance(raw_items, list):
+        return []
+    plans: list[QueryPlan] = []
+    for index, item in enumerate(raw_items):
+        if not isinstance(item, dict):
+            continue
+        query = str(item.get("query") or "").strip()
+        if not query:
+            continue
+        site = str(item.get("site") or "").strip() or None
+        industry = str(item.get("industry") or "").strip() or None
+        if industry and industry not in _ALLOWED_INDUSTRY:
+            industry = None
+        freshness = str(item.get("freshness") or "").strip() or None
+        if freshness and freshness not in _ALLOWED_FRESHNESS:
+            freshness = None
+        try:
+            mode = int(item.get("mode") or 0)
+        except (TypeError, ValueError):
+            mode = 0
+        cnt = normalize_cnt(item.get("cnt", 10))
+        precision = "precise" if (site or industry) else "fuzzy"
+        plans.append(
+            QueryPlan(
+                plan_id=make_id("q", requirement.requirement_id, "llm", index, query),
+                claim_id="",
+                requirement_id=requirement.requirement_id,
+                query=query,
+                mode=mode,
+                site=site,
+                cnt=cnt,
+                industry=industry,
+                freshness=freshness,
+                precision=precision,
+                round=0,
+                strategy="LLM构造",
+            )
+        )
+    return plans
+
+
+async def build_queries_llm(
+    llm: Any,
+    requirement: Requirement,
+    subject: str | None = None,
+    city: str | None = None,
+) -> list[QueryPlan]:
+    """LLM constructs SearchPro request fields; empty list on any failure."""
+    if llm is None:
+        return []
+    prompt = (
+        "你是查询构造器。给定一个可检索需求，为元宝 SearchPro 构造请求字段，只输出 JSON。\n"
+        "输出格式：{\"queries\":[{\"query\":\"...\",\"site\":null,\"industry\":\"gov\",\"freshness\":\"y2\",\"mode\":0,\"cnt\":10}]}\n"
+        "规则：\n"
+        "1. 生成 2-4 条查询，每条 query 可独立检索，直接可命中网页。\n"
+        "2. 至少一条带 site 或 industry。\n"
+        "3. site 填具体域名（如 gov.cn）或 null；industry 只能取 gov/news/acad/finance 或 null。\n"
+        "4. freshness 只能取 d30/m3/m6/y1/y2/y5 或 null。\n"
+        "5. cnt 取 10 或 20。\n"
+        "6. 把主体、城市、年份、指标写进 query 自然语言里，不要写进其它字段。"
+    )
+    payload = {
+        "text": requirement.text,
+        "field": requirement.field,
+        "subject": subject or requirement.subject or "",
+        "city": city or requirement.city or "",
+        "source_preference": requirement.source_preference or "",
+        "time_window": requirement.time_window or "",
+        "search_terms": requirement.search_terms or [],
+    }
+    try:
+        data = await llm.json("build_queries", payload, prompt)
+    except Exception:
+        return []
+    return coerce_llm_queries(data, requirement, subject, city)

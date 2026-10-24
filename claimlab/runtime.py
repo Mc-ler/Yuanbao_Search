@@ -13,7 +13,7 @@ from .search.budget import Budget
 from .search.cache import DiskCache
 from .search.fake import FakeSearchProvider
 from .search.gateway import SearchGateway
-from .search.mcp import McpSearchProvider
+from .store.db import Store
 from .store.fixtures import fixture_pages, load_all_fixtures
 
 
@@ -25,6 +25,7 @@ class Sandbox:
         self.llm = llm
         self.archive = ArchiveWriter(settings.archive_dir)
         self.cache = DiskCache(settings.cache_dir, "search", settings.cache_ttl_hours * 3600)
+        self.store = Store(settings.state_dir / "platform.db")
 
     def new_budget(self) -> Budget:
         return Budget(
@@ -64,6 +65,7 @@ class Sandbox:
                 "key_present": self.settings.llm_key_present,
             },
             "cache": self.cache.stats(),
+            "store": self.store.stats(),
         }
 
     async def close(self) -> None:
@@ -87,9 +89,6 @@ def build_sandbox(settings: Settings, force_fake: bool = False) -> Sandbox:
         settings.offline = False
         providers = {"fake": FakeSearchProvider(fixture_pages(fixtures))}
     else:
-        providers = {
-            "api": ApiSearchProvider(settings),
-            "mcp": McpSearchProvider(settings),
-        }
+        providers = {"api": ApiSearchProvider(settings)}
     llm = build_llm(settings)
     return Sandbox(settings, providers, fixtures, llm)

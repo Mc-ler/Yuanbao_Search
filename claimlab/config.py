@@ -70,7 +70,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 @dataclass
 class Settings:
-    search_provider: str = "api"  # api | mcp | auto | fake
+    search_provider: str = "api"  # api | fake
     search_api_key: str = ""
     search_base_url: str = "https://api.wsa.cloud.tencent.com"
 
@@ -84,9 +84,9 @@ class Settings:
     app_port: int = 8000
     app_api_token: str = ""
 
-    max_calls_per_assertion: int = 4
-    max_calls_per_run: int = 28
-    max_calls_per_day: int = 400
+    max_calls_per_assertion: int = 8
+    max_calls_per_run: int = 56
+    max_calls_per_day: int = 800
     max_agent_steps: int = 12
     run_wall_seconds: int = 90
     dedup_threshold: float = 0.65
@@ -130,6 +130,8 @@ class Settings:
         """Health-safe view: booleans, never secret values."""
         return {
             "search_provider": self.search_provider,
+            "search_base_url": self.search_base_url,
+            "search_endpoint": "/SearchPro",
             "search_key_present": self.search_key_present,
             "llm_key_present": self.llm_key_present,
             "llm_model": self.llm_model or None,
@@ -163,9 +165,9 @@ def load_settings(env_file: Path | None = None) -> Settings:
         app_host=_env_str("APP_HOST", "127.0.0.1"),
         app_port=_env_int("APP_PORT", 8000),
         app_api_token=_env_str("APP_API_TOKEN"),
-        max_calls_per_assertion=_env_int("MAX_CALLS_PER_ASSERTION", 4),
-        max_calls_per_run=_env_int("MAX_CALLS_PER_RUN", 28),
-        max_calls_per_day=_env_int("MAX_CALLS_PER_DAY", 400),
+        max_calls_per_assertion=_env_int("MAX_CALLS_PER_ASSERTION", 8),
+        max_calls_per_run=_env_int("MAX_CALLS_PER_RUN", 56),
+        max_calls_per_day=_env_int("MAX_CALLS_PER_DAY", 800),
         max_agent_steps=_env_int("MAX_AGENT_STEPS", 12),
         run_wall_seconds=_env_int("RUN_WALL_SECONDS", 90),
         dedup_threshold=_env_float("DEDUP_THRESHOLD", 0.65),
@@ -175,7 +177,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         log_max_bytes=_env_int("LOG_MAX_BYTES", 5_000_000),
         log_backup_count=_env_int("LOG_BACKUP_COUNT", 5),
     )
-    if settings.search_provider not in {"api", "mcp", "auto", "fake"}:
+    if settings.search_provider not in {"api", "fake"}:
         settings.search_provider = "api"
     settings.ensure_dirs()
     return settings

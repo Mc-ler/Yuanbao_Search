@@ -133,6 +133,11 @@ def _verdict(pool: list[Evidence], only_a: bool = False, claim_text: str = "") -
     specificity_count, _ = specificity(claim_text)
     if largest_size >= 3 and domain_count >= 2 and specificity_count == 0:
         return "suspect", "R4"
+    # Relaxed judging: any relevant (even C/D) evidence downgrades a hard
+    # "insufficient" to "suspect" so the verdict stays actionable and cites
+    # whatever weak evidence was found instead of reporting nothing.
+    if relevant:
+        return "suspect", "R5r"
     return "insufficient", "R5"
 
 

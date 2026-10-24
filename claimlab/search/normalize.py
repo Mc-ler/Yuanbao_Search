@@ -1,9 +1,8 @@
-"""Normalization of Yuanbao Search API and MCP responses.
+"""Normalization of the Yuanbao Search (SearchPro) REST API response.
 
-Both transports ultimately deliver the same SearchPro documents, but the
-wire shapes differ: the REST API returns Pages as JSON *strings*, and the
-Bearer example uses `images` while the API reference uses `pics`. The MCP
-tool returns content blocks. Everything funnels into SearchBatch here.
+The REST API returns Pages as JSON *strings*; the Bearer example uses
+`images` while the API reference uses `pics`. Everything funnels into a
+normalized SearchBatch here.
 """
 
 from __future__ import annotations
@@ -162,12 +161,22 @@ def normalize_api_response(
     latency_ms: float = 0.0,
     request: SearchRequest | None = None,
 ) -> SearchBatch:
-    body = payload.get("Response", payload) if isinstance(payload, dict) else {}
+    if not isinstance(payload, dict):
+        return SearchBatch(
+            provider=provider,
+            latency_ms=latency_ms,
+            error="unexpected response shape",
+            error_kind="server",
+            raw=payload,
+            request=request,
+        )
+    body = payload.get("Response", payload)
     if not isinstance(body, dict):
         return SearchBatch(
             provider=provider,
             latency_ms=latency_ms,
             error="unexpected response shape",
+            error_kind="server",
             raw=payload,
             request=request,
         )
@@ -180,6 +189,7 @@ def normalize_api_response(
             request_id=str(body.get("RequestId") or ""),
             latency_ms=latency_ms,
             error=f"{code}: {message}".strip(": "),
+            error_kind="auth" if code.lower() in {"unauthorizedoperation", "unauthorized", "invalidcredential", "invalidtoken"} else "server",
             raw=payload,
             request=request,
         )
@@ -197,79 +207,6 @@ def normalize_api_response(
         latency_ms=latency_ms,
         warnings=warnings,
         query=str(body.get("Query") or (request.query if request else "")),
-        request=request,
-    )
-
-
-def _extract_mcp_text(result: Any) -> tuple[str, Any]:
-    """Return (text, structured) from common MCP tool result shapes."""
-    structured = None
-    if isinstance(result, dict):
-        structured = result.get("structuredContent")
-        content = result.get("content")
-    else:
-        structured = getattr(result, "structuredContent", None)
-        content = getattr(result, "content", None)
-    texts: list[str] = []
-    if isinstance(content, list):
-        for block in content:
-            if isinstance(block, dict):
-                if block.get("type") == "text" and block.get("text"):
-                    texts.append(str(block["text"]))
-            else:
-                text = getattr(block, "text", None)
-                if text:
-                    texts.append(str(text))
-    return "\n".join(texts), structured
-
-
-def normalize_mcp_result(
-    result: Any,
-    provider: str = "mcp",
-    latency_ms: float = 0.0,
-    request: SearchRequest | None = None,
-) -> SearchBatch:
-    if isinstance(result, dict) and result.get("isError"):
-        return SearchBatch(
-            provider=provider,
-            latency_ms=latency_ms,
-            error="MCP tool returned isError",
-            raw=result,
-            request=request,
-        )
-    text, structured = _extract_mcp_text(result)
-    if isinstance(structured, dict):
-        if "Pages" in structured or "Response" in structured:
-            return normalize_api_response(structured, provider, latency_ms, request)
-        if "pages" in structured and isinstance(structured["pages"], list):
-            return normalize_api_response({"Pages": structured["pages"]}, provider, latency_ms, request)
-    if not text:
-        return SearchBatch(
-            provider=provider,
-            latency_ms=latency_ms,
-            error="MCP result has no text content",
-            raw=result,
-            request=request,
-        )
-    try:
-        parsed = _loads_maybe_twice(text)
-    except (json.JSONDecodeError, TypeError):
-        return SearchBatch(
-            provider=provider,
-            latency_ms=latency_ms,
-            error="MCP result is not JSON",
-            raw={"text": text, "result": result},
-            request=request,
-        )
-    if isinstance(parsed, dict):
-        return normalize_api_response(parsed, provider, latency_ms, request)
-    if isinstance(parsed, list):
-        return normalize_api_response({"Pages": parsed}, provider, latency_ms, request)
-    return SearchBatch(
-        provider=provider,
-        latency_ms=latency_ms,
-        error="MCP result JSON is not an object or list",
-        raw={"text": text, "result": result},
         request=request,
     )
 

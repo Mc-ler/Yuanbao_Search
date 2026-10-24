@@ -1,3 +1,0 @@
-# Optional MCP transport. Install with:
-#   uv pip install --python ./.Search/Scripts/python.exe -r requirements-mcp.txt
-mcp>=1.9,<3

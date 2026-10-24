@@ -83,7 +83,9 @@ class ApiSearchProvider:
             provider=self.name,
             configured=bool(self.settings.search_api_key),
             available=bool(self.settings.search_api_key),
-            detail="Bearer /SearchPro; no live call in health check",
+            detail="Bearer /SearchPro; configuration-only health (no live call)",
+            endpoint="/SearchPro",
+            transport="https",
         )
 
     async def close(self) -> None:

@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -19,6 +19,7 @@ from . import __version__
 from .config import ROOT, Settings, load_settings
 from .contracts import ResearchTask, dumps, jsonable
 from .logging import configure_logging, event
+from .research import run_research
 from .runtime import build_sandbox
 from .runs import RunRecord, RunStore
 from .skills.query import (
@@ -56,10 +57,18 @@ class PlanRequest(BaseModel):
     mode: str = "research_topic"
 
 
+class ResearchRequest(BaseModel):
+    text: str | None = None
+    subject: str | None = None
+    city: str | None = None
+    example_id: str | None = None
+    refresh: bool = False
+
+
 SKILLS = [
     {"id": "S1", "name": "requirement-decomposition", "title": "需求拆分", "detail": "研究问题 → 1–3 个可检索需求，直接接入查询构造"},
     {"id": "S2", "name": "query-planning", "title": "查询构造", "detail": "需求 → 精准/模糊查询方案"},
-    {"id": "S3", "name": "search-gateway", "title": "检索网关", "detail": "API / MCP 双通道、缓存、预算、审计"},
+    {"id": "S3", "name": "search-gateway", "title": "检索网关", "detail": "API 单通道、缓存、预算、审计"},
     {"id": "S4", "name": "evidence-dedup", "title": "去重成簇", "detail": "5-gram + Jaccard，按簇计票"},
     {"id": "S5", "name": "source-grading", "title": "来源分级", "detail": "A–E，域名 + 时效，不看模型心情"},
     {"id": "S6", "name": "evidence-matching", "title": "证据匹配", "detail": "支持/反驳/无关 + 原文引用校验"},
@@ -147,6 +156,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=500, detail=f"invalid example file: {example_id}")
         return data
 
+    def resolve_research_input(request: Any) -> tuple[str, str | None, str | None, dict[str, Any]]:
+        """Resolve research input so an example only seeds a question.
+
+        When the caller supplies its own 'text', the example's subject/city and
+        constraints are ignored; otherwise they act as defaults. This prevents a
+        previously clicked example from leaking subject/city/domain into an
+        unrelated question typed afterwards.
+        """
+        example = load_example(request.example_id) if getattr(request, "example_id", None) else {}
+        text = (request.text or str(example.get("question") or "")).strip()
+        from_example = not request.text
+        subject = (request.subject or (str(example.get("subject") or "") if from_example else "")).strip() or None
+        city = (request.city or (str(example.get("city") or "") if from_example else "")).strip() or None
+        constraints = (
+            {
+                "domain": example.get("domain") or "",
+                "expected_sources": example.get("expected_sources") or [],
+                "query_fields": example.get("query_fields") or [],
+            }
+            if from_example
+            else {}
+        )
+        return text, subject, city, constraints
+
     @app.get("/api/examples")
     async def examples() -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
@@ -166,6 +199,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         "question_filled": bool(question),
                         "question": question,
                         "question_suggestion": data.get("question_suggestion") or "",
+                        "subject": data.get("subject") or "",
+                        "city": data.get("city") or "",
                         "notes": data.get("notes") or "",
                         "query_fields": data.get("query_fields") or [],
                         "expected_sources": data.get("expected_sources") or [],
@@ -175,21 +210,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/plan")
     async def plan_query(request: PlanRequest) -> dict[str, Any]:
-        example = load_example(request.example_id) if request.example_id else {}
-        text = (request.text or str(example.get("question") or "")).strip()
+        text, subject, city, constraints = resolve_research_input(request)
         if not text:
             hint = request.example_id or "request.text"
             raise HTTPException(
                 status_code=400,
                 detail=f"question is empty; fill the question in examples/*.json or pass text ({hint})",
             )
-        subject = (request.subject or str(example.get("subject") or "")).strip() or None
-        city = (request.city or str(example.get("city") or "")).strip() or None
-        constraints = {
-            "domain": example.get("domain") or "",
-            "expected_sources": example.get("expected_sources") or [],
-            "query_fields": example.get("query_fields") or [],
-        }
         task = ResearchTask(
             text=text,
             mode="research_topic",
@@ -240,7 +267,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/runs")
     async def create_run(request: RunRequest) -> dict[str, Any]:
         if request.mode != "verify_claim":
-            raise HTTPException(status_code=400, detail="research_topic 将在 P2 的 Research Agent 中启用")
+            raise HTTPException(status_code=400, detail="research_topic 请使用 /api/research")
         fixture = sandbox.fixtures.get(request.fixture_id or "") if request.fixture_id else None
         if request.fixture_id and fixture is None:
             raise HTTPException(status_code=404, detail=f"fixture not found: {request.fixture_id}")
@@ -254,9 +281,97 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             city=request.city or (fixture or {}).get("city"),
             fixture_id=request.fixture_id,
         )
+        event(api_log, "run.create", run_id="pending", text_len=len(text), fixture_id=request.fixture_id, search_off=request.search_off)
         record = store.create(task, search_off=request.search_off)
         record.handle = asyncio.create_task(execute(record))
         return {"run_id": record.run_id, "status": record.status}
+
+    @app.post("/api/research")
+    async def research(request: ResearchRequest) -> dict[str, Any]:
+        text, subject, city, constraints = resolve_research_input(request)
+        if not text:
+            raise HTTPException(
+                status_code=400,
+                detail="question is empty; fill the example question or pass text",
+            )
+        task = ResearchTask(
+            text=text,
+            mode="research_topic",
+            subject=subject,
+            city=city,
+            constraints=constraints,
+        )
+        event(
+            api_log,
+            "research.start",
+            example_id=request.example_id,
+            text_len=len(text),
+            subject=subject,
+            city=city,
+        )
+        try:
+            payload = await run_research(
+                sandbox,
+                task,
+                example_id=request.example_id or "",
+                refresh=request.refresh,
+            )
+        except Exception as exc:
+            event(api_log, "research.error", error=f"{type(exc).__name__}: {exc}")
+            raise HTTPException(status_code=502, detail=f"research failed: {type(exc).__name__}: {exc}") from exc
+        event(
+            api_log,
+            "research.done",
+            example_id=request.example_id,
+            run_id=payload.get("run_id"),
+            fields=payload["metrics"]["fields"],
+            distinct_fields=payload["metrics"]["distinct_fields"],
+            tier_ab=payload["metrics"]["fields_with_ab"],
+        )
+        return jsonable(payload)
+
+    @app.get("/api/db/stats")
+    async def db_stats() -> dict[str, Any]:
+        return sandbox.store.stats()
+
+    @app.get("/api/db/runs")
+    async def db_runs(q: str = "", limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        return sandbox.store.query_runs(q=q, limit=limit, offset=offset)
+
+    @app.get("/api/db/runs/{run_id}")
+    async def db_run_detail(run_id: str) -> dict[str, Any]:
+        row = sandbox.store.get_run(run_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        return row
+
+    @app.get("/api/db/export.csv")
+    async def db_export(q: str = "") -> Response:
+        import csv
+        import io
+
+        rows = sandbox.store.export_rows(q=q)
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["run_id", "question", "subject", "city", "domain", "method", "status", "created_at"])
+        for row in rows:
+            writer.writerow(
+                [
+                    row.get("run_id", ""),
+                    row.get("question", ""),
+                    row.get("subject", ""),
+                    row.get("city", ""),
+                    row.get("domain", ""),
+                    row.get("method", ""),
+                    row.get("status", ""),
+                    row.get("created_at", ""),
+                ]
+            )
+        return Response(
+            content="\ufeff" + buf.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=runs.csv"},
+        )
 
     @app.get("/api/runs/{run_id}")
     async def get_run(run_id: str) -> dict[str, Any]:

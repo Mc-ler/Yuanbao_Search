@@ -25,6 +25,19 @@ Verdict = Literal["established", "refuted", "conflict", "suspect", "insufficient
 FailureType = Literal["not_exists", "not_indexed", "query_mismatch", "search_disabled"]
 Precision = Literal["precise", "fuzzy"]
 
+# SearchPro only accepts these Cnt values, and expects a string in the JSON body
+# (an integer reports "InvalidParameter: illegal Cnt").
+VALID_CNT = (10, 20, 30, 40, 50)
+
+
+def normalize_cnt(value: Any) -> int:
+    """Snap any count to the nearest SearchPro-accepted value."""
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        n = 10
+    return min(VALID_CNT, key=lambda c: abs(c - n))
+
 
 def now_iso() -> str:
     return datetime.now(CST).isoformat(timespec="seconds")
@@ -90,19 +103,13 @@ class SearchRequest:
     schema_version: int = SCHEMA_VERSION
 
     def to_api_body(self) -> dict[str, Any]:
-        body: dict[str, Any] = {"Query": self.query, "Cnt": self.cnt, "Mode": self.mode}
+        body: dict[str, Any] = {"Query": self.query, "Cnt": str(normalize_cnt(self.cnt)), "Mode": self.mode}
         if self.site:
             body["Site"] = self.site
         if self.industry:
             body["Industry"] = self.industry
         if self.freshness:
             body["Freshness"] = self.freshness
-        return body
-
-    def to_mcp_args(self) -> dict[str, Any]:
-        body = self.to_api_body()
-        # The MCP tool declares Cnt as a string.
-        body["Cnt"] = str(self.cnt)
         return body
 
     def cache_key(self) -> str:

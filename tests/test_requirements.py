@@ -124,7 +124,8 @@ def test_source_policy_prefers_ab_then_falls_back():
     assert source_tier([SearchPage(domain="stats.gov.cn")]) == "A/B"
     assert source_tier([SearchPage(domain="example.com")]) == "insufficient"
     assert next_action("A/B", attempts=1) == "accept"
-    assert next_action("B/C", attempts=1) == "fallback"
+    # Relaxed: B/C is now a terminal tier (accepted, not escalated).
+    assert next_action("B/C", attempts=1) == "accept"
     assert next_action("insufficient", attempts=1) == "requery"
     assert next_action("insufficient", attempts=2) == "insufficient"
 

@@ -37,16 +37,14 @@ def source_tier(
 
 
 def next_action(tier: str, attempts: int, max_attempts: int = 2) -> str:
-    """accept | fallback | requery | insufficient.
+    """accept | requery | insufficient (relaxed: B/C is terminal).
 
-    ``attempts`` counts actual search rounds already spent for this requirement.
+    attempts counts actual search rounds already spent for this requirement.
     The caller must stay within its existing budget; this policy never increases
     the query allowance.
     """
-    if tier == "A/B":
+    if tier in {"A/B", "B/C"}:
         return "accept"
-    if tier == "B/C":
-        return "fallback"
     if attempts < max_attempts:
         return "requery"
     return "insufficient"

@@ -1,7 +1,6 @@
-"""One search entry point for API, MCP and fake providers.
+"""Single search entry point for the API and offline fake provider.
 
-The gateway owns the cross-cutting concerns the pipeline must not repeat:
-provider selection/failover, request-hash cache, budget charge, and the
+The gateway owns caching, budget charging, request logging, and the
 append-only audit record. It always returns a normalized SearchBatch.
 """
 
@@ -103,11 +102,16 @@ class SearchGateway:
 
     def _candidates(self) -> list[str]:
         mode = self.settings.search_provider
-        if mode == "auto":
-            return [name for name in ("api", "mcp") if name in self.providers]
-        return [mode] if mode in self.providers else []
+        return ["api"] if mode == "api" and "api" in self.providers else (["fake"] if mode == "fake" and "fake" in self.providers else [])
 
-    async def search(self, run_id: str, assertion_id: str, plan: Any) -> SearchBatch:
+    async def search(
+        self,
+        run_id: str,
+        assertion_id: str,
+        plan: Any,
+        *,
+        use_cache: bool = True,
+    ) -> SearchBatch:
         request = plan.to_request()
         event(
             logger,
@@ -119,9 +123,10 @@ class SearchGateway:
             industry=request.industry,
             freshness=request.freshness,
             provider=self.settings.search_provider,
+            use_cache=use_cache,
         )
         key = cache_key("search", self.settings.search_provider, request.to_api_body())
-        cached = self.cache.get(key)
+        cached = self.cache.get(key) if use_cache else None
         if cached is not None:
             batch = _batch_from_cache(cached, request)
             self.budget.hit()
@@ -167,13 +172,15 @@ class SearchGateway:
             return batch
 
         last: SearchBatch | None = None
-        for index, name in enumerate(candidates):
+        for name in candidates:
             provider = self.providers[name]
             batch = await provider.search(request)
             self.calls += 1
             self.calls_by_provider[name] = self.calls_by_provider.get(name, 0) + 1
             if batch.ok:
-                self.cache.set(key, _batch_to_cache(batch))
+                provider_key = cache_key("search", name, request.to_api_body())
+                if batch.pages:
+                    self.cache.set(provider_key, _batch_to_cache(batch))
                 self.archive.write_search(run_id, request.to_api_body(), batch, name, False)
                 event(
                     logger,
@@ -184,9 +191,6 @@ class SearchGateway:
                 )
                 return batch
             last = batch
-            if self.settings.search_provider == "auto" and batch.error_kind == "transport" and index + 1 < len(candidates):
-                event(logger, "search.retry", level=logging.WARNING, query=request.query, provider=name, error_kind=batch.error_kind)
-                continue
             break
         assert last is not None
         self.archive.write_search(run_id, request.to_api_body(), last, last.provider, False)

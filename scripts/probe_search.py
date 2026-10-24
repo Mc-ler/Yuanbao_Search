@@ -1,11 +1,11 @@
-"""Probe the live Yuanbao Search API and MCP transports.
+"""Probe the live Yuanbao Search API (SearchPro only).
 
 Run after putting SEARCH_API_KEY in .env:
-    ./.Search/Scripts/python.exe scripts/probe_search.py --provider both
+    ./.Search/Scripts/python.exe scripts/probe_search.py --provider api
 
 Writes normalized pages and raw responses under probe/raw/. This script is
-intentionally outside the app pipeline so latency and field differences are
-measured without cache or budget interference.
+outside the app pipeline so latency and field behavior are measured without the
+UI or cache.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ from claimlab.config import load_settings  # noqa: E402
 from claimlab.contracts import SearchRequest, jsonable  # noqa: E402
 from claimlab.logging import configure_logging, event  # noqa: E402
 from claimlab.search.api import ApiSearchProvider  # noqa: E402
-from claimlab.search.mcp import MCP_SDK_AVAILABLE, McpSearchProvider  # noqa: E402
 
 probe_log = logging.getLogger("claimlab.probe")
 
@@ -41,7 +40,7 @@ PROBES = [
 ]
 
 
-async def probe_one(provider_name: str, provider, spec: dict, out_dir: Path) -> dict:
+async def probe_one(provider, spec: dict, out_dir: Path) -> dict:
     request = SearchRequest(
         query=spec["query"],
         mode=int(spec.get("mode", 0)),
@@ -53,7 +52,7 @@ async def probe_one(provider_name: str, provider, spec: dict, out_dir: Path) -> 
     batch = await provider.search(request)
     first = batch.pages[0] if batch.pages else None
     record = {
-        "provider": provider_name,
+        "provider": "api",
         "probe": spec["name"],
         "request": request.to_api_body(),
         "ok": batch.ok,
@@ -70,7 +69,7 @@ async def probe_one(provider_name: str, provider, spec: dict, out_dir: Path) -> 
         "normalized_pages": [jsonable(page) for page in batch.pages],
         "raw": batch.raw,
     }
-    filename = f"{provider_name}-{spec['name'].split()[0]}.json"
+    filename = f"api-{spec['name'].split()[0]}.json"
     (out_dir / filename).write_text(json.dumps(record, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     status = "ok" if batch.ok else f"ERROR {batch.error}"
     domains = [page.domain for page in batch.pages if page.domain]
@@ -79,7 +78,7 @@ async def probe_one(provider_name: str, provider, spec: dict, out_dir: Path) -> 
         probe_log,
         "probe.search",
         level=logging.INFO if batch.ok and batch.pages else logging.WARNING,
-        provider=provider_name,
+        provider="api",
         probe=spec["name"],
         query=request.query,
         pages=len(batch.pages),
@@ -89,7 +88,7 @@ async def probe_one(provider_name: str, provider, spec: dict, out_dir: Path) -> 
         error=batch.error,
     )
     print(
-        f"{provider_name:4} {spec['name']:16} pages={len(batch.pages):2} "
+        f"api  {spec['name']:16} pages={len(batch.pages):2} "
         f"version={batch.version or '-':8} {round(batch.latency_ms):5}ms  {status}"
     )
     if first:
@@ -111,38 +110,27 @@ async def main_async(args: argparse.Namespace) -> int:
         max_bytes=settings.log_max_bytes,
         backup_count=settings.log_backup_count,
     )
-    event(probe_log, "probe.start", provider=args.provider, log=log_path)
-    providers = []
-    if args.provider in {"api", "both"}:
-        providers.append(("api", ApiSearchProvider(settings)))
-    if args.provider in {"mcp", "both"}:
-        providers.append(("mcp", McpSearchProvider(settings)))
-        if not MCP_SDK_AVAILABLE:
-            print("MCP SDK not installed; using the built-in JSON-RPC fallback.")
+    event(probe_log, "probe.start", provider="api", log=log_path)
+    provider = ApiSearchProvider(settings)
     records = []
     try:
-        for name, provider in providers:
-            for spec in PROBES[: args.limit or len(PROBES)]:
-                try:
-                    records.append(await probe_one(name, provider, spec, out_dir))
-                except Exception as exc:
-                    print(f"{name:4} {spec['name']:16} EXCEPTION {type(exc).__name__}: {exc}")
-    finally:
-        for _, provider in providers:
+        for spec in PROBES[: args.limit or len(PROBES)]:
             try:
-                await provider.close()
-            except Exception:
-                pass
+                records.append(await probe_one(provider, spec, out_dir))
+            except Exception as exc:
+                print(f"api  {spec['name']:16} EXCEPTION {type(exc).__name__}: {exc}")
+    finally:
+        await provider.close()
     summary = settings.root / "probe" / "summary.json"
     summary.write_text(json.dumps(records, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     print(f"\nSaved {len(records)} probes to {out_dir}")
-    return 0 if any(item.get("ok") for item in records) else 1
+    return 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Probe Yuanbao Search API and MCP")
-    parser.add_argument("--provider", choices=["api", "mcp", "both"], default="both")
-    parser.add_argument("--limit", type=int, default=0, help="limit probes per provider")
+    parser = argparse.ArgumentParser(description="Probe Yuanbao SearchPro API")
+    parser.add_argument("--provider", choices=["api"], default="api")
+    parser.add_argument("--limit", type=int, default=0)
     return asyncio.run(main_async(parser.parse_args()))
 
 

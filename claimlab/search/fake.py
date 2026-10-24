@@ -1,4 +1,4 @@
-"""Deterministic fake provider used for offline demo and tests.
+"""Deterministic fake provider used for offline tests.
 
 Each fixture carries `mock_pages`; every page may have `_triggers` used to
 match a query. No network, no key, no hidden randomness.

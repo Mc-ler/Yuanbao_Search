@@ -89,7 +89,7 @@ a:hover { text-decoration: underline; }
 }
 
 .badge.live { color: var(--accent); background: var(--accent-soft); }
-.badge.demo, .badge.muted { color: var(--warn); background: var(--warn-soft); }
+.badge.demo, .badge.warn, .badge.muted { color: var(--warn); background: var(--warn-soft); }
 
 .text-link { font-size: 13px; color: var(--muted); }
 
@@ -333,5 +333,25 @@ textarea:focus, input:focus {
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
 .tab { border: 0; background: transparent; padding: 10px 16px; cursor: pointer; font: inherit; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
-.tab-panel { max-width: 880px; margin: 0 auto; }
-textarea#textInput { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: inherit; resize: vertical; }
+.tab-panel { max-width: 960px; margin: 0 auto; }
+textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: inherit; resize: vertical; }
+/* v3 two-board additions */
+.page { width: min(960px, calc(100% - 32px)); }
+.tab-panel { max-width: 960px; }
+.small { font-size: 12px; }
+.source-ledger { display: grid; gap: 12px; }
+.source-body { min-width: 0; }
+.snippet { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.shot-link { display: block; margin-top: 8px; }
+.shot { display: block; width: min(100%, 420px); max-height: 260px; object-fit: cover; border: 1px solid var(--line); border-radius: 8px; }
+.progress-log { margin: 12px 0; padding-left: 20px; color: var(--muted); font-size: 12px; display: grid; gap: 4px; }
+.advisory { margin: 10px 0; padding: 8px 10px; border-left: 3px solid var(--warn); background: var(--warn-soft); color: var(--warn); font-size: 12px; }
+blockquote { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--line); color: var(--muted); font-size: 12px; }
+.tier { background: #f0f2f4; }
+@media print {
+  .topbar, .tabs, .composer, .actions, .hint, .notice, .queries, #reportPrint { display: none !important; }
+  .page { width: 100%; margin: 0; }
+  .tab-panel { max-width: 100%; }
+  .card, .result-card { box-shadow: none; border-color: #ccc; }
+  a { color: #000; }
+}

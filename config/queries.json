@@ -1,126 +1,125 @@
 {
   "version": 1,
-  "default_city": "西安",
   "fields": {
     "business_status": {
       "keywords": ["营业", "闭店", "停业", "开业", "注销"],
       "freshness": "m6",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 营业状态", "{subject} 闭店 公告", "{subject} 正常营业"]
+      "variants": ["{focus} 营业状态", "{focus} 闭店 公告", "{focus} 正常营业"]
     },
     "price": {
       "keywords": ["人均", "价格", "多少钱", "元", "消费"],
       "freshness": "m6",
       "precise": { "site": "dianping.com" },
-      "variants": ["{subject} 人均", "{subject} 价格", "{subject} 消费"]
+      "variants": ["{focus} 人均", "{focus} 价格", "{focus} 消费"]
     },
     "penalty": {
       "keywords": ["处罚", "罚款", "抽检", "不合格", "违法"],
       "freshness": "y2",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 行政处罚", "{subject} 抽检 不合格", "{subject} 市场监管局"]
+      "variants": ["{focus} 行政处罚", "{focus} 抽检 不合格", "{focus} 市场监管局"]
     },
     "license": {
       "keywords": ["许可", "资质", "营业执照", "备案"],
       "freshness": "y2",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 食品经营许可证", "{subject} 资质", "{subject} 官方 备案"]
+      "variants": ["{focus} 食品经营许可证", "{focus} 资质", "{focus} 官方 备案"]
     },
     "hours": {
       "keywords": ["营业时间", "周一", "营业日", "闭店"],
       "freshness": "m6",
       "precise": { "site": "dianping.com" },
-      "variants": ["{subject} 营业时间", "{subject} 周一 闭店", "{subject} 营业日"]
+      "variants": ["{focus} 营业时间", "{focus} 周一 闭店", "{focus} 营业日"]
     },
     "address": {
       "keywords": ["地址", "位于", "号", "楼"],
       "freshness": "y1",
       "precise": { "site": "amap.com" },
-      "variants": ["{subject} 地址", "{subject} 门店", "{subject} 位置"]
+      "variants": ["{focus} 地址", "{focus} 门店", "{focus} 位置"]
     },
     "reservation": {
       "keywords": ["预约", "限流", "门票", "开放"],
       "freshness": "m3",
       "precise": { "site": "ctrip.com" },
-      "variants": ["{subject} 预约", "{subject} 门票", "{subject} 限流"]
+      "variants": ["{focus} 预约", "{focus} 门票", "{focus} 限流"]
     },
     "ad_disclosure": {
       "keywords": ["广告", "推广", "探店", "合作"],
       "freshness": "m6",
       "precise": { "site": "mp.weixin.qq.com" },
-      "variants": ["{subject} 广告", "{subject} 探店 推广", "{subject} 商业合作"]
+      "variants": ["{focus} 广告", "{focus} 探店 推广", "{focus} 商业合作"]
     },
     "statistics_source": {
       "keywords": ["统计公报", "数据来源", "口径来源", "公报", "统计局"],
       "freshness": "y2",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 统计公报", "{subject} {terms} 数据来源", "{subject} {terms} 官方 原文"]
+      "variants": ["{focus} {terms} 统计公报", "{focus} {terms} 数据来源", "{focus} {terms} 官方 原文"]
     },
     "statistics_method": {
       "keywords": ["统计口径", "口径", "抽样", "样本", "调查方法", "测算", "住户调查", "指标解释"],
       "freshness": "y2",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 统计口径", "{subject} {terms} 住户调查", "{subject} {terms} 指标解释"]
+      "variants": ["{focus} {terms} 统计口径", "{focus} {terms} 住户调查", "{focus} {terms} 指标解释"]
     },
     "statistics_release": {
       "keywords": ["数据发布", "新闻发布会", "解读", "发布稿"],
       "freshness": "y2",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 数据发布", "{subject} {terms} 新闻发布会", "{subject} {terms} 解读"]
+      "variants": ["{focus} {terms} 数据发布", "{focus} {terms} 新闻发布会", "{focus} {terms} 解读"]
     },
     "scenic_history": {
       "keywords": ["历史沿革", "历史", "沿革", "建于", "朝代", "遗址", "遗存", "年代", "起源"],
       "freshness": "y5",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 历史沿革", "{subject} {terms} 建于 朝代", "{subject} {terms} 地方志"]
+      "variants": ["{focus} {terms} 历史沿革", "{focus} {terms} 建于 朝代", "{focus} {terms} 地方志"]
     },
     "scenic_explanation": {
       "keywords": ["由来", "典故", "解释", "文化", "讲解", "介绍", "名称"],
       "freshness": "y5",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 由来", "{subject} {terms} 名称 由来", "{subject} {terms} 文化 介绍"]
+      "variants": ["{focus} {terms} 由来", "{focus} {terms} 名称 由来", "{focus} {terms} 文化 介绍"]
     },
     "heritage_status": {
       "keywords": ["世界遗产", "申遗", "文物保护单位", "遗产名录", "全国重点"],
       "freshness": "y5",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 世界遗产", "{subject} {terms} 全国重点文物保护单位", "{subject} {terms} 申遗"]
+      "variants": ["{focus} {terms} 世界遗产", "{focus} {terms} 全国重点文物保护单位", "{focus} {terms} 申遗"]
     },
     "traffic_restriction": {
       "keywords": ["限行", "限号", "尾号", "通行", "车辆", "机动车"],
       "freshness": "d30",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 限行", "{subject} {terms} 尾号 限行", "{subject} {terms} 限号 规则"]
+      "variants": ["{focus} {terms} 限行", "{focus} {terms} 尾号 限行", "{focus} {terms} 限号 规则"]
     },
     "ev_license": {
       "keywords": ["电动自行车", "电动车", "牌照", "上牌", "登记", "新国标", "号牌"],
       "freshness": "y1",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 上牌", "{subject} {terms} 号牌 登记", "{subject} {terms} 新国标"]
+      "variants": ["{focus} {terms} 上牌", "{focus} {terms} 号牌 登记", "{focus} {terms} 新国标"]
     },
     "ev_restriction": {
       "keywords": ["电动自行车", "电动车", "通行", "停放", "充电", "头盔"],
       "freshness": "y1",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 通行", "{subject} {terms} 停放 充电", "{subject} {terms} 头盔"]
+      "variants": ["{focus} {terms} 通行", "{focus} {terms} 停放 充电", "{focus} {terms} 头盔"]
     },
     "municipal_notice": {
       "keywords": ["通知", "公告", "政策", "实施", "规定", "新规", "办法", "条例"],
       "freshness": "m6",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 通知", "{subject} {terms} 政策 原文", "{subject} {terms} 官方 公告"]
+      "variants": ["{focus} {terms} 通知", "{focus} {terms} 政策 原文", "{focus} {terms} 官方 公告"]
     },
     "municipal_effective": {
       "keywords": ["实施时间", "生效", "有效期", "施行", "截止"],
       "freshness": "m6",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} {terms} 实施时间", "{subject} {terms} 生效 日期", "{subject} {terms} 有效期"]
+      "variants": ["{focus} {terms} 实施时间", "{focus} {terms} 生效 日期", "{focus} {terms} 有效期"]
     },
     "unknown": {
       "keywords": [],
       "freshness": "m6",
       "precise": { "industry": "news" },
-      "variants": ["{subject} {claim}", "{subject} 最新", "{subject} 官方"]
+      "variants": ["{focus}", "{focus} 最新", "{focus} 官方"]
     }
   }
 }

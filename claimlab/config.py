@@ -1,7 +1,7 @@
 """Configuration and filesystem layout for claimlab.
 
 The project deliberately avoids python-dotenv: one small parser keeps the
-deployment surface small and makes the offline/demo path predictable.
+deployment surface small and makes the offline/test path predictable.
 """
 
 from __future__ import annotations
@@ -84,14 +84,20 @@ class Settings:
     app_port: int = 8000
     app_api_token: str = ""
 
-    max_calls_per_assertion: int = 8
-    max_calls_per_run: int = 56
-    max_calls_per_day: int = 800
-    max_agent_steps: int = 12
+    max_calls_per_assertion: int = 4
+    max_calls_per_run: int = 28
+    max_calls_per_day: int = 400
     run_wall_seconds: int = 90
     dedup_threshold: float = 0.65
     cache_ttl_hours: float = 72.0
     offline: bool = False
+    allow_fake_search: bool = False
+    max_concurrent_research: int = 2
+    screenshot_enabled: bool = True
+    screenshot_chrome: str = ""
+    screenshot_max: int = 3
+    screenshot_timeout_ms: int = 8000
+    llm_advisory: bool = True
     log_level: str = "INFO"
     log_max_bytes: int = 5_000_000
     log_backup_count: int = 5
@@ -119,8 +125,8 @@ class Settings:
         )
 
     @property
-    def demo_mode(self) -> bool:
-        return not self.search_key_present
+    def search_ready(self) -> bool:
+        return self.search_key_present or self.allow_fake_search
 
     def ensure_dirs(self) -> None:
         for path in (self.cache_dir, self.archive_dir, self.state_dir, self.logs_dir, DELIVERABLES_DIR):
@@ -137,15 +143,22 @@ class Settings:
             "llm_model": self.llm_model or None,
             "llm_provider": self.llm_provider or None,
             "offline": self.offline,
-            "demo_mode": self.demo_mode,
+            "search_ready": self.search_ready,
+            "allow_fake_search": self.allow_fake_search,
             "budgets": {
                 "per_assertion": self.max_calls_per_assertion,
                 "per_run": self.max_calls_per_run,
                 "per_day": self.max_calls_per_day,
-                "agent_steps": self.max_agent_steps,
                 "wall_seconds": self.run_wall_seconds,
             },
             "dedup_threshold": self.dedup_threshold,
+            "screenshots": {
+                "enabled": self.screenshot_enabled,
+                "max": self.screenshot_max,
+                "timeout_ms": self.screenshot_timeout_ms,
+                "chrome_configured": bool(self.screenshot_chrome),
+            },
+            "llm_advisory": self.llm_advisory,
         }
 
 
@@ -165,14 +178,20 @@ def load_settings(env_file: Path | None = None) -> Settings:
         app_host=_env_str("APP_HOST", "127.0.0.1"),
         app_port=_env_int("APP_PORT", 8000),
         app_api_token=_env_str("APP_API_TOKEN"),
-        max_calls_per_assertion=_env_int("MAX_CALLS_PER_ASSERTION", 8),
-        max_calls_per_run=_env_int("MAX_CALLS_PER_RUN", 56),
-        max_calls_per_day=_env_int("MAX_CALLS_PER_DAY", 800),
-        max_agent_steps=_env_int("MAX_AGENT_STEPS", 12),
+        max_calls_per_assertion=_env_int("MAX_CALLS_PER_ASSERTION", 4),
+        max_calls_per_run=_env_int("MAX_CALLS_PER_RUN", 28),
+        max_calls_per_day=_env_int("MAX_CALLS_PER_DAY", 400),
         run_wall_seconds=_env_int("RUN_WALL_SECONDS", 90),
         dedup_threshold=_env_float("DEDUP_THRESHOLD", 0.65),
         cache_ttl_hours=_env_float("CACHE_TTL_HOURS", 72.0),
         offline=_env_bool("OFFLINE", False),
+        allow_fake_search=_env_bool("ALLOW_FAKE_SEARCH", False),
+        max_concurrent_research=_env_int("MAX_CONCURRENT_RESEARCH", 2),
+        screenshot_enabled=_env_bool("EVIDENCE_SCREENSHOTS", True),
+        screenshot_chrome=_env_str("SCREENSHOT_CHROME"),
+        screenshot_max=_env_int("SCREENSHOT_MAX", 3),
+        screenshot_timeout_ms=_env_int("SCREENSHOT_TIMEOUT_MS", 8000),
+        llm_advisory=_env_bool("LLM_ADVISORY", True),
         log_level=_env_str("LOG_LEVEL", "INFO").upper(),
         log_max_bytes=_env_int("LOG_MAX_BYTES", 5_000_000),
         log_backup_count=_env_int("LOG_BACKUP_COUNT", 5),

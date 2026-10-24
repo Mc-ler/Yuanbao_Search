@@ -16,11 +16,11 @@ def test_political_topic_rejected():
 
 def test_personal_subject_rejected():
     with pytest.raises(SafetyError):
-        check_task(ResearchTask(text="这家店怎么样", subject="某博主"))
+        check_task(ResearchTask(text="某博主说这家店怎么样"))
 
 
 def test_business_claim_allowed():
-    check_task(ResearchTask(text="这家泡馍店人均68元", subject="示例泡馍"))
+    check_task(ResearchTask(text="这家泡馍店人均68元"))
 
 
 def test_banned_phrase_cleaned():

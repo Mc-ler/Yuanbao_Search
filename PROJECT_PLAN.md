@@ -1,132 +1,98 @@
-# 元宝搜索 Research Agent · 项目规划（v2.6）
+# 元宝搜索 Research Agent · 项目规划（v3.0）
 
 > 更新时间：2026-10-25（Asia/Shanghai）
-> 当前基线：P0 已交付；**85 个测试通过**；本文件是唯一规划文档。
+> 当前基线：v3.0 双板块；103 个测试通过；无预置示例/演示。
 
 ## 0. 结论
 
-1. 项目已进入「可运行 + 可协作」阶段：文字输入、SearchPro API 单通道、LLM 需求拆分、LLM 自动查询、真实检索、带 [n] 引用的回答与调查报告、SQLite 索引。
-2. **MCP 已彻底删除**；检索 100% 走 SearchPro API。
-3. **LLM 自动查询**：自动判断查询字段（Query/Site/Industry/Freshness/Cnt），freshness 统一 d/m/y，Industry 仅 gov/news/acad；**subject/city 不注入查询**。
-4. **演示快路径**：三个演示问题预生成到 demos/，精确匹配秒回、零额度；落地以真实查询为主。
-5. **调查报告双入口**：终端 --report + Web「调查报告」标签页。
-6. M5–M9 展示/汇报/录屏/提交由下游团队负责，不属于本模块。
+1. 项目从“单页研究 + 预置演示 + legacy 判定”重构为两个并列主路径：**深度研究**与**断言查证**。
+2. **预置层已删除**：demos/、examples/、match_demo、example_id、prepare_demos、/api/examples、/api/fixtures；视频展示使用真实查询 + 剪辑。
+3. **subject/city 已彻底移除**：公共 API 不再接受；查询只使用 Requirement.focus（LLM 派生，文本兜底）。
+4. **/api/plan 与 /api/research 共用 planner**：plan_id 可把预览查询原样交给执行；候选回退按检索条件触发。
+5. **深度研究**：3 条/需求查询 → 检索 → 全局去重 → 来源分册 → 截图证据 → 研究综述/报告；不输出成立/不成立。
+6. **断言查证**：抽取 → 查询 → 去重 → 分级 → 匹配 → R1–R5 → 判定报告；R5 时可附加非约束性模型参考意见。
+7. **回答阶段不传完整正文**：只传引用元数据和页面截图；截图 best-effort，失败降级。
+8. **主路径不持久化**：不写 SQLite，answer/report 不落库，截图只存内存；/api/db/* 仅旧数据只读。
 
----
+## 1. 目标与状态
 
-## 1. 目标与现状
-
-### 1.1 目标
-
-| 层 | 目标 | 判据 |
+| 层 | 目标 | 状态 |
 |---|---|---|
-| P0 · 可运行 MVP | 问题 → 需求 → 查询 → 检索 → 证据 → 回答/报告 | 已交付；85 测试 |
-| P1 · Skills 包 | 9 个能力独立调用 | 未开始 |
-| P2 · Research Agent | LLM 编排 verify/research | 未开始 |
-| P3 · 部署 | 容器化研究服务 | 未开始 |
-| 协作 | GitHub 自动推送 | push.config 已指向仓库 |
+| P0 · 可运行 MVP | 问题 → 需求 → 查询 → 检索 → 证据 → 研究/判定 | v3.0 完成 |
+| P1 · Skills 包 | 技能独立调用 + registry | 未开始 |
+| P2 · Research Agent | 工具编排、引用/截图校验 | 部分（截图/引用已入） |
+| P3 · 部署 | 容器、SSE 重放、Token、限流、清理 | 未开始 |
 
-### 1.2 当前状态（已完成）
+## 2. 架构
 
-- 代码：claimlab/ + web/ + config/ + fixtures/ + examples/ + demos/ + scripts/ + tests/。
-- 85 个测试通过；覆盖归一化、分级、去重、判定、预算、查询构造、Key/Bearer、模型选择、需求拆分、回答引用、SQLite、demo 匹配。
-- SearchPro API 单通道；统一 SearchBatch；Cnt 字符串化（10/20/30/40/50）。
-- LLM：config/llm_providers.json 管理 gpt/codex（Toklens /v1）；/models 自动选模型；当前 gpt-5.6-sol。
-- S1 需求拆分（requirements.py）+ S2 LLM 查询构造（build_queries_llm，自动判断字段）。
-- 检索网关（缓存/预算/审计）+ 时间序列查询 + broad_search 广泛搜索脚本。
-- 回答引用（[n] + 不编造）+ 调查报告（research_report.py）。
-- 演示快路径（demos.py + prepare_demos.py + match_demo 精确匹配）。
-- SQLite 索引（store/db.py）+ /api/db/*。
-- Web 极简 UI（研究 / 调查报告 tabs）。
-- framework.html 重绘为 v3（archify，validate/deliver/check 通过）。
+    Web UI
+      ├─ 深度研究 /api/research（同步）
+      │   S1 需求拆分（focus）
+      │   → S2 LLM 查询（3 条/需求，模板回退）
+      │   → S3 检索网关（缓存/预算/审计）
+      │   → S4 全局去重（URL + 5-gram 聚簇）
+      │   → S5 来源分级 + 来源分册
+      │   → S8 研究综述（截图证据 + [n] 校验）
+      │   → 研究报告（来源分册/指标/证据缺口）
+      │
+      └─ 断言查证 /api/runs（SSE）
+          S1 断言抽取 → S2 定向查询 → S3 检索
+          → S4 去重 → S5 分级 → S6 匹配（引文校验）
+          → S7 R1–R5 → 判定报告 → R5 advisory（非判定）
 
-### 1.3 范围边界
+| 模块 | 职责 | 代码 |
+|---|---|---|
+| 入口 | 研究/计划/查证/报告/截图 | claimlab/api.py、web/ |
+| 共享 planner | 需求 + 查询 + plan_id | claimlab/planning.py |
+| 深度研究 | 去重/分册/截图/综述 | claimlab/research.py |
+| 断言查证 | R1–R5 判定 | claimlab/pipeline.py |
+| 检索 | SearchPro、缓存、预算、审计 | claimlab/search/ |
+| 技能 | S1–S9 + citations + advisory | claimlab/skills/ |
+| 截图 | Chrome CDP + 内存图片 | claimlab/evidence/ |
+| 存储 | fixtures / 旧 DB 只读 | claimlab/store/ |
 
-- 只做文字输入；不做图片/OCR/视频。
-- 主动范围：国家统计、历史/文化遗产、市政；旧餐厅/价格/营业时间字段仅 legacy verify_claim。
-- 证据是检索摘要与链接，不做全文抓取。
-- M5–M9 展示/汇报/录屏/提交由下游团队负责。
+## 3. 关键决策
 
----
+- R1–R5 只用于断言查证；深度研究不伪造单一 verdict。
+- 预算 4/28/400（单断言/单次/单日），墙钟 90 秒；文档与环境变量统一。
+- 无 Search Key → 503；无 LLM Key → 只出规则摘要；无 Chrome/vision → 纯文本降级。
+- 删除公共 fixtures/examples 入口；fixtures 仅测试使用。
+- 主路径不持久化；旧 DB 端点保留只读，不再新增。
+- 先分支 refactor/v3-two-boards，验收后合并 main。
 
-## 2. 架构与模块职责
-
-```text
-研究问题 / 文字说法
-  → 演示快路径（match_demo 精确匹配 → demos/ 预置结果）
-  → S1 需求拆分（Requirement，1–3 条）
-  → S2 LLM 查询构造（自动判断 Query/Site/Industry/Freshness/Cnt）
-  → S3 检索网关（SearchPro API，缓存/预算/审计）
-  → S4–S7（去重/分级/匹配/判定）
-  → 回答引用（[n] + 不编造）→ 调查报告（终端 + Web）
-  → SQLite 索引（文件为权威）
-```
-
-| 模块 | 职责 | 代码 | 状态 |
-|---|---|---|---|
-| 入口层 | 研究/计划/报告/DB 接口 | claimlab/api.py、web/ | P0 完成 |
-| S1 需求拆分 | 问题 → 1–3 个 Requirement | skills/requirements.py | 完成 |
-| S2 查询构造 | LLM 自动判断字段 | skills/query.py | 完成 |
-| S3 检索网关 | SearchPro API、缓存、预算、审计 | search/ | P0 完成 |
-| S4–S8 | 去重/分级/匹配/判定/回答/报告 | skills/ | P0 完成 |
-| 研究执行器 | 演示快路径 + 真实查询 + 报告 | claimlab/research.py | 完成 |
-| 演示预置 | demos/ 预生成 + 精确匹配 | claimlab/demos.py、scripts/prepare_demos.py | 完成 |
-| SQLite 索引 | 历史检索/统计/导出 | store/db.py、/api/db/* | 完成 |
-| 旧断言路径 | verify_claim（legacy） | skills/extraction.py、/api/runs | legacy |
-
----
-
-## 3. 已完成里程碑
+## 4. 里程碑
 
 | ID | 时间 | 目标 | 验收 |
 |---|---|---|---|
-| M0 | 10/24 | 真实通道确认 | health 真实；85 测试 |
-| M1 | 10/24 | API/LLM 探针 | API pages；/models；LLM 选 gpt-5.6-sol |
-| M2 | 10/24 | 三域范围 + 字段/目标词 + 回退/再查询 | 3/3 字段；无重复 |
-| M3 | 10/25 | LLM 自动查询 + 无字段干扰 + demo 快路径 + 调查报告双入口 | 85 测试；demo 秒回；报告可看/打印 |
-
-> M5–M9 展示/汇报/提交由下游团队负责。
-
----
-
-## 4. 后续计划（P1/P2/P3）
-
-- **P1 Skills 包**：skills/<name>/SKILL.md + schema + 入口 + 测试；registry；CLI skills list/run。
-- **P2 Research Agent**：工具编排、function calling + JSON fallback、引用校验、Agent API/UI。
-- **P3 部署**：Dockerfile + compose；SSE 重放；App Token；限流；日志脱敏。
-
----
+| M3 | 10/25 | v2.6 UI + demo 快路径 | 85 测试 |
+| M4 | 10/25 | v3.0 双板块；删除预置；focus/planner；去重/分册；截图/引用；R1–R5 UI | 103 测试；无 demo/example；UI 实测 |
 
 ## 5. 风险与降级
 
 | 风险 | 处置 |
 |---|---|
-| LLM 模型不可用 | /models + preferred/default；model-not-found 换候选；仍失败走 heuristic |
-| Site 命中率低 | 查询构造以 Industry=gov 为主，不单独依赖 Site |
-| demo 结果过期 | prepare_demos.py --refresh 重跑 |
-| framework 未浏览器目检 | 本机装 Chrome（ARCHIFY_CHROME）后重跑 browser-check |
-| 查询扩量耗额度 | 预算 8/56/800，MAX_CALLS_* 可调 |
+| LLM 模型不可用 | /models + preferred/default；失败回退模板/规则 |
+| vision 不支持 | 400 后禁用 vision，纯文本重试 |
+| 截图被登录墙/反爬拦截 | best-effort；失败标记，不阻塞 |
+| 截图 URL 私网/SSRF | 只允许公网 http/https，DNS 解析校验 |
+| 查询扩量耗额度 | 4/28/400；单需求 4 次；可调 |
+| 无 LLM | 研究只出来源分册/规则摘要；断言用启发式 |
+| 不持久化 | 刷新/重启丢报告；旧 DB 只读 |
+| 旧客户端字段 | 422；README 写迁移 |
 
----
+## 6. 待验证 / 决策
 
-## 6. 需要你验证 / 决策的事项
-
-| ID | 事项 | 验证方式 | 可选方案 |
+| ID | 事项 | 方式 | 方案 |
 |---|---|---|---|
-| V1 | Web 空引用修复 | 启动 8000 后浏览器无「无法连接本地服务」报错；健康徽标正常 | A. 通过；B. 指出问题 |
-| V2 | demo 快路径 | 浏览器跑 q1/q2/q3，应秒回并显示「演示 · 预置结果」 | A. 通过；B. 需调 |
-| V3 | 自定义问题真实查询 | 输入一条新问题，应走真实检索（非秒回） | A. 通过；B. 需调 |
-| V4 | 调查报告 tab | 检索后切到「调查报告」tab，可看结论+[n]引用+来源 | A. 通过；B. 需调 |
-| D1 | framework 是否补 browser-check | 本机装 Chrome 后重跑 | A. 补；B. 跳过 |
-| D2 | demo 快照刷新时机 | 每次演示前是否重跑 prepare_demos.py | A. 每次刷新；B. 固定快照 |
-
----
+| V1 | 深度研究真实查询 | 浏览器/CLI 跑一条真实问题 | A 通过；B 需调 |
+| V2 | 断言查证 R1–R5 | 跑一条可证伪说法 | A 通过；B 需调 |
+| V3 | 截图证据 | 检查来源缩略图与降级 | A 通过；B 需调 |
+| V4 | plan_id 一致 | 预览后执行，查询一致 | A 通过；B 需调 |
+| D1 | framework v4 | archify 重绘 | A 补；B 暂缓 |
+| D2 | 是否启用 Token/限流 | P3 | A 启用；B 暂缓 |
 
 ## 7. 变更记录
 
-- v2.6（2026-10-25）：city/subject 彻底不注入查询；演示快路径（demos/ + match_demo 精确）；Web 极简标签页（研究/调查报告）；framework v3；85 测试。
-- v2.5（2026-10-25）：LLM 查询构造自动判断字段 + 同步口径 + d/m/y freshness；互斥实测；调查报告双入口；83 测试。
-- v2.4（2026-10-24）：MCP 删除；cnt 字符串化；预算 8/56/800；时间序列 + broad_search；SQLite 索引；回答引用；判定放松；82 测试。
-- v2.3（2026-10-24）：本地 8000 旧进程重启；浏览器切 /api/research；前端简洁研究页；80 测试。
-- v2.0–v2.2：范围收窄、需求拆分、目标词、回退/再查询、live 验证、GitHub 推送。
-- v1.0（2026-10-23）：早期框架（已删除）。
+- v3.0（2026-10-25）：删除 demos/examples/example_id；双板块；focus；共享 planner/plan_id；全局去重/来源分册；截图证据/vision；引用校验；R1–R5 主路径 UI；不持久化；预算 4/28/400。
+- v2.6（2026-10-25）：极简 UI；demo 快路径；subject/city 不注入；85 测试。
+- v2.4（2026-10-24）：MCP 删除；cnt 字符串化；时间序列；SQLite；回答引用；82 测试。

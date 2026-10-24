@@ -54,7 +54,14 @@ class DedupResult:
 
 
 def page_key(page: SearchPage, index: int = 0) -> str:
-    return page.url or f"{page.title}|{index}"
+    if page.url:
+        return page.url
+    seed = "|".join(
+        part for part in (page.title, page.domain, page.date or "", page.passage[:80]) if part
+    )
+    if seed:
+        return "np-" + hashlib.sha1(seed.encode("utf-8")).hexdigest()[:10]
+    return f"np-index-{index}"
 
 
 def _unique_pages(pages: Iterable[SearchPage]) -> list[SearchPage]:

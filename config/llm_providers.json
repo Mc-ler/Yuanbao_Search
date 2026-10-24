@@ -15,7 +15,8 @@
         "gpt-5.6-terra",
         "gpt-6-astra"
       ],
-      "default_model": "gpt-5.6-sol"
+      "default_model": "gpt-5.6-sol",
+      "vision": true
     },
     "codex": {
       "label": "Codex via Toklens (third-party supplier)",
@@ -32,7 +33,8 @@
         "gpt-6-sol",
         "gpt-6-luna"
       ],
-      "default_model": "gpt-5.6-sol"
+      "default_model": "gpt-5.6-sol",
+      "vision": true
     }
   },
   "task_routes": {

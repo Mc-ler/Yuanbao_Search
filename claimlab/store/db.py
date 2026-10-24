@@ -1,8 +1,8 @@
-"""SQLite index over the JSONL archive for research runs.
+"""Legacy read-only SQLite index (v2.x research runs).
 
-Files stay authoritative; the database is an index + result copy used for
-history search, stats and CSV export. Any DB failure degrades to pure file
-mode and never blocks a run (mirrors the 1024 platform design).
+The v3.0 main path does not write SQLite: research results and reports are not
+persisted. These helpers remain so historical rows and /api/db/* stay
+inspectable; do not treat the database as the authoritative store for new runs.
 """
 
 from __future__ import annotations

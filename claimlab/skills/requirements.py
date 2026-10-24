@@ -82,7 +82,7 @@ SYSTEM_PROMPT = """你是“需求拆分”器，不是答题器。
 
 输出格式：
 {"domain":"领域","requirements":[
-  {"text":"可检索的需求句","field":"字段名","subject":"主体，可空","city":"城市，可空",
+  {"text":"可检索的需求句","field":"字段名","focus":"研究对象/主体，必填",
    "time_window":"d30|m3|m6|y1|y2|y5","source_preference":"gov|news|acad",
    "search_terms":["2024","居民人均可支配收入","41314"],
    "rationale":"为什么拆这一条"}
@@ -93,6 +93,7 @@ SYSTEM_PROMPT = """你是“需求拆分”器，不是答题器。
 
 规则：
 - 每条需求必须能直接生成搜索查询，不要写“综合分析”“给出结论”这类不可检索的话。
+- focus 填研究对象/主体（如“西安城墙”“国家统计局”“电动自行车新规”），必须出现在查询里。
 - search_terms 填 2–5 个具体检索词：年份、指标/文件/遗址名、数值、发布主体；不要填整句。
 - 历史问题优先拆 scenic_history；世界遗产/文保身份拆 heritage_status。
 - 市政问题优先拆 municipal_notice；车辆限行拆 traffic_restriction；电动自行车上牌拆 ev_license；通行/停放/充电拆 ev_restriction；生效时间拆 municipal_effective。
@@ -121,8 +122,6 @@ def _infer_fields(text: str) -> list[str]:
 def _extract_terms(
     text: str,
     field: str,
-    subject: str | None = None,
-    city: str | None = None,
 ) -> list[str]:
     terms: list[str] = []
 
@@ -150,21 +149,24 @@ def _build_requirement(
     index: int,
     *,
     rationale: str = "",
+    focus: str | None = None,
     search_terms: list[str] | None = None,
 ) -> Requirement:
-    subject = (task.subject or "").strip() or None
-    city = (task.city or "").strip() or None
+    clean_text = text.strip()
+    # focus is the only thing query construction writes into templates. It is
+    # derived (LLM) or falls back to the requirement text; it is never a
+    # user-supplied subject/city field.
+    clean_focus = (focus or "").strip() or clean_text
     return Requirement(
-        requirement_id=make_id("req", task.task_id, field, index, text[:60]),
-        text=text.strip(),
+        requirement_id=make_id("req", task.task_id, field, index, clean_text[:60]),
+        text=clean_text,
         field=field if field in REQUIREMENT_FIELDS else "unknown",
-        subject=subject,
-        city=city,
+        focus=clean_focus,
         time_window=FIELD_TIME_WINDOW.get(field, "12m"),
         source_preference=FIELD_SOURCE_PREFERENCE.get(field),
         rationale=rationale,
         importance=index,
-        search_terms=search_terms or _extract_terms(text, field, subject, city),
+        search_terms=search_terms or _extract_terms(clean_text, field),
     )
 
 
@@ -217,18 +219,13 @@ def _normalize_llm_plan(task: ResearchTask, data: dict[str, Any]) -> Requirement
             text,
             index + 1,
             rationale=str(raw.get("rationale") or ""),
+            focus=str(raw.get("focus") or "").strip() or None,
             search_terms=[
                 str(item).strip()
                 for item in (raw.get("search_terms") or [])
                 if str(item).strip()
             ],
         )
-        city = str(raw.get("city") or "").strip()
-        subject = str(raw.get("subject") or "").strip()
-        if city:
-            requirement.city = city
-        if subject:
-            requirement.subject = subject
         if raw.get("time_window"):
             requirement.time_window = str(raw["time_window"])
         if raw.get("source_preference"):
@@ -260,8 +257,6 @@ async def decompose_requirements(llm: Any, task: ResearchTask) -> RequirementPla
             {
                 "question": task.text,
                 "domain": _domain(task),
-                "subject": task.subject or "",
-                "city": task.city or "",
                 "expected_fields": list(REQUIREMENT_FIELDS),
             },
             prompt,

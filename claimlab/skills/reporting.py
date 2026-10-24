@@ -71,7 +71,8 @@ def report_to_dict(report: ResearchReport) -> dict[str, Any]:
 
 def render_markdown(report: ResearchReport) -> str:
     lines: list[str] = []
-    lines.append(f"# {report.task.subject or '说法鉴定书'}")
+    title = next((unit.assertion.get("text", "") for unit in report.units if unit.assertion.get("text")), "")
+    lines.append(f"# {title[:60] or '断言查证报告'}")
     lines.append("")
     lines.append(f"> 输入：{report.task.text[:160]}")
     lines.append(f"> 生成：{report.generated_at}")
@@ -91,6 +92,8 @@ def render_markdown(report: ResearchReport) -> str:
         lines.append(f"- 行动含义：{unit.action}")
         if unit.cluster_votes.note:
             lines.append(f"- 计票：{unit.cluster_votes.note}")
+        if unit.advisory:
+            lines.append(f"- 模型参考意见（非判定）：{unit.advisory.get('text', '')}")
         for item in unit.evidence:
             if item.relation == "unrelated":
                 continue

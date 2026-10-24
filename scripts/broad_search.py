@@ -1,11 +1,11 @@
-"""Broad search: sweep Freshness windows / years for a subject+field.
+"""Broad search: sweep Freshness windows / years for a focus+field.
 
 Walks the API-only gateway, dedupes pages by URL, and writes a pooled summary.
 Use it to expand evidence coverage before the web UI consumes the cache.
 
 Usage:
-    python scripts/broad_search.py --subject "西安城墙" --field scenic_history \
-        --city 西安市 [--years 2023 2024 2025] [--windows d30 m6 y1 y2 y5] \
+    python scripts/broad_search.py --focus "西安城墙" --field scenic_history \
+        [--years 2023 2024 2025] [--windows d30 m6 y1 y2 y5] \
         [--output-dir probe/broad] [--refresh]
 
 Never prints API keys.
@@ -33,10 +33,9 @@ _GRADE_ORDER = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
 
 
 async def main_async() -> int:
-    parser = argparse.ArgumentParser(description="Broad time-series search for a subject+field")
-    parser.add_argument("--subject", required=True)
+    parser = argparse.ArgumentParser(description="Broad time-series search for a focus+field")
+    parser.add_argument("--focus", required=True)
     parser.add_argument("--field", required=True)
-    parser.add_argument("--city")
     parser.add_argument("--years", nargs="*", default=[])
     parser.add_argument("--windows", nargs="*", default=[])
     parser.add_argument("--output-dir", default=None)
@@ -63,16 +62,14 @@ async def main_async() -> int:
     gateway = sandbox.new_gateway()
     run_id = f"broad-{args.field}-{stamp}"
     requirement = Requirement(
-        requirement_id=make_id("req", args.subject, args.field, stamp),
-        text=args.subject,
+        requirement_id=make_id("req", args.focus, args.field, stamp),
+        text=args.focus,
         field=args.field,
-        subject=args.subject,
-        city=args.city or None,
+        focus=args.focus,
     )
     plans = plan_time_series_queries(
         requirement,
-        subject=args.subject,
-        city=args.city,
+        focus=args.focus,
         windows=args.windows or None,
         years=args.years or None,
         max_plans=args.max_plans,
@@ -119,8 +116,7 @@ async def main_async() -> int:
     summary = {
         "run_id": run_id,
         "field": args.field,
-        "subject": args.subject,
-        "city": args.city or None,
+        "focus": args.focus,
         "windows": args.windows or None,
         "years": args.years or None,
         "queries": len(executed),

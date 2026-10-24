@@ -35,8 +35,6 @@ def fixture_task(fixture: dict[str, Any]) -> ResearchTask:
     return ResearchTask(
         text=str(fixture.get("text") or ""),
         mode=str(fixture.get("mode") or "verify_claim"),  # type: ignore[arg-type]
-        subject=fixture.get("subject"),
-        city=fixture.get("city"),
         fixture_id=fixture.get("fixture_id"),
     )
 

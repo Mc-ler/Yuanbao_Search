@@ -16,8 +16,8 @@ from scripts.git_push import FORBIDDEN_STAGED, safe_remote
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _task(text: str, subject: str = "示例市", city: str = "西安") -> ResearchTask:
-    return ResearchTask(text=text, mode="research_topic", subject=subject, city=city)
+def _task(text: str) -> ResearchTask:
+    return ResearchTask(text=text, mode="research_topic")
 
 
 def test_statistics_question_decomposes_source_and_method():
@@ -72,10 +72,9 @@ def test_requirement_queries_are_directed_and_keep_requirement_id():
         requirement_id="req-test",
         text="某市统计公报中居民人均可支配收入的来源",
         field="statistics_source",
-        subject="某市统计局",
-        city="西安",
+        focus="某市统计局",
     )
-    plans = plan_requirement_queries(requirement, subject="某市统计局", city="西安")
+    plans = plan_requirement_queries(requirement)
     assert plans
     assert all(plan.claim_id == "" for plan in plans)
     assert all(plan.requirement_id == "req-test" for plan in plans)
@@ -83,26 +82,12 @@ def test_requirement_queries_are_directed_and_keep_requirement_id():
     assert any(plan.precision == "precise" for plan in plans)
 
 
-def test_examples_are_aligned_and_questions_can_be_filled():
-    expected = {
-        "q1_statistics_bulletin": "statistics_source",
-        "q2_scenic_history": "scenic_history",
-        "q3_vehicle_restriction": "municipal_notice",
-    }
-    for example_id, field in expected.items():
-        data = json.loads((ROOT / "examples" / f"{example_id}.json").read_text(encoding="utf-8"))
-        assert data["example_id"] == example_id
-        assert isinstance(data["question"], str)
-        assert field in data["query_fields"]
-        assert data["question_suggestion"]
-
-
 def test_fallback_and_requery_are_unique():
     requirement = Requirement(
         requirement_id="req-fallback",
         text="国家统计局2024年居民人均可支配收入统计口径",
         field="statistics_method",
-        subject="国家统计局",
+        focus="国家统计局",
         search_terms=["2024", "居民人均可支配收入", "41314"],
     )
     initial = plan_requirement_queries(requirement)

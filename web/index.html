@@ -17,44 +17,66 @@
   </header>
 
   <main class="page">
-    <div id="notice" class="notice" hidden></div>
+    <div id="notice" class="notice" role="alert" hidden></div>
 
-    <nav class="tabs" id="tabs">
-      <button class="tab active" data-tab="research" type="button">研究</button>
-      <button class="tab" data-tab="report" type="button">调查报告</button>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="功能板块">
+      <button class="tab active" data-tab="research" type="button" role="tab" aria-selected="true">深度研究</button>
+      <button class="tab" data-tab="verify" type="button" role="tab" aria-selected="false">断言查证</button>
+      <button class="tab" data-tab="report" type="button" role="tab" aria-selected="false">报告</button>
     </nav>
 
-    <section id="tab-research" class="tab-panel">
+    <section id="tab-research" class="tab-panel" role="tabpanel">
       <div class="composer">
-        <label class="field-label" for="textInput">研究问题</label>
-        <textarea id="textInput" rows="3" placeholder="输入一个具体问题，例如：2024年全国居民人均可支配收入41314元的数据来源和统计口径是什么？"></textarea>
+        <label class="field-label" for="researchInput">研究问题</label>
+        <textarea id="researchInput" rows="3" placeholder="输入一个具体问题，例如：2024年全国居民人均可支配收入41314元的数据来源和统计口径是什么？"></textarea>
         <div class="actions">
-          <button id="runBtn" class="btn btn-primary" type="button">开始检索</button>
           <button id="planBtn" class="btn" type="button">生成查询计划</button>
-          <button id="clearBtn" class="btn btn-quiet" type="button">清空</button>
+          <button id="researchRunBtn" class="btn btn-primary" type="button">开始研究</button>
+          <button id="researchClearBtn" class="btn btn-quiet" type="button">清空</button>
         </div>
+        <p class="hint">研究综述不是断言判定；需要成立/不成立请用「断言查证」。</p>
       </div>
 
       <section id="planPanel" class="card panel" hidden>
         <div class="panel-head"><div><h2>查询计划</h2><p id="planSub" class="muted"></p></div><span id="planState" class="state">准备中</span></div>
         <p id="planSummary" class="summary"></p>
+        <p class="muted small">计划 ID：<code id="planId">-</code>；回退查询按检索结果条件触发。</p>
         <div class="panel-grid">
           <div><h3>初始查询</h3><div id="planQueries" class="query-list"></div></div>
-          <div><h3>B/C 回退 · 再查询</h3><div id="planFallbacks" class="query-list"></div></div>
+          <div><h3>候选回退</h3><div id="planFallbacks" class="query-list"></div></div>
         </div>
       </section>
 
       <section id="researchPanel" class="card panel" hidden>
-        <div class="panel-head"><div><h2 id="researchTitle">检索结果</h2><p id="researchSub" class="muted"></p></div><span id="researchState" class="state">准备中</span></div>
-        <div id="answer" class="answer"></div>
-        <div id="metrics" class="metrics"></div>
-        <div id="results" class="results"></div>
+        <div class="panel-head"><div><h2>研究结果</h2><p id="researchSub" class="muted"></p></div><span id="researchState" class="state">准备中</span></div>
+        <div id="researchAnswer" class="answer"></div>
+        <div id="researchIssues"></div>
+        <div id="researchMetrics" class="metrics"></div>
+        <div id="sourceLedger" class="source-ledger"></div>
       </section>
     </section>
 
-    <section id="tab-report" class="tab-panel" hidden>
-      <div class="panel-head"><h2>调查报告</h2><button id="reportPrint" class="btn btn-quiet" type="button">打印</button></div>
-      <div id="reportBox" class="report-box"><p class="muted">尚未生成调查报告。请先在「研究」页运行一次检索。</p></div>
+    <section id="tab-verify" class="tab-panel" role="tabpanel" hidden>
+      <div class="composer">
+        <label class="field-label" for="verifyInput">待查证说法</label>
+        <textarea id="verifyInput" rows="3" placeholder="输入一条可被外部事实证明的说法，例如：该店人均68元，周一闭店。"></textarea>
+        <div class="actions">
+          <button id="verifyRunBtn" class="btn btn-primary" type="button">开始查证</button>
+          <button id="verifyCancelBtn" class="btn" type="button" disabled>取消</button>
+          <button id="verifyClearBtn" class="btn btn-quiet" type="button">清空</button>
+        </div>
+        <p class="hint">判定由 R1–R5 代码完成；证据不足时附加模型参考意见，但不改变判定。</p>
+      </div>
+      <section id="verifyPanel" class="card panel" hidden>
+        <div class="panel-head"><div><h2>查证进度</h2><p id="verifySub" class="muted"></p></div><span id="verifyState" class="state">准备中</span></div>
+        <ol id="verifyLog" class="progress-log"></ol>
+        <div id="verifyResults" class="results"></div>
+      </section>
+    </section>
+
+    <section id="tab-report" class="tab-panel" role="tabpanel" hidden>
+      <div class="panel-head"><h2>报告</h2><button id="reportPrint" class="btn btn-quiet" type="button">打印</button></div>
+      <div id="reportBox" class="report-box"><p class="muted">尚未生成报告。请先运行「深度研究」或「断言查证」。</p></div>
     </section>
 
     <footer class="footer">

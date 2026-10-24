@@ -11,6 +11,7 @@ one ``Bearer`` prefix.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from dataclasses import asdict
 from typing import Any, Protocol
@@ -41,6 +42,7 @@ class LLMClient(Protocol):
         payload: dict[str, Any],
         system_prompt: str = "",
         model: str | None = None,
+        images: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]: ...
 
     async def close(self) -> None: ...
@@ -86,6 +88,13 @@ def _is_chat_model(model: str) -> bool:
     return not any(marker in lowered for marker in ("image", "embedding", "tts", "whisper", "audio", "video", "moderation"))
 
 
+def _is_vision_error(status_code: int, text: str) -> bool:
+    lowered = (text or "").lower()
+    if status_code not in (400, 422):
+        return False
+    return any(marker in lowered for marker in ("image", "vision", "multimodal", "content type"))
+
+
 class OpenAICompatLLM:
     def __init__(self, settings: Settings, registry: LLMRegistry | None = None) -> None:
         self.settings = settings
@@ -96,6 +105,8 @@ class OpenAICompatLLM:
         self._models: dict[str, list[str]] = {}
         self._selected: dict[tuple[str, str], str] = {}
         self._model_lock = asyncio.Lock()
+        self._vision_disabled: set[str] = set()
+        self.last_vision_used = False
         self.calls = 0
         self.cache_hits = 0
 
@@ -162,34 +173,58 @@ class OpenAICompatLLM:
             raise LLMError(f"no model resolved for provider {provider.name}")
         return selection.provider, selection.model, available
 
+    @staticmethod
+    def _image_hashes(images: list[dict[str, Any]] | None) -> list[str]:
+        return [
+            hashlib.sha256(str(image.get("data_url") or image.get("url") or "").encode("utf-8")).hexdigest()
+            for image in (images or [])
+        ]
+
+    @staticmethod
+    def _messages(
+        payload: dict[str, Any],
+        system_prompt: str,
+        images: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        text = (
+            "输入数据（JSON）：\n"
+            + json.dumps(payload, ensure_ascii=False)
+            + "\n只返回 JSON 对象，不要解释。"
+        )
+        content: Any = text
+        if images:
+            content = [{"type": "text", "text": text}]
+            for image in images:
+                url = image.get("data_url") or image.get("url") or ""
+                if url:
+                    content.append({"type": "image_url", "image_url": {"url": url}})
+        messages: list[dict[str, Any]] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": content})
+        return messages
+
     async def json(
         self,
         task: str,
         payload: dict[str, Any],
         system_prompt: str = "",
         model: str | None = None,
+        images: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         provider, chosen_model, available = await self._resolve(task, model)
-        key = cache_key("llm", provider.name, chosen_model, task, system_prompt, payload)
-        cached = self._cache.get(key)
+        images = [image for image in (images or []) if image.get("data_url") or image.get("url")]
+        use_images = bool(images) and provider.vision and provider.name not in self._vision_disabled
+        image_keys = self._image_hashes(images) if use_images else []
+        key = cache_key("llm", provider.name, chosen_model, task, system_prompt, payload, image_keys)
+        text_key = cache_key("llm", provider.name, chosen_model, task, system_prompt, payload)
+        cached = self._cache.get(key if use_images else text_key)
         if cached is not None:
             self.cache_hits += 1
+            self.last_vision_used = use_images
             return cached
 
-        messages: list[dict[str, str]] = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append(
-            {
-                "role": "user",
-                "content": (
-                    "输入数据（JSON）：\n"
-                    + json.dumps(payload, ensure_ascii=False)
-                    + "\n只返回 JSON 对象，不要解释。"
-                ),
-            }
-        )
-
+        messages = self._messages(payload, system_prompt, images if use_images else None)
         candidates: list[str] = []
         if available:
             # /models is the live catalog. Never let stale preferred names
@@ -223,6 +258,18 @@ class OpenAICompatLLM:
                 raise LLMError(last_error) from exc
             if response.status_code in (400, 422):
                 body.pop("response_format", None)
+                self.calls += 1
+                response = await client.post("/chat/completions", json=body)
+            if response.status_code >= 400 and use_images and _is_vision_error(response.status_code, response.text):
+                # The provider rejected image content. Disable vision for this
+                # provider and retry the same candidate with text-only input.
+                self._vision_disabled.add(provider.name)
+                use_images = False
+                key = text_key
+                messages = self._messages(payload, system_prompt, None)
+                body["messages"] = messages
+                body.pop("response_format", None)
+                self.calls += 1
                 response = await client.post("/chat/completions", json=body)
             if response.status_code >= 400:
                 last_error = f"HTTP {response.status_code}: {response.text[:300]}"
@@ -238,6 +285,7 @@ class OpenAICompatLLM:
             parsed = _extract_json(content)
             self._selected[(provider.name, task)] = candidate
             self.model = candidate
+            self.last_vision_used = use_images
             self._cache.set(key, parsed)
             return parsed
         raise LLMError(last_error or "LLM request failed")
@@ -266,6 +314,9 @@ class OpenAICompatLLM:
             "providers": public["providers"],
             "default_provider": public["default_provider"],
             "task_routes": public["task_routes"],
+            "vision": any(item.get("vision") for item in public["providers"]),
+            "vision_disabled": sorted(self._vision_disabled),
+            "last_vision_used": self.last_vision_used,
         }
 
     async def close(self) -> None:
@@ -275,7 +326,7 @@ class OpenAICompatLLM:
 
 
 class FakeLLM:
-    """Deterministic offline substitute used by demo mode and tests."""
+    """Deterministic offline substitute used by tests."""
 
     def __init__(self) -> None:
         self.calls = 0
@@ -287,17 +338,14 @@ class FakeLLM:
         payload: dict[str, Any],
         system_prompt: str = "",
         model: str | None = None,
+        images: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         self.calls += 1
         if task == "extract_claims":
             from ..skills.extraction import heuristic_extract
 
             result = heuristic_extract(
-                ResearchTask(
-                    text=str(payload.get("text") or ""),
-                    subject=payload.get("subject"),
-                    city=payload.get("city"),
-                )
+                ResearchTask(text=str(payload.get("text") or ""))
             )
             return {
                 "subject": result.subject,
@@ -346,6 +394,9 @@ class FakeLLM:
             "providers": [],
             "default_provider": None,
             "task_routes": {},
+            "vision": False,
+            "vision_disabled": [],
+            "last_vision_used": False,
         }
 
     async def close(self) -> None:

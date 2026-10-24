@@ -1,5 +1,7 @@
 # YuanBao_Search / 说法鉴定所 · 项目现状与架构分析
 
+> **历史文档（v2.6 基线）**：v3.0 已重构为“深度研究 / 断言查证”双板块，并删除预置示例/演示。现行架构与接口以 README.md / PROJECT_PLAN.md 为准。
+>
 > 分析时间：2026-10-25（Asia/Shanghai）  
 > 分析对象：`D:\AI_projects\YuanBao_Search` 工作区（含**未提交**的 v2.6 改动）  
 > 方法：静态代码阅读 + `pytest` 全量执行 + 在 8010 端口启动当前代码做零成本接口/演示实测 + 无头 Chrome 实际操作 UI 并截图 + SQLite/JSONL/缓存抽查  

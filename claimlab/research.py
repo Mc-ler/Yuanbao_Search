@@ -1,212 +1,311 @@
-"""Scoped live research: requirement decomposition → queries → A/B/B-C sources.
+"""Deep research: requirements -> expanded queries -> deduped sources -> report.
 
-Shared by the HTTP research endpoint and the CLI live validator. It performs
-real SearchPro calls through the current API-only gateway.
+The deep board deliberately does not produce R1-R5 verdicts. It retrieves,
+dedupes, grades, organizes a source ledger, attaches best-effort page
+screenshots, and asks the LLM for a cited research summary. The claim board
+(claimlab.pipeline) keeps the deterministic R1-R5 judgment.
+
+Results are not persisted: no SQLite rows, no files, screenshots only in memory.
 """
 
 from __future__ import annotations
 
+import base64
 import logging
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from .contracts import ResearchTask, SearchBatch, SearchPage
-from .demos import match_demo
+from .contracts import Requirement, SearchBatch, SearchPage
 from .logging import event
-from .skills.answer import build_answer
+from .planning import ResearchPlan, build_research_plan
+from .skills.answer import build_answer, build_citations
+from .skills.dedup import cluster_pages, page_key
 from .skills.grading import grade_page
 from .skills.research_report import build_research_report
-from .skills.query import (
-    build_queries_llm,
-    plan_fallback_queries,
-    plan_key,
-    plan_requery_queries,
-    plan_requirement_queries,
-)
-from .skills.requirements import decompose_requirements
 from .skills.source_policy import is_relevant, source_tier
 
 logger = logging.getLogger("claimlab.research")
 
 
-def _grades(pages: list[SearchPage], field: str | None) -> dict[str, int]:
+def _grade_counts(pages: list[SearchPage], field: str | None) -> dict[str, int]:
     counts = {"A": 0, "B": 0, "C": 0, "D": 0, "E": 0}
     for page in pages:
         counts[grade_page(page, field=field).grade] += 1
     return counts
 
 
-async def run_research(
-    sandbox: Any,
-    task: ResearchTask,
-    *,
-    example_id: str = "",
-    run_id: str | None = None,
-    refresh: bool = False,
-) -> dict[str, Any]:
-    demo = match_demo(task.text, example_id)
-    if demo is not None:
-        return demo
+def _rank(page: SearchPage, field: str) -> tuple:
+    grade = grade_page(page, field=field)
+    order = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
+    return (order.get(grade.grade, 9), -(page.score or 0.0), page.date or "")
 
-    gateway = sandbox.new_gateway()
-    run_id = run_id or f"research-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
-    plan = await decompose_requirements(sandbox.llm, task)
-    rows: list[dict[str, Any]] = []
-    all_queries = []
-    all_fallbacks = []
-    all_requeries = []
-    for requirement in plan.requirements:
-        used: set[tuple[str, str | None, str | None]] = set()
-        executed: list[dict[str, Any]] = []
-        pages: list[SearchPage] = []
 
-        initial = [
-            plan
-            for plan in (await build_queries_llm(sandbox.llm, requirement))
-            if plan_key(plan) not in used
-        ]
-        if not initial:
-            initial = plan_requirement_queries(
-                requirement,
-                used=used,
-            )
-        initial = initial[:2]
-        all_queries.extend(initial)
-        for item in initial:
-            batch: SearchBatch = await gateway.search(
-                run_id,
-                requirement.requirement_id,
-                item,
-                use_cache=not refresh,
-            )
-            used.add(plan_key(item))
-            pages.extend(batch.pages)
-            executed.append(
-                {
-                    "query": item.query,
-                    "strategy": item.strategy,
-                    "pages": len(batch.pages),
-                    "error": batch.error,
-                    "cache_hit": batch.cache_hit,
-                }
-            )
-
-        tier = source_tier(pages, requirement=requirement)
-        # Relaxed policy: accept B/C as a terminal tier; only escalate when we
-        # have no usable source at all.
-        if tier == "insufficient":
-            fallback = plan_fallback_queries(
-                requirement,
-                used=used,
-            )[:1]
-            all_fallbacks.extend(fallback)
-            for item in fallback:
-                batch = await gateway.search(
-                    run_id,
-                    requirement.requirement_id,
-                    item,
-                    use_cache=not refresh,
-                )
-                used.add(plan_key(item))
-                pages.extend(batch.pages)
-                executed.append(
-                    {
-                        "query": item.query,
-                        "strategy": item.strategy,
-                        "pages": len(batch.pages),
-                        "error": batch.error,
-                    }
-                )
-            tier = source_tier(pages, requirement=requirement)
-
-        if tier == "insufficient":
-            requery = plan_requery_queries(
-                requirement,
-                used=used,
-            )[:1]
-            all_requeries.extend(requery)
-            for item in requery:
-                batch = await gateway.search(
-                    run_id,
-                    requirement.requirement_id,
-                    item,
-                    use_cache=not refresh,
-                )
-                used.add(plan_key(item))
-                pages.extend(batch.pages)
-                executed.append(
-                    {
-                        "query": item.query,
-                        "strategy": item.strategy,
-                        "pages": len(batch.pages),
-                        "error": batch.error,
-                    }
-                )
-            tier = source_tier(pages, requirement=requirement)
-
-        relevant_pages = [page for page in pages if is_relevant(page, requirement)]
-        counts = _grades(pages, requirement.field)
-        relevant_counts = _grades(relevant_pages, requirement.field)
-        top = [
+def _top_sources(
+    pages: list[SearchPage],
+    requirement: Requirement,
+    page_cluster: dict[str, str],
+    limit: int = 6,
+) -> list[dict[str, Any]]:
+    representatives: dict[str, SearchPage] = {}
+    for page in pages:
+        key = page_key(page)
+        cluster = page_cluster.get(key) or key
+        current = representatives.get(cluster)
+        if current is None or _rank(page, requirement.field) < _rank(current, requirement.field):
+            representatives[cluster] = page
+    ordered = sorted(representatives.values(), key=lambda page: _rank(page, requirement.field))
+    result = []
+    for page in ordered[:limit]:
+        key = page_key(page)
+        cluster = page_cluster.get(key) or key
+        grade = grade_page(page, field=requirement.field)
+        if grade.grade not in {"A", "B", "C"}:
+            continue
+        result.append(
             {
-                "grade": grade_page(page, field=requirement.field).grade,
+                "grade": grade.grade,
                 "domain": page.domain,
                 "title": page.title,
                 "url": page.url,
                 "date": page.date,
+                "passage": page.passage,
+                "cluster_id": cluster,
+                "cluster_size": sum(
+                    1 for item in pages
+                    if (page_cluster.get(page_key(item)) or page_key(item)) == cluster
+                ),
+                "cluster_domains": sorted(
+                    {
+                        item.domain
+                        for item in pages
+                        if (page_cluster.get(page_key(item)) or page_key(item)) == cluster and item.domain
+                    }
+                ),
             }
-            for page in relevant_pages
-            if grade_page(page, field=requirement.field).grade in {"A", "B", "C"}
-        ][:6]
+        )
+    return result
+
+
+async def _execute_queries(
+    gateway: Any,
+    run_id: str,
+    requirement: Requirement,
+    plans: list[Any],
+    refresh: bool,
+    collected: list[tuple[SearchPage, str, str]],
+    executed: list[dict[str, Any]],
+) -> list[SearchPage]:
+    pages: list[SearchPage] = []
+    for plan in plans:
+        batch: SearchBatch = await gateway.search(
+            run_id,
+            requirement.requirement_id,
+            plan,
+            use_cache=not refresh,
+        )
+        pages.extend(batch.pages)
+        for page in batch.pages:
+            collected.append((page, requirement.requirement_id, plan.query))
+        executed.append(
+            {
+                "query": plan.query,
+                "strategy": plan.strategy,
+                "site": plan.site,
+                "industry": plan.industry,
+                "freshness": plan.freshness,
+                "pages": len(batch.pages),
+                "error": batch.error,
+                "cache_hit": batch.cache_hit,
+            }
+        )
+    return pages
+
+
+async def run_research(
+    sandbox: Any,
+    text: str,
+    *,
+    plan: ResearchPlan | None = None,
+    refresh: bool = False,
+    run_id: str | None = None,
+) -> dict[str, Any]:
+    gateway = sandbox.new_gateway()
+    run_id = run_id or f"research-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
+    plan = plan or await build_research_plan(sandbox.llm, text)
+    collected: list[tuple[SearchPage, str, str]] = []
+    rows: list[dict[str, Any]] = []
+    all_queries = []
+    all_fallbacks = []
+
+    for item in plan.items:
+        requirement = item.requirement
+        executed: list[dict[str, Any]] = []
+        pages = await _execute_queries(
+            gateway, run_id, requirement, item.queries[:3], refresh, collected, executed
+        )
+        all_queries.extend(item.queries[:3])
+        tier = source_tier(pages, requirement=requirement)
+        if tier == "insufficient":
+            fallback = item.fallbacks[:1]
+            all_fallbacks.extend(fallback)
+            pages.extend(
+                await _execute_queries(
+                    gateway, run_id, requirement, fallback, refresh, collected, executed
+                )
+            )
+            tier = source_tier(pages, requirement=requirement)
         rows.append(
             {
                 "requirement_id": requirement.requirement_id,
                 "field": requirement.field,
                 "text": requirement.text,
+                "focus": requirement.focus,
                 "tier": tier,
                 "pages": len(pages),
-                "relevant_pages": len(relevant_pages),
-                "grades": counts,
-                "relevant_grades": relevant_counts,
                 "executed": executed,
-                "top_sources": top,
             }
         )
         event(
             logger,
             "research.requirement",
-            example_id=example_id,
             field=requirement.field,
             tier=tier,
             pages=len(pages),
-            relevant=len(relevant_pages),
-            official=relevant_counts["A"] + relevant_counts["B"],
             queries=len(executed),
         )
 
-    total_pages = sum(row["pages"] for row in rows)
-    relevant_pages = sum(row["relevant_pages"] for row in rows)
-    ab_pages = sum(row["grades"]["A"] + row["grades"]["B"] for row in rows)
-    relevant_ab = sum(row["relevant_grades"]["A"] + row["relevant_grades"]["B"] for row in rows)
-    covered = sum(1 for row in rows if row["tier"] == "A/B")
-    covered_relaxed = sum(1 for row in rows if row["tier"] in {"A/B", "B/C"})
-    distinct = {row["field"] for row in rows}
-    distinct_covered = {row["field"] for row in rows if row["tier"] == "A/B"}
+    raw_pages = [page for page, _req, _query in collected]
+    dedup_result = cluster_pages(raw_pages, sandbox.settings.dedup_threshold)
+    unique_pages = dedup_result.unique_pages
+    page_cluster = dedup_result.page_cluster
+
+    ledger: list[dict[str, Any]] = []
+    relevant_fields: dict[str, list[str]] = {}
+    page_by_key = {page_key(page): page for page in unique_pages}
+    for row, item in zip(rows, plan.items):
+        requirement = item.requirement
+        relevant = [page for page in unique_pages if is_relevant(page, requirement)]
+        for page in relevant:
+            relevant_fields.setdefault(page_key(page), []).append(requirement.field)
+        counts = _grade_counts(relevant, requirement.field)
+        tier = source_tier(relevant, requirement=requirement)
+        top = _top_sources(relevant, requirement, page_cluster)
+        row.update(
+            {
+                "tier": tier,
+                "relevant_pages": len(relevant),
+                "grades": counts,
+                "relevant_grades": counts,
+                "top_sources": top,
+            }
+        )
+        ledger.append(
+            {
+                "requirement_id": requirement.requirement_id,
+                "field": requirement.field,
+                "text": requirement.text,
+                "focus": requirement.focus,
+                "tier": tier,
+                "grade_counts": counts,
+                "unique_pages": len(relevant),
+                "clusters": len({page_cluster.get(page_key(page)) for page in relevant}),
+                "sources": top,
+                "executed": row.get("executed") or [],
+            }
+        )
+        event(
+            logger,
+            "research.ledger",
+            field=requirement.field,
+            tier=tier,
+            unique=len(relevant),
+            ab=counts["A"] + counts["B"],
+        )
+
+    # A page relevant to several requirements is counted once globally; use
+    # its best field-specific grade so rates can never exceed 100%.
+    rank = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
+    grade_totals = {"A": 0, "B": 0, "C": 0, "D": 0, "E": 0}
+    for key, fields in relevant_fields.items():
+        page = page_by_key.get(key)
+        if page is None:
+            continue
+        grades = [grade_page(page, field=field) for field in fields]
+        best = min(grades, key=lambda item: rank.get(item.grade, 9))
+        grade_totals[best.grade] += 1
+
+    citations = build_citations(ledger)
+    number_by_url = {c["url"]: c["n"] for c in citations}
+    for entry in ledger:
+        for source in entry["sources"]:
+            source["n"] = number_by_url.get(source.get("url"))
+
+    screenshot_sources = [
+        {"n": c["n"], "url": c["url"], "passage": c.get("passage") or ""}
+        for c in citations[: sandbox.settings.screenshot_max]
+    ]
+    shots = await sandbox.screenshots.capture_many(screenshot_sources)
+    screenshot_meta: dict[int, dict[str, Any]] = {}
+    images: list[dict[str, Any]] = []
+    for number, shot in shots.items():
+        if shot.error:
+            screenshot_meta[number] = {"url": None, "captured": False, "error": shot.error}
+            continue
+        sandbox.evidence_images.put(run_id, number, shot.data, shot.media_type)
+        screenshot_meta[number] = {
+            "url": f"/api/evidence/{run_id}/{number}",
+            "captured": True,
+            "error": None,
+        }
+        images.append(
+            {
+                "n": number,
+                "data_url": f"data:{shot.media_type};base64,{base64.b64encode(shot.data).decode('ascii')}",
+            }
+        )
+
+    for entry in ledger:
+        for source in entry["sources"]:
+            meta = screenshot_meta.get(int(source.get("n") or 0))
+            if meta is not None:
+                source["screenshot_url"] = meta.get("url")
+                source["screenshot_error"] = meta.get("error")
+
+    answer = await build_answer(
+        sandbox.llm,
+        text,
+        ledger,
+        images=images or None,
+        screenshots=screenshot_meta,
+    )
+
+    total_queries = sum(len(row["executed"]) for row in rows)
+    directed = sum(
+        1
+        for row in rows
+        for item in row["executed"]
+        if item.get("site") or item.get("industry")
+    )
+    relevant_total = len(relevant_fields)
     metrics = {
-        "fields": len(rows),
-        "fields_with_ab": covered,
-        "fields_covered": covered_relaxed,
-        "field_coverage": covered / len(rows) if rows else 0.0,
-        "distinct_fields": len(distinct),
-        "distinct_fields_with_ab": len(distinct_covered),
-        "distinct_field_coverage": len(distinct_covered) / len(distinct) if distinct else 0.0,
-        "pages": total_pages,
-        "relevant_pages": relevant_pages,
-        "ab_pages": ab_pages,
-        "relevant_ab_pages": relevant_ab,
-        "official_page_rate": ab_pages / total_pages if total_pages else 0.0,
-        "relevant_official_rate": relevant_ab / relevant_pages if relevant_pages else 0.0,
+        "metrics_version": 2,
+        "requirements": len(rows),
+        "queries": total_queries,
+        "directed_queries": directed,
+        "total_queries": total_queries,
+        "directed_query_rate": directed / total_queries if total_queries else 0.0,
+        "pages_raw": len(raw_pages),
+        "pages_unique": len(unique_pages),
+        "duplicates_removed": max(0, len(raw_pages) - len(unique_pages)),
+        "clusters": len(dedup_result.clusters),
+        "relevant_unique": relevant_total,
+        "grade_counts": grade_totals,
+        "a_source_rate": grade_totals["A"] / relevant_total if relevant_total else 0.0,
+        "ab_source_rate": (grade_totals["A"] + grade_totals["B"]) / relevant_total if relevant_total else 0.0,
+        "c_source_rate": grade_totals["C"] / relevant_total if relevant_total else 0.0,
+        "requirements_with_ab": sum(1 for row in rows if row["tier"] == "A/B"),
+        "requirements_covered": sum(1 for row in rows if row["tier"] in {"A/B", "B/C"}),
         "zero_requirements": sum(1 for row in rows if row["pages"] == 0),
         "cache_hits": sum(
             1
@@ -214,45 +313,40 @@ async def run_research(
             for item in row["executed"]
             if item.get("cache_hit")
         ),
+        "screenshots": len(images),
+        "stop_reason": gateway.budget.stop_reason or "completed",
     }
-    event(logger, "research.done", example_id=example_id, **metrics)
+    event(logger, "research.done", **metrics)
 
-    store = getattr(sandbox, "store", None)
-    if store is not None:
-        sources = []
-        for row in rows:
-            for src in row.get("top_sources") or []:
-                sources.append({"field": row.get("field"), **src})
-        try:
-            store.upsert_run(
-                run_id,
-                mode="research_topic",
-                question=task.text,
-                subject=task.subject,
-                city=task.city,
-                domain=plan.domain,
-                method=plan.method,
-                metrics=metrics,
-                result=rows,
-            )
-            store.upsert_sources(run_id, sources)
-        except Exception:
-            pass
-
-    answer = await build_answer(sandbox.llm, task.text, rows)
-    report = build_research_report(task.text, rows, answer, metrics)
+    gaps = [
+        {
+            "requirement_id": row["requirement_id"],
+            "field": row["field"],
+            "tier": row["tier"],
+            "text": row["text"],
+        }
+        for row in rows
+        if row["tier"] == "insufficient"
+    ]
+    report = build_research_report(text, ledger, answer, metrics, gaps=gaps)
     return {
         "run_id": run_id,
-        "example_id": example_id or None,
+        "plan_id": plan.plan_id,
+        "plan_reused": True,
+        "mode": "deep",
         "domain": plan.domain,
         "method": plan.method,
-        "question": task.text,
-        "requirements": plan.requirements,
+        "question": text,
+        "requirements": plan.items,
         "queries": all_queries,
         "fallback_queries": all_fallbacks,
-        "requery_queries": all_requeries,
-        "results": rows,
+        "source_ledger": ledger,
+        "results": ledger,
         "metrics": metrics,
         "answer": answer,
         "report": report,
+        "citation_issues": answer.get("citation_issues") or [],
+        "screenshots": answer.get("screenshots") or [],
+        "budget": gateway.budget.summary(),
+        "stop_reason": metrics["stop_reason"],
     }

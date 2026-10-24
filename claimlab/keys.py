@@ -103,6 +103,7 @@ class LLMProvider:
     default_model: str = ""
     task_models: dict[str, str] = field(default_factory=dict)
     headers: dict[str, str] = field(default_factory=dict)
+    vision: bool = False
 
     @property
     def key_present(self) -> bool:
@@ -117,6 +118,7 @@ class LLMProvider:
             "key_length": len(strip_bearer(self.api_key)),
             "preferred_models": list(self.preferred_models),
             "default_model": self.default_model or None,
+            "vision": bool(self.vision),
         }
 
 
@@ -192,6 +194,7 @@ def load_llm_registry(settings: Settings, config_path: Path | None = None) -> LL
                     str(key): str(value) for key, value in (raw.get("task_models") or {}).items()
                 },
                 headers={str(key): str(value) for key, value in (raw.get("headers") or {}).items()},
+                vision=bool(raw.get("vision", False)),
             )
 
     legacy = False

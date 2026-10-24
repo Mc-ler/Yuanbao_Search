@@ -36,9 +36,8 @@ def check_task(task: ResearchTask) -> None:
     for term in _lexicons().get("political_terms", []):
         if term in text:
             raise SafetyError(f"该主题不在范围内（命中：{term}）；本工具只做消费/经营主体的公开说法核验")
-    subject = (task.subject or "").strip()
     for marker in _lexicons().get("personal_markers", []):
-        if marker in subject:
+        if marker in text:
             raise SafetyError("本工具不评价个人；请给出经营主体或公开页面，而不是个人账号")
 
 

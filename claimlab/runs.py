@@ -37,8 +37,6 @@ class RunRecord:
             "created_at": self.created_at,
             "task": {
                 "text": self.task.text,
-                "subject": self.task.subject,
-                "city": self.task.city,
                 "mode": self.task.mode,
                 "fixture_id": self.task.fixture_id,
             },

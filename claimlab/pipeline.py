@@ -31,6 +31,7 @@ from .search.archive import ArchiveWriter
 from .search.budget import Budget
 from .search.gateway import SearchGateway
 from .search.normalize import strip_html
+from .skills import advisory as advisory_skill
 from .skills import dedup as dedup_skill
 from .skills import extraction as extraction_skill
 from .skills import grading, judging, matching, query as query_skill, reporting, safety
@@ -157,17 +158,14 @@ class Pipeline:
             {
                 "task_id": task.task_id,
                 "mode": task.mode,
-                "subject": task.subject,
-                "city": task.city,
                 "text": task.text,
-                "demo": self.settings.demo_mode,
                 "offline": self.settings.offline,
                 "search_off": search_off,
             },
         )
 
         extraction: ExtractionResult = await extraction_skill.extract_claims(self.llm, task)
-        subject = task.subject or extraction.subject
+        subject = extraction.subject or task.text
         await self._emit(
             "split.done",
             {
@@ -287,8 +285,7 @@ class Pipeline:
                         break
                 plans = query_skill.plan_queries(
                     claim,
-                    subject=subject,
-                    city=task.city,
+                    focus=subject,
                     round_no=round_no,
                     used=used_plan_keys,
                 )
@@ -490,6 +487,14 @@ class Pipeline:
                     ],
                 },
             )
+
+        if getattr(self.settings, "llm_advisory", True):
+            advisories = await advisory_skill.build_advisories(self.llm, self.units)
+            for unit in self.units:
+                if unit.unit_id in advisories:
+                    unit.advisory = advisories[unit.unit_id]
+            if advisories:
+                await self._emit("advisory.ready", {"items": advisories})
 
         a_level = sum(
             1 for unit in self.units for item in unit.evidence if item.grade == "A" and item.relation in {"support", "refute"}

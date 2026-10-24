@@ -46,3 +46,11 @@ def test_jaccard_bounds():
     assert jaccard(set(), set()) == 1.0
     assert jaccard({"a"}, set()) == 0.0
     assert jaccard(shingles("四个字"), shingles("四个字")) == 1.0
+
+
+def test_url_less_page_key_is_stable_across_indices():
+    from claimlab.skills.dedup import page_key
+
+    page = SearchPage(title="标题", domain="example.com", date="2025-01-01", passage="摘要")
+    assert page_key(page, 0) == page_key(page, 99)
+    assert page_key(page, 0).startswith("np-")

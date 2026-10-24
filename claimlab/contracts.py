@@ -66,8 +66,6 @@ def dumps(value: Any) -> str:
 class ResearchTask:
     text: str
     mode: TaskMode = "verify_claim"
-    subject: str | None = None
-    city: str | None = None
     constraints: dict[str, Any] = field(default_factory=dict)
     task_id: str = ""
     fixture_id: str | None = None
@@ -83,8 +81,6 @@ class ResearchTask:
         return cls(
             text=data.get("text", ""),
             mode=data.get("mode", "verify_claim"),
-            subject=data.get("subject"),
-            city=data.get("city"),
             constraints=data.get("constraints") or {},
             task_id=data.get("task_id", ""),
             fixture_id=data.get("fixture_id"),
@@ -233,8 +229,7 @@ class Requirement:
     requirement_id: str
     text: str
     field: str = "unknown"
-    subject: str | None = None
-    city: str | None = None
+    focus: str | None = None
     time_window: str = "12m"
     source_preference: str | None = None
     rationale: str = ""
@@ -248,8 +243,7 @@ class Requirement:
             requirement_id=data.get("requirement_id") or make_id("req", text),
             text=text,
             field=data.get("field", "unknown"),
-            subject=data.get("subject"),
-            city=data.get("city"),
+            focus=str(data.get("focus") or "").strip() or None,
             time_window=str(data.get("time_window") or "12m"),
             source_preference=data.get("source_preference"),
             rationale=str(data.get("rationale") or ""),
@@ -364,6 +358,7 @@ class VerificationUnit:
     calls_used: int = 0
     queries_used: int = 0
     concern: str | None = None
+    advisory: dict[str, Any] | None = None
 
 
 @dataclass
@@ -418,5 +413,6 @@ class ResearchReport:
     unverified: list[str] = field(default_factory=list)
     citations: list[str] = field(default_factory=list)
     disclaimer: str = "本页只核对公开说法与来源，不评价个人，不构成消费建议。"
+    kind: str = "verification"
     generated_at: str = field(default_factory=now_iso)
     schema_version: int = SCHEMA_VERSION

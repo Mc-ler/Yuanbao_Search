@@ -10,8 +10,8 @@
 | `run-<run_id>.log` | 单次 run 的搜索与判定摘要（可选） | `run-7dce1ebe0f3f.log` |
 | `probe-search-YYYYMMDD-HHMMSS.log` | `probe_search.py` 的 SearchPro API 探针 | `probe-search-20261024-170512.log` |
 | `probe-llm-YYYYMMDD-HHMMSS.log` | 模型矩阵/LLM 探针 | `probe-llm-20261024-170512.log` |
-| `example-<id>-YYYYMMDD-HHMMSS.log` | `run_example.py` 的查询规划 | `example-q1_statistics_bulletin-20261024-170512.log` |
-| `example-live-<id>-YYYYMMDD-HHMMSS.log` | `run_example_live.py` 的真实检索 | `example-live-q1_statistics_bulletin-20261024-220857.log` |
+| `research-YYYYMMDD-HHMMSS.log` | `scripts/run_research.py` 的深度研究 | `research-20261025-120000.log` |
+| `verify-YYYYMMDD-HHMMSS.log` | `scripts/run_verify.py` 的断言查证 | `verify-20261025-120000.log` |
 | `debug-search-YYYYMMDD-HHMMSS.log` | `debug_search.py` 的查询对照 | `debug-search-20261024-170512.log` |
 
 原始响应另存到 `probe/raw/` 或 `probe/debug/`，不入 `logs/`，因为体积大且可能含页面正文。

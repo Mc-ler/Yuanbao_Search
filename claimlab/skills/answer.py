@@ -1,41 +1,63 @@
-"""Conclusion + numbered-citation answer generation (no-fabrication)."""
+"""Conclusion + numbered-citation answer generation (no-fabrication).
+
+The research answer stage deliberately receives citation metadata and optional
+page screenshots, not the full retrieved passage. Screenshots are attached as
+vision inputs; the model must say "未获证据" when it cannot read one.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
-SYSTEM_PROMPT = """你是查证结论生成器。给定一个问题与一组带编号的证据来源，产出可核验结论。只输出 JSON。
+from .citations import citation_numbers, validate_citations
+
+SYSTEM_PROMPT = """你是研究综述生成器。给定一个研究问题、一组带编号的来源元数据和可选的网页截图，产出可核验的研究综述。只输出 JSON。
 规则：
-1. 只依据给定证据作答，禁止编造证据里没有的出处、日期、文号、机构、人物、数字。
+1. 只依据给定来源元数据和截图作答；禁止编造来源里没有的出处、日期、文号、机构、人物、数字。
 2. 每个事实句后带 [n] 引用编号；没有来源支撑的句子必须写（未获证据）。
-3. 证据与问题无关或不足时，明确输出"无法确认"，并逐条说明证据为何不相关。
-4. 先给结论，再给依据；不确定就直说"不确定/需核实"。
-输出：{"answer":"...","verdict":"...","citations_used":[1,2],"uncertainty":"..."}
+3. 截图是来源 [n] 的页面截图；截图看不清、被登录墙挡住或与问题无关时，写（未获证据），不要猜。
+4. 这是研究综述，不是 R1–R5 判定；不要输出“成立/不成立/已证实”等判定词，除非来源本身明确写了。
+5. 先给结论，再给依据；不确定就直说“不确定/需核实”。
+输出：{"text":"...","citations_used":[1,2],"uncertainty":"..."}
 """
 
 
+def _sources_for(row: dict[str, Any]) -> list[dict[str, Any]]:
+    return list(row.get("top_sources") or row.get("sources") or [])
+
+
 def build_citations(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Dedupe sources by URL and assign [1..N] numbers."""
+    """Dedupe sources by cluster (fallback URL) and assign [1..N] numbers."""
     seen: dict[str, dict[str, Any]] = {}
     order: list[str] = []
     for row in rows or []:
-        for src in row.get("top_sources") or []:
+        for src in _sources_for(row):
             url = (src.get("url") or "").strip()
-            if not url or url in seen:
+            if not url:
                 continue
-            seen[url] = src
-            order.append(url)
-    return [
-        {
-            "n": i + 1,
-            "url": url,
-            "title": seen[url].get("title") or "",
-            "domain": seen[url].get("domain") or "",
-            "grade": seen[url].get("grade") or "",
-            "date": seen[url].get("date") or "",
-        }
-        for i, url in enumerate(order)
-    ]
+            key = str(src.get("cluster_id") or url)
+            if key in seen:
+                continue
+            seen[key] = src
+            order.append(key)
+    citations: list[dict[str, Any]] = []
+    for index, key in enumerate(order, start=1):
+        src = seen[key]
+        citations.append(
+            {
+                "n": index,
+                "url": (src.get("url") or "").strip(),
+                "title": src.get("title") or "",
+                "domain": src.get("domain") or "",
+                "grade": src.get("grade") or "",
+                "date": src.get("date") or "",
+                "passage": src.get("passage") or "",
+                "cluster_id": src.get("cluster_id") or "",
+                "cluster_size": src.get("cluster_size") or 1,
+                "cluster_domains": src.get("cluster_domains") or [],
+            }
+        )
+    return citations
 
 
 def _rule_answer(rows: list[dict[str, Any]], citations: list[dict[str, Any]]) -> str:
@@ -46,12 +68,12 @@ def _rule_answer(rows: list[dict[str, Any]], citations: list[dict[str, Any]]) ->
         field = row.get("field") or "结论"
         tier = row.get("tier") or "insufficient"
         if tier == "A/B":
-            verdict = "有可靠来源佐证"
+            verdict = "有 A/B 级来源可读，尚无模型综述"
         elif tier == "B/C":
-            verdict = "有较可靠来源（B/C 级），倾向成立"
+            verdict = "仅有 B/C 降级来源，尚无模型综述"
         else:
-            verdict = "无法确认"
-        srcs = row.get("top_sources") or []
+            verdict = "未找到可靠来源"
+        srcs = _sources_for(row)
         refs = []
         for c in citations:
             for src in srcs:
@@ -63,52 +85,114 @@ def _rule_answer(rows: list[dict[str, Any]], citations: list[dict[str, Any]]) ->
     return "\n".join(lines)
 
 
-async def build_answer(llm: Any, question: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
-    citations = build_citations(rows)
-    if not citations:
-        return {
-            "answer": "未检索到任何可引用来源，无法给出结论。",
-            "verdict": "无法确认",
-            "citations": [],
-            "engine": "rule",
-            "uncertainty": "无证据",
-        }
-
-    evidence_lines = []
+def _evidence_text(citations: list[dict[str, Any]]) -> str:
+    lines = []
     for c in citations:
-        evidence_lines.append(
+        lines.append(
             "[" + str(c["n"]) + "] (" + (c["grade"] or "?") + ") " + (c["title"] or "")
             + " — " + (c["domain"] or "") + " " + (c["date"] or "") + "\n" + c["url"]
         )
-    evidence = "\n".join(evidence_lines)
+    return "\n".join(lines)
+
+
+def _merge_screenshot_meta(
+    citations: list[dict[str, Any]],
+    screenshots: dict[int, dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    result = []
+    for citation in citations:
+        meta = (screenshots or {}).get(int(citation["n"])) or {}
+        item = dict(citation)
+        item["screenshot_url"] = meta.get("url")
+        item["screenshot_captured"] = bool(meta.get("captured"))
+        item["screenshot_error"] = meta.get("error")
+        result.append(item)
+    return result
+
+
+def _response(
+    text: str,
+    engine: str,
+    citations: list[dict[str, Any]],
+    citations_used: list[int],
+    citation_issues: list[dict[str, Any]],
+    uncertainty: str,
+) -> dict[str, Any]:
+    screenshot_list = [
+        {
+            "n": c["n"],
+            "url": c.get("screenshot_url"),
+            "captured": c.get("screenshot_captured", False),
+            "error": c.get("screenshot_error"),
+        }
+        for c in citations
+        if c.get("screenshot_url") or c.get("screenshot_error")
+    ]
+    return {
+        "text": text,
+        "answer": text,  # backward-compatible alias
+        "engine": engine,
+        "citations": citations,
+        "citations_used": citations_used,
+        "citation_issues": citation_issues,
+        "screenshots": screenshot_list,
+        "uncertainty": uncertainty,
+    }
+
+
+async def build_answer(
+    llm: Any,
+    question: str,
+    rows: list[dict[str, Any]],
+    *,
+    images: list[dict[str, Any]] | None = None,
+    screenshots: dict[int, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    citations = _merge_screenshot_meta(build_citations(rows), screenshots)
+    if not citations:
+        return _response(
+            "未检索到任何可引用来源，无法给出结论。",
+            "rule",
+            [],
+            [],
+            [],
+            "无证据",
+        )
 
     data = None
     if llm is not None:
+        payload = {"question": question, "evidence": _evidence_text(citations)}
         try:
-            data = await llm.json("answer", {"question": question, "evidence": evidence}, SYSTEM_PROMPT)
+            data = await llm.json("answer", payload, SYSTEM_PROMPT, images=images or None)
         except Exception:
             data = None
 
-    if isinstance(data, dict) and (data.get("answer") or "").strip():
+    if isinstance(data, dict) and (str(data.get("text") or data.get("answer") or "")).strip():
+        text, issues = validate_citations(str(data.get("text") or data.get("answer")).strip(), citations)
+        valid_refs = citation_numbers(text, citations)
+        if citations and not valid_refs:
+            issues.append({"n": 0, "reason": "no_valid_citation"})
+            fallback = _rule_answer(rows, citations)
+            return _response(fallback, "rule", citations, [], issues, "模型未给出有效引用，已退回规则摘要")
         used = [
             int(x)
             for x in (data.get("citations_used") or [])
             if isinstance(x, (int, float)) and 1 <= int(x) <= len(citations)
         ]
-        return {
-            "answer": str(data.get("answer") or "").strip(),
-            "verdict": str(data.get("verdict") or ""),
-            "citations": citations,
-            "citations_used": used,
-            "engine": "llm",
-            "uncertainty": str(data.get("uncertainty") or ""),
-        }
+        return _response(
+            text,
+            "llm",
+            citations,
+            used or valid_refs,
+            issues,
+            str(data.get("uncertainty") or ""),
+        )
 
-    return {
-        "answer": _rule_answer(rows, citations),
-        "verdict": "待核实",
-        "citations": citations,
-        "citations_used": [c["n"] for c in citations[:6]],
-        "engine": "rule",
-        "uncertainty": "离线规则汇总，未经大模型逐句核验",
-    }
+    return _response(
+        _rule_answer(rows, citations),
+        "rule",
+        citations,
+        [c["n"] for c in citations[:6]],
+        [],
+        "离线规则汇总，未经大模型逐句核验",
+    )

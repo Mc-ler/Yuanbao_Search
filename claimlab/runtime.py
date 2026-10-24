@@ -5,8 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from .config import Settings
+from .evidence import EvidenceImageStore, ScreenshotCapturer
 from .llm.client import build_llm
 from .pipeline import Pipeline
+from .planning import PlanStore
 from .search.api import ApiSearchProvider
 from .search.archive import ArchiveWriter
 from .search.budget import Budget
@@ -26,6 +28,9 @@ class Sandbox:
         self.archive = ArchiveWriter(settings.archive_dir)
         self.cache = DiskCache(settings.cache_dir, "search", settings.cache_ttl_hours * 3600)
         self.store = Store(settings.state_dir / "platform.db")
+        self.plan_store = PlanStore()
+        self.evidence_images = EvidenceImageStore()
+        self.screenshots = ScreenshotCapturer(settings)
 
     def new_budget(self) -> Budget:
         return Budget(
@@ -66,6 +71,12 @@ class Sandbox:
             },
             "cache": self.cache.stats(),
             "store": self.store.stats(),
+            "screenshots": {
+                "enabled": self.screenshots.enabled,
+                "reason": self.screenshots.reason,
+                "chrome": bool(self.screenshots.chrome),
+            },
+            "plans": len(getattr(self.plan_store, "_items", {})),
         }
 
     async def close(self) -> None:

@@ -2,8 +2,8 @@
 
 The LLM does the language understanding, but the whitelist and the
 falsifiability gate are code. Subjective words become concerns, not verdicts.
-A deterministic heuristic keeps the offline demo and tests running without
-an LLM key.
+A deterministic heuristic keeps offline tests and degraded runs working
+without an LLM key.
 """
 
 from __future__ import annotations
@@ -65,10 +65,16 @@ def _field_from_text(text: str, aliases: dict[str, str] | None = None) -> str:
 
 def _extract_subject(text: str) -> str | None:
     pattern = re.compile(
-        r"([\u4e00-\u9fa5A-Za-z0-9·]{2,24}(?:泡馍|肉夹馍|凉皮|面馆|餐厅|饭店|酒店|民宿|景区|博物馆|影城|商场|小吃店|店))"
+        r"([\u4e00-\u9fa5A-Za-z0-9·（）()]{2,24}(?:泡馍|肉夹馍|凉皮|面馆|餐厅|饭店|酒店|民宿|景区|博物馆|影城|商场|小吃店|店))"
     )
     match = pattern.search(text)
-    return match.group(1) if match else None
+    if not match:
+        return None
+    subject = match.group(1)
+    end = match.end()
+    if end < len(text) and text[end] in "）)":
+        subject += text[end]
+    return subject
 
 
 def _load_lexicons() -> dict[str, Any]:
@@ -80,7 +86,7 @@ def _load_lexicons() -> dict[str, Any]:
 def heuristic_extract(task: ResearchTask) -> ExtractionResult:
     text = task.text.strip()
     lexicons = _load_lexicons()
-    subject = task.subject or _extract_subject(text)
+    subject = _extract_subject(text)
     facts: list[Claim] = []
     emotions: list[Claim] = []
     dropped: list[dict[str, Any]] = []
@@ -201,8 +207,6 @@ async def extract_claims(llm: Any | None, task: ResearchTask) -> ExtractionResul
         return heuristic_extract(task)
     payload = {
         "text": task.text,
-        "subject": task.subject,
-        "city": task.city,
         "field_whitelist": sorted(FACT_FIELDS - {"unknown"}),
     }
     try:
@@ -228,7 +232,7 @@ async def extract_claims(llm: Any | None, task: ResearchTask) -> ExtractionResul
         # clearly verifiable numbers/status that the heuristic can catch.
         if heuristic.facts:
             return heuristic
-    subject = str(data.get("subject") or task.subject or "").strip() or None
+    subject = str(data.get("subject") or "").strip() or None
     return ExtractionResult(
         facts=facts[:3],
         emotions=emotions[:5],

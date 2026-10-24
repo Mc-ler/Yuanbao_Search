@@ -27,10 +27,16 @@ def load_queries(path: Path | None = None) -> dict:
     return json.loads(source.read_text(encoding="utf-8"))
 
 
-def _fill(template: str, subject: str, city: str, target_text: str, terms: str = "") -> str:
+def _fill(template: str, focus: str, target_text: str, terms: str = "") -> str:
+    """Fill a query template.
+
+    Only three placeholders exist: {focus} (derived research object),
+    {claim} (legacy assertion text) and {terms} (search terms). There is no
+    {subject}/{city}: the public API no longer accepts them and research never
+    injects them.
+    """
     return (
-        template.replace("{subject}", subject)
-        .replace("{city}", city)
+        template.replace("{focus}", focus)
         .replace("{claim}", target_text)
         .replace("{terms}", terms)
         .strip()
@@ -55,8 +61,7 @@ def plan_key(plan: QueryPlan) -> tuple[str, str | None, str | None]:
 
 def _clean_terms(
     terms: list[str],
-    subject: str,
-    city: str,
+    focus: str,
     template: str = "",
 ) -> list[str]:
     """Drop subject/field words already supplied by the template.
@@ -69,11 +74,9 @@ def _clean_terms(
         term = term.strip()
         if not term:
             continue
-        if term == subject or term == city:
+        if term == focus:
             continue
-        if subject and term in subject:
-            continue
-        if city and term in city:
+        if focus and term in focus:
             continue
         if template and term in template:
             continue
@@ -102,8 +105,7 @@ OFFICIAL_FIELDS = {
 
 def plan_queries(
     target: Claim | Requirement,
-    subject: str | None = None,
-    city: str | None = None,
+    focus: str | None = None,
     round_no: int = 0,
     used: set[tuple[str, str | None, str | None]] | None = None,
     max_plans: int = 4,
@@ -111,17 +113,15 @@ def plan_queries(
     config = load_queries()
     field = getattr(target, "field", "unknown") or "unknown"
     field_cfg = config["fields"].get(field) or config["fields"]["unknown"]
-    default_city = config.get("default_city", "西安")
-    city_value = (city or "").strip()
-    subject_value = (subject or "").strip()
     target_text = str(getattr(target, "text", "") or "").strip()
+    focus_value = (focus or getattr(target, "focus", None) or target_text).strip()
     search_terms = [str(item).strip() for item in (getattr(target, "search_terms", []) or []) if str(item).strip()]
-    terms_list = _clean_terms(search_terms, subject_value, city_value)
+    terms_list = _clean_terms(search_terms, focus_value)
     claim_id = str(getattr(target, "claim_id", "") or "")
     requirement_id = str(getattr(target, "requirement_id", "") or "")
     target_id = claim_id or requirement_id
     source_preference = getattr(target, "source_preference", None)
-    variants = field_cfg.get("variants") or [f"{{subject}} {target_text}"]
+    variants = field_cfg.get("variants") or ["{focus}"]
     precise = dict(field_cfg.get("precise") or {})
     if source_preference and not precise.get("site") and not precise.get("industry"):
         precise["industry"] = source_preference
@@ -138,13 +138,10 @@ def plan_queries(
         strategy: str,
         cnt: int = 10,
     ) -> QueryPlan:
-        query = _fill(
-            template,
-            subject_value,
-            city_value,
-            target_text,
-            " ".join(_clean_terms(terms_list, subject_value, city_value, template)),
-        )
+        terms_text = " ".join(_clean_terms(terms_list, focus_value, template))
+        if not terms_text and "{focus}" not in template:
+            terms_text = target_text
+        query = _fill(template, focus_value, target_text, terms_text)
         return QueryPlan(
             plan_id=make_id("q", target_id, round_no, query, site, industry),
             claim_id=claim_id,
@@ -220,8 +217,6 @@ def plan_queries(
 
 def plan_requirement_queries(
     requirement: Requirement,
-    subject: str | None = None,
-    city: str | None = None,
     round_no: int = 0,
     used: set[tuple[str, str | None, str | None]] | None = None,
     max_plans: int = 4,
@@ -229,8 +224,6 @@ def plan_requirement_queries(
     """Stable entry point for the downstream query interface."""
     return plan_queries(
         requirement,
-        subject=subject,
-        city=city,
         round_no=round_no,
         used=used,
         max_plans=max_plans,
@@ -239,26 +232,19 @@ def plan_requirement_queries(
 
 def _target_values(
     target: Requirement,
-    subject: str | None,
-    city: str | None,
-) -> tuple[str, str, str, list[str]]:
-    config = load_queries()
-    default_city = config.get("default_city", "西安")
-    city_value = (city or "").strip()
-    subject_value = (subject or "").strip()
+) -> tuple[str, str, list[str]]:
     text = str(getattr(target, "text", "") or "").strip()
+    focus = str(getattr(target, "focus", None) or text).strip()
     terms = [
         str(item).strip()
         for item in (getattr(target, "search_terms", []) or [])
         if str(item).strip()
     ]
-    return subject_value, city_value, text, terms
+    return focus, text, terms
 
 
 def plan_fallback_queries(
     requirement: Requirement,
-    subject: str | None = None,
-    city: str | None = None,
     used: set[tuple[str, str | None, str | None]] | None = None,
     max_plans: int = 1,
 ) -> list[QueryPlan]:
@@ -266,18 +252,13 @@ def plan_fallback_queries(
     config = load_queries()
     field = requirement.field or "unknown"
     field_cfg = config["fields"].get(field) or config["fields"]["unknown"]
-    subject_value, city_value, text, terms = _target_values(requirement, subject, city)
-    variants = field_cfg.get("variants") or [f"{{subject}} {text}"]
+    focus, text, terms = _target_values(requirement)
+    variants = field_cfg.get("variants") or ["{focus}"]
     used = used or set()
     plans: list[QueryPlan] = []
     for template in variants:
-        query = _fill(
-            template,
-            subject_value,
-            city_value,
-            text,
-            " ".join(_clean_terms(terms, subject_value, city_value, template)),
-        )
+        terms_text = " ".join(_clean_terms(terms, focus, template)) or text
+        query = _fill(template, focus, text, terms_text)
         if not query:
             continue
         plan = QueryPlan(
@@ -299,8 +280,6 @@ def plan_fallback_queries(
 
 def plan_requery_queries(
     requirement: Requirement,
-    subject: str | None = None,
-    city: str | None = None,
     used: set[tuple[str, str | None, str | None]] | None = None,
     max_plans: int = 1,
 ) -> list[QueryPlan]:
@@ -308,18 +287,13 @@ def plan_requery_queries(
     config = load_queries()
     field = requirement.field or "unknown"
     field_cfg = config["fields"].get(field) or config["fields"]["unknown"]
-    subject_value, city_value, text, terms = _target_values(requirement, subject, city)
-    variants = list(reversed(field_cfg.get("variants") or [f"{{subject}} {text}"]))
+    focus, text, terms = _target_values(requirement)
+    variants = list(reversed(field_cfg.get("variants") or ["{focus}"]))
     used = used or set()
     plans: list[QueryPlan] = []
     for template in variants:
-        query = _fill(
-            template,
-            subject_value,
-            city_value,
-            text,
-            " ".join(_clean_terms(terms, subject_value, city_value, template)),
-        )
+        terms_text = " ".join(_clean_terms(terms, focus, template)) or text
+        query = _fill(template, focus, text, terms_text)
         if not query:
             continue
         plan = QueryPlan(
@@ -341,8 +315,7 @@ def plan_requery_queries(
 
 def plan_time_series_queries(
     target: Claim | Requirement,
-    subject: str | None = None,
-    city: str | None = None,
+    focus: str | None = None,
     windows: list[str] | None = None,
     years: list[str] | None = None,
     used: set[tuple[str, str | None, str | None]] | None = None,
@@ -357,11 +330,10 @@ def plan_time_series_queries(
     config = load_queries()
     field = getattr(target, "field", "unknown") or "unknown"
     field_cfg = config["fields"].get(field) or config["fields"]["unknown"]
-    city_value = (city or "").strip()
-    subject_value = (subject or "").strip()
     target_text = str(getattr(target, "text", "") or "").strip()
+    focus_value = (focus or getattr(target, "focus", None) or target_text).strip()
     terms = [str(x).strip() for x in (getattr(target, "search_terms", []) or []) if str(x).strip()]
-    variants = field_cfg.get("variants") or [f"{{subject}} {target_text}"]
+    variants = field_cfg.get("variants") or ["{focus}"]
     windows = [str(w) for w in (windows or ["d30", "m3", "m6", "y1", "y2", "y5"])]
     years = [str(y) for y in (years or []) if str(y).strip()]
     used = used or set()
@@ -375,13 +347,8 @@ def plan_time_series_queries(
     for window in windows:
         for year in years or [None]:
             for template in variants:
-                query = _fill(
-                    template,
-                    subject_value,
-                    city_value,
-                    target_text,
-                    " ".join(_clean_terms(terms, subject_value, city_value, template)),
-                )
+                terms_text = " ".join(_clean_terms(terms, focus_value, template)) or target_text
+                query = _fill(template, focus_value, target_text, terms_text)
                 if year and str(year) not in query:
                     query = f"{year} {query}"
                 if not query:

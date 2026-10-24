@@ -30,7 +30,7 @@
 - <strong>断言查证</strong>：说法 → 断言抽取 → 定向查询 → 检索 → 去重 → 分级 → 匹配（引文校验）→ <strong>R1–R5 确定性判定</strong> → 报告。R5 时附加“非判定”模型参考意见。
 - 共用检索网关、来源分级、安全护栏、缓存/预算/审计。
 
-当前基线：v3.1；<strong>107 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；预算 4/28/400。
+当前基线：v3.2；<strong>109 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；预算 4/28/400。
 
 ---
 
@@ -96,6 +96,7 @@ macOS/Linux：
 | APP_API_TOKEN | 空 | 预留鉴权，当前未启用 |
 | MAX_CALLS_PER_ASSERTION / RUN / DAY | 4 / 28 / 400 | 预算 |
 | RUN_WALL_SECONDS | 90 | 墙钟 |
+| RESEARCH_TIMEOUT_SECONDS | 180 | 单次 /api/research 硬超时 |
 | DEDUP_THRESHOLD | 0.65 | 5-gram 去重阈值 |
 | CACHE_TTL_HOURS | 72 | 缓存 TTL |
 | MAX_CONCURRENT_RESEARCH | 2 | 并发 |
@@ -106,6 +107,12 @@ macOS/Linux：
 | ALLOW_FAKE_SEARCH | false | 仅测试 |
 | OFFLINE | false | 只读缓存 |
 | LOG_LEVEL / MAX_BYTES / BACKUP_COUNT | INFO / 5000000 / 5 | 日志 |
+
+### 4.3 configure_keys 的输入卡住问题（已修复）
+
+在 Windows 上，Python getpass 使用 msvcrt.getwch()。如果进程没有真正的控制台（IDE 终端、任务运行器、stdin 被重定向），它可能一直阻塞且不回显，表现为“执行后无法输入任何字符”；这不是 API key 或 DeepSeek 的问题。
+
+修复：configure_keys 在 Windows 交互终端默认使用可见 input；非 TTY 时读取一行 stdin；保留 --key 与 --hidden；写入 .env 时去重（保留最后一次值）。自动化建议用 --key，隐藏输入用 --hidden。
 
 完整模板见 .env.example。安全：key 只写 .env；configure_keys 使用 getpass；日志不记录 Authorization/完整正文；默认只绑 127.0.0.1。
 
@@ -140,6 +147,8 @@ macOS/Linux：
 
        ./.Search/Scripts/python.exe scripts/test_deepseek.py
        ./.Search/Scripts/python.exe scripts/test_deepseek.py --model deepseek-v4-pro
+       ./.Search/Scripts/python.exe scripts/test_deepseek.py --all-models
+       ./.Search/Scripts/python.exe scripts/test_deepseek.py --all-models --apply
 
 成功输出 OK model=... latency=...ms、content 和 usage；缺 key 以 2 退出；401/402/429/5xx 给出明确错误。
 
@@ -291,7 +300,7 @@ UI：
     config/             domains / queries / lexicons / llm_providers.json
     fixtures/           测试夹具
     scripts/            configure_keys / test_deepseek / run_research / run_verify / run_plan / probes / git_push
-    tests/              107 个测试
+    tests/              109 个测试
     framework.html      v3.0 双板块架构图
     README.md           本文件
 
@@ -381,7 +390,7 @@ Python 客户端：
 
     ./.Search/Scripts/python.exe -m pytest -q
 
-当前 107 passed。覆盖：需求拆分/focus/plan_id、去重与指标、R1–R5、advisory、回答不含 passage、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
+当前 109 passed。覆盖：需求拆分/focus/plan_id、去重与指标、R1–R5、advisory、回答不含 passage、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
 
 真实 DeepSeek 验证：配置 key → test_deepseek.py OK → 重启 → 深度研究 answer.engine=llm → 断言查证 R1–R5。没有 key 时 test_deepseek.py 明确提示；应用层回退规则摘要，不抛 500。
 
@@ -398,7 +407,10 @@ Python 客户端：
 | LLM 429/5xx | 客户端已重试；降低并发/稍后；看 logs |
 | engine=rule | LLM 不可用或无有效引用；看 test_deepseek/logs |
 | 截图 404 | TTL 过期或 run_id 不对；重新研究 |
-| 截图超时 | 登录墙/反爬；可 EVIDENCE_SCREENSHOTS=false |
+| 截图超时 | 登录墙/反爬；可 EVIDENCE_SCREENSHOTS=false；全局最多 2 个 Chrome |
+| Failed to fetch / 连接中断 | 本地服务已停止或重启；确认 8000 正在运行；UI 已有 300s 超时与明确提示 |
+| 研究返回 429/504 | 并发研究已满或超过 180s；等待后重试/关闭截图 |
+| 断言查证无响应 | 确认服务在线；SSE 断开会自动轮询；刷新页面加载新 app.js |
 | 旧客户端 422 | 删除 subject/city/example_id/fixture_id |
 | 端口占用 | 查 PID 后停止旧进程 |
 | 缓存旧结果 | 删除 cache/ 或用 refresh（CLI） |
@@ -411,12 +423,21 @@ Python 客户端：
 
 边界：深度研究是综述不是判定；不抓全文；主路径不持久化（刷新/重启丢报告，/api/db/* 旧数据只读）；截图 best-effort；DeepSeek 当前未配置 vision；无鉴权限流；plan_id 存内存；仅文字输入，不做 OCR/持续盯梢/B 端后台/公网部署。
 
+### 14.1 深度研究与断言查证是否应该合并
+
+结论：不建议合并成单一 verdict 管道；建议“统一入口 + 共享证据 + 双模式后端”。
+
+可行性：两者约 70% 可共享（输入、检索网关、去重、来源分级、引用、安全、截图、任务存储），但核心产物不同：深度研究是开放式综述/来源分册，断言查证是逐条 Claim 的 R1–R5 判定。把开放问题强行转成断言会产生伪精确；把 R1–R5 塞进研究综述会让用户误以为“综述=判决”。
+
+建议方案：保留 /api/research 与 /api/runs 两个端点；UI 可合并为一个工作台，按输入自动建议模式；共享 source ledger/引用/截图；提供“从研究结论生成断言”显式 handoff，而不是自动判定。这样既减少重复，又保留确定性边界。
+
 路线图：P1 Skills 包；P2 Research Agent；P3 部署（容器/SSE 重放/Token/限流/清理）；质量（真实 DeepSeek 回归、截图成功率、vision provider）；发布（review/推送/录制真实查询视频）。
 
 ---
 
 ## 15. 变更记录
 
+- v3.2（2026-10-25）：修复 configure_keys 交互卡住；统一 DeepSeek 测试脚本（--all-models/--apply）；/api/research 并发/超时与截图全局限流；前端 300s 超时/连接诊断/缓存破坏；真实 DeepSeek 与断言查证实测。
 - v3.1（2026-10-25）：DeepSeek provider（默认）、密钥隔离、重试/超时、test_deepseek.py、configure_keys deepseek、README 统一整合、清理冗余文档/运行产物。
 - v3.0（2026-10-25）：双板块、删除预置、focus/plan_id、全局去重/来源分册、截图/vision、引用校验、R1–R5 UI、不持久化、预算 4/28/400。
 - v2.6（2026-10-25）：极简 UI、demo 快路径（已删除）、subject/city 不注入、85 测试。

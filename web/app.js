@@ -58,11 +58,11 @@ function switchTab(name) {
   if (name === 'report') renderReport();
 }
 
-async function api(url, options) {
+async function api(url, options, timeoutMs = 300000) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { ...(options || {}), signal: controller.signal });
+    const response = await fetch(url, { ...(options || {}), signal: controller.signal, cache: 'no-store' });
     const text = await response.text();
     let data = null;
     if (text) {
@@ -73,6 +73,14 @@ async function api(url, options) {
       throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
     }
     return data;
+  } catch (error) {
+    if (error && error.name === 'AbortError') {
+      throw new Error('请求超时（300 秒）：服务可能仍在处理，请稍后查看结果或重试。');
+    }
+    if (error && (error.name === 'TypeError' || /Failed to fetch|NetworkError|fetch failed/i.test(String(error.message)))) {
+      throw new Error('本地服务连接中断（可能已停止或重启）。请确认 http://127.0.0.1:8000 正在运行后重试。');
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }
@@ -317,6 +325,7 @@ function connectEvents(runId) {
   const types = ['run.started', 'split.done', 'query.planned', 'search.result', 'round.judged', 'unit.verdict', 'advisory.ready', 'run.stats', 'run.done', 'error'];
   types.forEach((type) => source.addEventListener(type, (event) => handleEvent(type, event.data)));
   source.onerror = () => {
+    appendLog('SSE 连接中断，切换为轮询');
     stopEvents();
     startPolling(runId);
   };
@@ -426,7 +435,7 @@ function startPolling(runId) {
     } catch (error) {
       stopVerify();
       setBusy(false);
-      showError('查证轮询失败：' + error.message);
+      showError('查证轮询中断：' + error.message);
     }
   }, 1500);
 }

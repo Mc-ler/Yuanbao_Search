@@ -147,6 +147,10 @@ class ScreenshotCapturer:
                 else "websockets not installed"
             )
         )
+        # Shared across all research requests in this process. Without this,
+        # repeated UI calls can spawn several Chrome instances at once and
+        # exhaust the desktop session.
+        self._gate = asyncio.Semaphore(2)
 
     async def capture(self, url: str, snippet: str = "", timeout_ms: int | None = None) -> Screenshot:
         if not self.enabled:
@@ -155,7 +159,8 @@ class ScreenshotCapturer:
             return Screenshot(url=url, error="blocked non-public URL")
         timeout = (timeout_ms or self.settings.screenshot_timeout_ms) / 1000
         try:
-            return await asyncio.wait_for(self._capture(url, snippet), timeout=timeout + 2)
+            async with self._gate:
+                return await asyncio.wait_for(self._capture(url, snippet), timeout=timeout + 2)
         except asyncio.TimeoutError:
             return Screenshot(url=url, error="screenshot timeout")
         except Exception as exc:

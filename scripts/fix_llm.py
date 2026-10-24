@@ -1,4 +1,8 @@
-"""Verify one exact model (default gpt-6-astra/gpt); --apply persists on success.
+"""Verify one exact GPT/Codex model; --apply persists on success.
+
+For DeepSeek use scripts/test_deepseek.py (single entry point with --all-models
+and --apply). This script is kept for Toklens GPT/Codex diagnostics.
+
 
 /models is a catalog, not an entitlement check. This script bypasses the app's
 cache and fallback selection. No keys are printed or backed up. Restart the

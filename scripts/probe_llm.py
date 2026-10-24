@@ -1,5 +1,9 @@
 """Diagnose Toklens model/group mismatches and select a working model.
 
+DeepSeek checks are consolidated in scripts/test_deepseek.py; this script is
+kept for GPT/Codex/Toklens model-group diagnostics.
+
+
 The key can be valid while the key's group has no account for a model name.
 ``/models`` is a catalog, not an entitlement check: a model can appear there and
 still return ``model_not_found`` on ``/chat/completions``. This script tests each

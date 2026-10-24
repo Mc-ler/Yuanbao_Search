@@ -88,6 +88,7 @@ class Settings:
     max_calls_per_run: int = 28
     max_calls_per_day: int = 400
     run_wall_seconds: int = 90
+    research_timeout_seconds: int = 180
     dedup_threshold: float = 0.65
     cache_ttl_hours: float = 72.0
     offline: bool = False
@@ -182,6 +183,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         max_calls_per_run=_env_int("MAX_CALLS_PER_RUN", 28),
         max_calls_per_day=_env_int("MAX_CALLS_PER_DAY", 400),
         run_wall_seconds=_env_int("RUN_WALL_SECONDS", 90),
+        research_timeout_seconds=_env_int("RESEARCH_TIMEOUT_SECONDS", 180),
         dedup_threshold=_env_float("DEDUP_THRESHOLD", 0.65),
         cache_ttl_hours=_env_float("CACHE_TTL_HOURS", 72.0),
         offline=_env_bool("OFFLINE", False),

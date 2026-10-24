@@ -6,8 +6,10 @@ Examples:
     ./.Search/Scripts/python.exe scripts/configure_keys.py llm --provider toklens
     ./.Search/Scripts/python.exe scripts/configure_keys.py llm --provider gpt --model gpt-4o-mini
 
-Secrets are read with getpass by default and never printed. The Yuanbao key is
-stored raw; the application builds a single Bearer header at request time.
+Secrets are read with a terminal-safe prompt. On Windows the default is a
+visible input because getpass can block in non-console hosts; use --hidden to
+force getpass. Use --key for automation, or pipe the key on stdin. The Yuanbao
+key is stored raw; the application builds a single Bearer header at request time.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import json
+import os
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -60,13 +63,62 @@ def upsert(lines: list[str], key: str, value: str) -> list[str]:
 
 
 def write_env(lines: list[str]) -> None:
-    atomic_write_text(ENV_PATH, "\n".join(lines).rstrip() + "\n")
+    # Keep the last value for each key; duplicate LLM_PROVIDER/DEEPSEEK_* lines
+    # are a common source of confusing configuration.
+    seen: set[str] = set()
+    cleaned: list[str] = []
+    for line in reversed(lines):
+        stripped = line.strip()
+        name = ""
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            name = stripped.split("=", 1)[0].strip().lower()
+        if name and name in seen:
+            continue
+        if name:
+            seen.add(name)
+        cleaned.append(line)
+    cleaned.reverse()
+    atomic_write_text(ENV_PATH, "\n".join(cleaned).rstrip() + "\n")
 
 
-def prompt_secret(label: str, provided: str | None) -> str:
+def prompt_secret(label: str, provided: str | None, hidden: bool = False) -> str:
+    """Read a secret without the Windows getpass/msvcrt hang.
+
+    getpass on Windows calls msvcrt.getwch(), which can block forever when the
+    process has no real console (IDE terminals, job runners, redirected input).
+    Interactive Windows hosts therefore use visible input by default; --hidden
+    opts back into getpass. Non-TTY stdin reads one line so pipes still work.
+    """
     if provided is not None:
         return provided.strip()
-    return getpass.getpass(label).strip()
+    try:
+        interactive = bool(sys.stdin and sys.stdin.isatty())
+    except (AttributeError, ValueError, OSError):
+        interactive = False
+    if not interactive:
+        print("stdin is not a TTY; paste the key and press Enter, or use --key.", flush=True)
+        try:
+            line = sys.stdin.readline() if sys.stdin else ""
+        except (AttributeError, ValueError, OSError):
+            line = ""
+        if not line:
+            print("no input received; nothing written", flush=True)
+            return ""
+        return line.strip()
+    if os.name == "nt" and not hidden:
+        print("Windows 终端使用可见输入（避免 getpass 卡死）；需要隐藏时加 --hidden。", flush=True)
+        try:
+            return input(label).strip()
+        except (EOFError, KeyboardInterrupt):
+            return ""
+    try:
+        return getpass.getpass(label).strip()
+    except (EOFError, KeyboardInterrupt, OSError):
+        print("\n隐藏输入不可用，改用可见输入。", flush=True)
+        try:
+            return input(label).strip()
+        except (EOFError, KeyboardInterrupt):
+            return ""
 
 
 def provider_defaults() -> dict:
@@ -117,7 +169,7 @@ def cmd_show(args: argparse.Namespace) -> int:
 
 
 def cmd_yuanbao(args: argparse.Namespace) -> int:
-    key = prompt_secret("Yuanbao Search API key (input hidden): ", args.key)
+    key = prompt_secret("Yuanbao Search API key: ", args.key, getattr(args, "hidden", False))
     if not key:
         print("empty key; nothing written")
         return 2
@@ -147,7 +199,7 @@ def cmd_llm(args: argparse.Namespace) -> int:
         raw_provider = providers.get(provider) or {}
         default_base = str(raw_provider.get("base_url") or default_base)
     base_url = normalize_base_url(args.base_url or default_base)
-    key = prompt_secret(f"{provider} API key (input hidden): ", args.key)
+    key = prompt_secret(f"{provider} API key: ", args.key, getattr(args, "hidden", False))
     if not key:
         print("empty key; nothing written")
         return 2
@@ -183,12 +235,14 @@ def main() -> int:
 
     yuanbao = sub.add_parser("yuanbao", help="write the raw Yuanbao Search key")
     yuanbao.add_argument("--key", help="optional non-interactive key (avoid shell history)")
+    yuanbao.add_argument("--hidden", action="store_true", help="use getpass hidden input (may block in non-console hosts)")
     yuanbao.add_argument("--base-url", help="optional SearchPro base URL")
     yuanbao.set_defaults(func=cmd_yuanbao)
 
     llm = sub.add_parser("llm", help="write a third-party LLM key")
     llm.add_argument("--provider", default="deepseek", choices=["deepseek", "gpt", "codex", "toklens"])
     llm.add_argument("--key", help="optional non-interactive key (avoid shell history)")
+    llm.add_argument("--hidden", action="store_true", help="use getpass hidden input (may block in non-console hosts)")
     llm.add_argument("--base-url", help="provider base URL (default: DeepSeek /v1)")
     llm.add_argument("--model", help="optional explicit model; empty means auto-select")
     llm.set_defaults(func=cmd_llm)

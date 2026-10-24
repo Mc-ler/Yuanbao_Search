@@ -98,6 +98,7 @@ def _serve(args: argparse.Namespace) -> int:
         host=args.host or settings.app_host,
         port=args.port or settings.app_port,
         reload=False,
+        timeout_keep_alive=75,
     )
     return 0
 

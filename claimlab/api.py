@@ -100,6 +100,7 @@ def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> 
     sandbox = sandbox or build_sandbox(settings)
     store = RunStore()
     semaphore = asyncio.Semaphore(max(1, settings.max_concurrent_research))
+    verify_semaphore = asyncio.Semaphore(max(1, settings.max_concurrent_research))
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -118,12 +119,13 @@ def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> 
     async def execute(record: RunRecord) -> None:
         pipeline = sandbox.new_pipeline(on_event=lambda event: store.publish(record.run_id, event))
         try:
-            report = await pipeline.run(
-                record.task,
-                cancel_event=record.cancel,
-                run_id=record.run_id,
-                search_off=record.search_off,
-            )
+            async with verify_semaphore:
+                report = await pipeline.run(
+                    record.task,
+                    cancel_event=record.cancel,
+                    run_id=record.run_id,
+                    search_off=record.search_off,
+                )
             store.finish(record.run_id, report)
             if record.status == "cancelling":
                 record.status = "cancelled"
@@ -168,24 +170,40 @@ def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> 
         if not settings.search_ready:
             raise HTTPException(status_code=503, detail="未配置 SEARCH_API_KEY；无法执行真实检索")
         text = _validate_text(request.text)
-        plan = None
-        plan_reused = False
-        if request.plan_id:
-            plan = sandbox.plan_store.get(request.plan_id)
-            if plan is not None:
-                if _normalize_text(plan.text) != _normalize_text(text):
-                    raise HTTPException(status_code=400, detail="plan_id 与 text 不匹配，请重新生成查询计划")
-                plan_reused = True
-        if plan is None:
-            plan = await build_research_plan(sandbox.llm, text)
-            sandbox.plan_store.put(plan)
-        event(api_log, "research.start", text_len=len(text), plan_id=plan.plan_id, plan_reused=plan_reused)
         try:
-            async with semaphore:
-                payload = await run_research(sandbox, text, plan=plan, refresh=request.refresh)
+            await asyncio.wait_for(semaphore.acquire(), timeout=5)
+        except asyncio.TimeoutError:
+            raise HTTPException(status_code=429, detail="当前研究任务较多，请等待当前任务完成后再试")
+        try:
+            plan = None
+            plan_reused = False
+            if request.plan_id:
+                plan = sandbox.plan_store.get(request.plan_id)
+                if plan is not None:
+                    if _normalize_text(plan.text) != _normalize_text(text):
+                        raise HTTPException(status_code=400, detail="plan_id 与 text 不匹配，请重新生成查询计划")
+                    plan_reused = True
+            if plan is None:
+                plan = await build_research_plan(sandbox.llm, text)
+                sandbox.plan_store.put(plan)
+            event(api_log, "research.start", text_len=len(text), plan_id=plan.plan_id, plan_reused=plan_reused)
+            try:
+                payload = await asyncio.wait_for(
+                    run_research(sandbox, text, plan=plan, refresh=request.refresh),
+                    timeout=max(30, settings.research_timeout_seconds),
+                )
+            except asyncio.TimeoutError as exc:
+                raise HTTPException(
+                    status_code=504,
+                    detail=f"研究超时（>{settings.research_timeout_seconds}s）；请减少截图或稍后重试",
+                ) from exc
+        except HTTPException:
+            raise
         except Exception as exc:
             event(api_log, "research.error", error=f"{type(exc).__name__}: {exc}")
             raise HTTPException(status_code=502, detail=f"research failed: {type(exc).__name__}: {exc}") from exc
+        finally:
+            semaphore.release()
         payload["plan_reused"] = plan_reused
         event(
             api_log,
@@ -337,4 +355,9 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host=app.state.settings.app_host, port=app.state.settings.app_port)
+    uvicorn.run(
+        app,
+        host=app.state.settings.app_host,
+        port=app.state.settings.app_port,
+        timeout_keep_alive=75,
+    )

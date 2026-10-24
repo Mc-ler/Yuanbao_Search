@@ -104,7 +104,7 @@ config/             domains / queries / lexicons / llm_providers.json
 fixtures/           测试夹具（不对外暴露）
 scripts/            configure_keys / probe_* / run_research / run_verify / run_plan / broad_search / debug_search / analyze_results / git_push
 tests/              103 个测试
-framework.html      v2.6 历史架构图（顶部有说明；v3.0 以 README/PROJECT_PLAN 为准）
+framework.html      v3.0 双板块框架图（archify finalize 通过）
 README.md / PROJECT_PLAN.md / PROJECT_ANALYSIS.md（v2.6 历史分析）
 ```
 
@@ -120,5 +120,4 @@ README.md / PROJECT_PLAN.md / PROJECT_ANALYSIS.md（v2.6 历史分析）
 ## 下一步
 
 - 用真实查询 + 剪辑产出视频，不再依赖预置演示。
-- 完成 framework.html v4 重绘。
 - P1 Skills 包、P2 Research Agent、P3 部署（鉴权/限流/清理）按 PROJECT_PLAN.md 推进。

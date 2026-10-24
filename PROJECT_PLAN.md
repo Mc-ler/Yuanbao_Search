@@ -88,7 +88,7 @@
 | V2 | 断言查证 R1–R5 | 跑一条可证伪说法 | A 通过；B 需调 |
 | V3 | 截图证据 | 检查来源缩略图与降级 | A 通过；B 需调 |
 | V4 | plan_id 一致 | 预览后执行，查询一致 | A 通过；B 需调 |
-| D1 | framework v4 | archify 重绘 | A 补；B 暂缓 |
+| D1 | framework v3.0 | archify 重绘 | A 已完成；B 暂缓 |
 | D2 | 是否启用 Token/限流 | P3 | A 启用；B 暂缓 |
 
 ## 7. 变更记录

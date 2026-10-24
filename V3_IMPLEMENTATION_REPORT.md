@@ -1,7 +1,7 @@
 # v3.0 实施方案落地报告
 
 > 日期：2026-10-25（Asia/Shanghai）
-> 代码分支：refactor/v3-two-boards
+> 代码分支：main（本地 fast-forward 自 refactor/v3-two-boards；远端未推送）
 > 基线：v2.6（2e9db87）→ v3.0
 > 结论：四项修复与配套重构已落地；103 个测试通过；8000 实例运行 v3.0；framework.html 已由 archify 重绘并通过 validate/deliver/check/browser-check。
 
@@ -129,7 +129,7 @@
 | 截图 | Chrome CDP 成功生成 JPEG；真实 run 1 张成功、1 张 timeout；端点/内存存储可用 |
 | UI | 深度研究/断言查证/报告三标签实测通过 |
 | 框架图 | archify 四门禁通过，已替换 framework.html |
-| 工作区 | 分支 refactor/v3-two-boards；无临时文件；主路径不写 DB |
+| 工作区 | main（本地合并）；无临时文件；主路径不写 DB |
 
 ---
 
@@ -172,7 +172,7 @@
 
 ## 9. 交付物
 
-- 分支：refactor/v3-two-boards（commit 见 git log）
+- 分支：main（本地合并；refactor/v3-two-boards 同 commit；远端未推送）
 - 代码：claimlab/、web/、scripts/、tests/
 - 文档：README.md、PROJECT_PLAN.md、web/rules.html、framework.html
 - 证明：deliverables/screenshots/v3-home.png、v3-research.png、v3-verify.png、v3-report.png、v3-framework.png

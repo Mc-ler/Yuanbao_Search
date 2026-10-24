@@ -11,10 +11,12 @@ from typing import Any
 
 from .citations import citation_numbers, validate_citations
 
+NO_RESULT_TEXT = "不知道：当前没有检索到可核验的结果，无法确定。"
+
 SYSTEM_PROMPT = """你是研究综述生成器。给定一个研究问题、一组带编号的来源元数据和可选的网页截图，产出可核验的研究综述。只输出 JSON。
 规则：
 1. 只依据给定来源元数据、内容节选和截图作答；禁止编造来源里没有的出处、日期、文号、机构、人物、数字。
-2. 每个事实句后带 [n] 引用编号；没有来源支撑的句子必须写（未获证据）。
+2. 每个事实句后带 [n] 引用编号；没有来源支撑的句子必须写（未获证据），并明确说“不知道/没有结果/无法确定”，不得猜测。
 3. 截图是来源 [n] 的页面截图；截图看不清、被登录墙挡住或与问题无关时，写（未获证据），不要猜。
 4. 这是研究综述，不是 R1–R5 判定；不要输出“成立/不成立/已证实”等判定词，除非来源本身明确写了。
 5. 先给结论，再给依据；不确定就直说“不确定/需核实”。
@@ -63,7 +65,7 @@ def build_citations(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _rule_answer(rows: list[dict[str, Any]], citations: list[dict[str, Any]]) -> str:
     if not rows:
-        return "没有可分析的需求，无法给出结论。"
+        return NO_RESULT_TEXT
     lines: list[str] = []
     for row in rows:
         field = row.get("field") or "结论"
@@ -73,7 +75,7 @@ def _rule_answer(rows: list[dict[str, Any]], citations: list[dict[str, Any]]) ->
         elif tier == "B/C":
             verdict = "仅有 B/C 降级来源，尚无模型综述"
         else:
-            verdict = "未找到可靠来源"
+            verdict = "没有结果，无法确定"
         srcs = _sources_for(row)
         refs = []
         for c in citations:
@@ -154,7 +156,7 @@ async def build_answer(
     citations = _merge_screenshot_meta(build_citations(rows), screenshots)
     if not citations:
         return _response(
-            "未检索到任何可引用来源，无法给出结论。",
+            NO_RESULT_TEXT,
             "rule",
             [],
             [],

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import re
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
@@ -19,11 +20,13 @@ from uuid import uuid4
 from .contracts import Requirement, SearchBatch, SearchPage
 from .logging import event
 from .planning import ResearchPlan, build_research_plan
+from .skills.query import plan_time_series_queries
 from .skills.answer import build_answer, build_citations
 from .skills.content import best_excerpt, content_chars
 from .skills.dedup import cluster_pages, page_key
 from .skills.grading import grade_page
 from .skills.research_report import build_research_report
+from .search.content_fetch import ContentFetcher
 from .skills.source_policy import is_relevant, source_tier
 
 logger = logging.getLogger("claimlab.research")
@@ -126,6 +129,37 @@ async def _execute_queries(
     return pages
 
 
+async def _fill_missing_content(sandbox: Any, pages: list[SearchPage]) -> dict[str, int]:
+    settings = sandbox.settings
+    stats = {"calls": 0, "success": 0, "failed": 0}
+    if not getattr(settings, "content_fetch_enabled", True):
+        return stats
+    candidates = [
+        page
+        for page in pages
+        if page.url and len(page.content or "") < 500 and grade_page(page).grade in {"A", "B"}
+    ][: max(0, int(getattr(settings, "content_fetch_max_pages", 3)))]
+    if not candidates:
+        return stats
+    fetcher = ContentFetcher(settings)
+    if not fetcher.enabled:
+        return stats
+    try:
+        for page in candidates:
+            stats["calls"] += 1
+            text, error = await fetcher.fetch(page.url)
+            if text:
+                page.content = text
+                page.strength = "full-ish"
+                stats["success"] += 1
+            else:
+                stats["failed"] += 1
+                event(logger, "research.fetch.failed", url=page.url, error=error)
+    finally:
+        await fetcher.close()
+    return stats
+
+
 async def run_research(
     sandbox: Any,
     text: str,
@@ -194,6 +228,50 @@ async def run_research(
     dedup_result = cluster_pages(raw_pages, sandbox.settings.dedup_threshold)
     unique_pages = dedup_result.unique_pages
     page_cluster = dedup_result.page_cluster
+
+    fetch_stats = await _fill_missing_content(sandbox, unique_pages)
+    if fetch_stats.get("success"):
+        dedup_result = cluster_pages(raw_pages, sandbox.settings.dedup_threshold)
+        unique_pages = dedup_result.unique_pages
+        page_cluster = dedup_result.page_cluster
+
+    time_queries = []
+    for round_no in range(max(0, int(settings.research_time_traversal_rounds))):
+        added = 0
+        for row, item in zip(rows, plan.items):
+            requirement = item.requirement
+            relevant = [page for page in unique_pages if is_relevant(page, requirement)]
+            if row.get("tier") == "A/B" and len(relevant) >= 5:
+                continue
+            remaining = max(0, settings.research_max_queries_per_run - len(all_queries))
+            if remaining <= 0:
+                break
+            years = sorted(set(re.findall(r"(?<!\d)(20\d{2})(?!\d)", requirement.text + " " + text)))
+            windows = ["y1", "y2"] if round_no % 2 == 0 else ["y5"]
+            plans = plan_time_series_queries(
+                requirement,
+                windows=windows,
+                years=years,
+                used=set(),
+                max_plans=min(max(1, settings.research_time_traversal_queries), remaining),
+            )
+            existing = {(plan.query, plan.site, plan.industry, plan.freshness) for plan in all_queries}
+            plans = [plan for plan in plans if (plan.query, plan.site, plan.industry, plan.freshness) not in existing]
+            if not plans:
+                continue
+            before = len(collected)
+            await _execute_queries(
+                gateway, run_id, requirement, plans, refresh, collected, row.get("executed", [])
+            )
+            all_queries.extend(plans)
+            time_queries.extend(plans)
+            added += len(collected) - before
+        if added == 0:
+            break
+        raw_pages = [page for page, _req, _query in collected]
+        dedup_result = cluster_pages(raw_pages, sandbox.settings.dedup_threshold)
+        unique_pages = dedup_result.unique_pages
+        page_cluster = dedup_result.page_cluster
 
     ledger: list[dict[str, Any]] = []
     relevant_fields: dict[str, list[str]] = {}
@@ -315,6 +393,10 @@ async def run_research(
         "queries": total_queries,
         "queries_per_requirement": total_queries / len(rows) if rows else 0.0,
         "requery_calls": requery_calls,
+        "time_traversal_queries": len(time_queries),
+        "fetch_calls": fetch_stats.get("calls", 0),
+        "fetch_success": fetch_stats.get("success", 0),
+        "fetch_failed": fetch_stats.get("failed", 0),
         "content_pages": sum(1 for page in unique_pages if page.content),
         "content_chars": sum(len(page.content or "") for page in unique_pages),
         "sources_with_excerpt": sum(
@@ -376,6 +458,7 @@ async def run_research(
         "question": text,
         "requirements": plan.items,
         "queries": all_queries,
+        "time_traversal_queries": time_queries,
         "fallback_queries": all_fallbacks,
         "source_ledger": ledger,
         "results": ledger,

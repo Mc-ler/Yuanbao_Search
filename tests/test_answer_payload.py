@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from claimlab.skills.answer import build_answer
+from claimlab.skills.answer import NO_RESULT_TEXT, build_answer
 
 
 class CaptureLLM:
@@ -46,3 +46,9 @@ def test_invalid_only_citation_falls_back_to_rule():
     result = asyncio.run(build_answer(llm, "问题", rows()))
     assert result["engine"] == "rule"
     assert any(item["reason"] == "no_valid_citation" for item in result["citation_issues"])
+
+
+def test_no_sources_returns_explicit_unknown():
+    result = asyncio.run(build_answer(None, "问题", []))
+    assert result["engine"] == "rule"
+    assert NO_RESULT_TEXT in result["text"]

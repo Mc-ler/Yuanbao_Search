@@ -65,7 +65,7 @@ def test_insufficient_case(tmp_path):
     report, _, _ = run_fixture("case_insufficient", tmp_path)
     assert [unit.verdict for unit in report.units] == ["insufficient"]
     assert report.units[0].failure_type in {"not_indexed", "not_exists", "query_mismatch"}
-    assert "无法判断" in report.units[0].action
+    assert "无法确定" in report.units[0].action or "无法判断" in report.units[0].action
 
 
 def test_pipeline_is_reproducible_with_cache(tmp_path):

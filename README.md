@@ -30,7 +30,7 @@
 - <strong>一句话查证</strong>：说法 → 断言抽取 → 定向查询 → 检索 → 去重 → 分级 → 匹配（引文校验）→ <strong>R1–R5 确定性判定</strong> → 报告。R5 时附加“非判定”模型参考意见。
 - 共用检索网关、来源分级、安全护栏、缓存/预算/审计。
 
-当前基线：v3.7；<strong>119 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 8/32/120。
+当前基线：v3.8；<strong>123 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120。
 
 ---
 
@@ -101,9 +101,14 @@ macOS/Linux：
 | RESEARCH_MAX_QUERIES_PER_RUN | 18 | 单次深度研究查询上限 |
 | RESEARCH_RESULTS_PER_QUERY | 20 | SearchPro Cnt |
 | RESEARCH_REQUERY_ROUNDS | 1 | 覆盖不足时的补搜轮次 |
-| RESEARCH_MAX_CALLS_PER_REQUIREMENT | 8 | 研究预算/需求 |
-| RESEARCH_MAX_CALLS_PER_RUN | 32 | 研究预算/次 |
+| RESEARCH_MAX_CALLS_PER_REQUIREMENT | 12 | 研究预算/需求 |
+| RESEARCH_MAX_CALLS_PER_RUN | 48 | 研究预算/次 |
 | RESEARCH_WALL_SECONDS | 120 | 研究墙钟上限 |
+| RESEARCH_TIME_TRAVERSAL_ROUNDS | 2 | 去重后时间遍历轮次 |
+| RESEARCH_TIME_TRAVERSAL_QUERIES | 2 | 每轮时间查询上限 |
+| CONTENT_FETCH_ENABLED | true | 默认开启公开 A/B 页面正文抓取 |
+| CONTENT_FETCH_MAX_PAGES | 3 | 单次抓取上限 |
+| CONTENT_FETCH_TIMEOUT_SECONDS | 8 | 抓取超时 |
 | DEDUP_THRESHOLD | 0.65 | 5-gram 去重阈值 |
 | CACHE_TTL_HOURS | 72 | 缓存 TTL |
 | MAX_CONCURRENT_RESEARCH | 2 | 并发 |
@@ -258,7 +263,7 @@ curl（bash）：
     netstat -ano | findstr :8000
     Get-NetTCPConnection -LocalPort 8000 -State Listen
 
-品牌：**万物皆可查 / Confirming Everything**；顶部使用去背景图形标 web/assets/brand-mark-light.png（浅色）与 brand-mark-dark.png（深色）加字标文本；完整字标 brand-logo-light/dark.png 保留备用。中文「万物皆可查」、英文「Confirming Everything」。源文件保留在 output/LOGO.png（gitignored）。
+品牌：**万物皆可查 / Confirming Everything**；顶部使用 LOGO-2 去背景图形标 web/assets/team-logo2-light.png（浅色）与 team-logo2-dark.png（深色）加字标文本；LOGO-2 原图保留在 output/LOGO-2.png。中文「万物皆可查」、英文「Confirming Everything」。原图保留在 output/LOGO-2.png（gitignored）。
 
 UI（v3.7 双模式工作台，简洁 LLM 风格）：
 
@@ -306,7 +311,7 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
     config/             domains / queries / lexicons / llm_providers.json
     fixtures/           测试夹具
     scripts/            configure_keys / test_deepseek / run_research / run_verify / run_plan / probes / git_push
-    tests/              119 个测试
+    tests/              123 个测试
     framework.html      v3.0 双板块架构图
     README.md           本文件
 
@@ -399,7 +404,9 @@ Python 客户端：
 
     ./.Search/Scripts/python.exe -m pytest -q
 
-当前 119 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
+当前 123 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
+
+无结果政策：没有可核验结果时，研究综述与断言报告必须明确写“不知道/没有结果/无法确定”，不得用标题或常识补全；抓取失败自动降级，不阻塞流程。
 
 真实 DeepSeek 验证：配置 key → test_deepseek.py OK → 重启 → 深度研究 answer.engine=llm → 一句话查证 R1–R5。历史/统计类陈述会走通用 Claim 抽取；开放问题返回 question_not_claim 并提示改用深度研究或改写。没有 key 时 test_deepseek.py 明确提示；应用层回退规则摘要，不抛 500。
 
@@ -421,6 +428,8 @@ Python 客户端：
 | 研究返回 429/504 | 并发研究已满或超过 180s；等待后重试/关闭截图 |
 | 一句话查证无响应 | 确认服务在线；SSE 断开会自动轮询；刷新页面加载新 app.js |
 | 拆分 0 条断言 | 若输入是问题/纯观点，这是预期分类；按 guidance 改写。历史/统计陈述若仍为 0，检查 cache/llm 是否命中旧 prompt，重启并清理 cache/llm |
+| 研究正文抓取失败 | 默认自动降级到 SearchPro 的 passage/content；不影响报告。检查 URL 是否为登录墙/非 HTML/私网 |
+| 时间遍历查询过多 | 调整 RESEARCH_TIME_TRAVERSAL_ROUNDS / QUERIES 或 RESEARCH_MAX_QUERIES_PER_RUN |
 | 研究查询仍为 3 条 | 确认 env 的 RESEARCH_QUERIES_PER_REQUIREMENT，重启服务；旧 plan_id 缓存计划仍是旧数量 |
 | 旧客户端 422 | 删除 subject/city/example_id/fixture_id |
 | 端口占用 | 查 PID 后停止旧进程 |
@@ -448,6 +457,7 @@ Python 客户端：
 
 ## 15. 变更记录
 
+- v3.8（2026-10-25）：无结果明确话术；时间遍历增量查询；默认公开页正文抓取+失败降级；问题改写提示限次；rule/模型提示词强化。
 - v3.7（2026-10-25）：通用 Claim/输入分类、question_not_claim、通用查询 facet、深度研究 5 查询/需求、研究独立预算、内容节选与交叉验证指标。
 - v3.6（2026-10-25）：多巴胺高斯模糊动态背景；移除背景文字；搜索框自适应高度；整体简洁度与对比度优化。
 - v3.5（2026-10-25）：品牌切到 Confirming Everything；LOGO 去背景并做浅/深色对比版；极简 LLM 风格（删除模式副标题与输入提示，背影字/渐变光斑/玻璃面板）；组件配置独立。

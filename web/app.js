@@ -13,7 +13,8 @@ const state = {
   eventSource: null,
   verifyRunId: null,
   pollTimer: null,
-  runState: 'ready'
+  runState: 'ready',
+  questionHints: Number(sessionStorage.getItem('ui.questionHints') || 0)
 };
 
 const I18N = {
@@ -259,8 +260,10 @@ async function api(url, options, timeoutMs = 300000) {
     if (!response.ok) {
       const detail = data && typeof data === 'object' && data.detail ? data.detail : (data || response.statusText || 'Request failed');
       if (detail && typeof detail === 'object' && detail.message) {
-        const suggestion = detail.suggested_claim ? ' 建议改成：' + detail.suggested_claim : '';
-        throw new Error(String(detail.message) + suggestion);
+        const error = new Error(String(detail.message));
+        error.code = detail.code || '';
+        error.suggestedClaim = detail.suggested_claim || '';
+        throw error;
       }
       throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
     }
@@ -442,13 +445,25 @@ async function execute() {
       body: JSON.stringify({ text })
     });
     state.verifyRunId = run.run_id;
+    state.questionHints = 0;
+    sessionStorage.setItem('ui.questionHints', '0');
     addLog('verify', 'connected', t('log.requestSubmitted', { id: run.run_id }));
     connectEvents(run.run_id);
   } catch (error) {
-    addLog('verify', 'error', error.message, 'error');
+    let message = error.message;
+    if (error.code === 'question_not_claim') {
+      state.questionHints = Math.min(9, Number(state.questionHints || 0) + 1);
+      sessionStorage.setItem('ui.questionHints', String(state.questionHints));
+      if (state.questionHints > 2) {
+        message = '已多次提示：请直接改写成陈述句，或切换到深度研究；不再重复展示改写建议。';
+      } else if (error.suggestedClaim) {
+        message += ' 建议改成：' + error.suggestedClaim;
+      }
+    }
+    addLog('verify', 'error', message, 'error');
     setRunState('failed');
     setBusy(false);
-    showToast(error.message, 'error');
+    showToast(message, 'error');
   }
 }
 

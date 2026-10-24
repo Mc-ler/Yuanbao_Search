@@ -63,7 +63,7 @@ def test_plan_id_reuses_exact_queries(tmp_path):
     assert response.status_code == 200
     data = response.json()
     assert data["plan_reused"] is True
-    assert [q["query"] for q in data["queries"]] == [q["query"] for q in plan_data["queries"]]
+    assert [q["query"] for q in data["queries"][: len(plan_data["queries"])]] == [q["query"] for q in plan_data["queries"]]
     assert data["answer"]["engine"] == "rule"
 
 

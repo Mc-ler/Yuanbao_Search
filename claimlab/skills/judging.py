@@ -207,14 +207,14 @@ def _failure(
     if verdict != "insufficient":
         return None, ""
     if pages_count == 0:
-        return "not_indexed", f"该信息可能未被公开索引；已尝试 {queries_count} 种检索路径，建议直接向商家确认"
+        return "not_indexed", f"当前没有找到公开索引结果；已尝试 {queries_count} 种检索路径，无法确定，建议直接向主体确认"
     relevant = [item for item in pool if item.relation in {"support", "refute"}]
     if not relevant:
         keywords = FIELD_KEYWORDS.get(claim.field, [])
         related = any(keyword in pages_text for keyword in keywords)
         if related:
-            return "not_exists", f"未找到支持该说法的可靠来源；检索到 {pages_count} 条相关内容均不涉及此点"
-        return "query_mismatch", f"已尝试 {queries_count} 种检索路径，结果相关性不足"
+            return "not_exists", f"没有找到支持该说法的可靠来源；检索到 {pages_count} 条相关内容均不涉及此点，无法确定"
+        return "query_mismatch", f"已尝试 {queries_count} 种检索路径，结果相关性不足，无法确定"
     return "not_exists", f"已尝试 {queries_count} 种检索路径，未找到足以判定的来源"
 
 
@@ -251,7 +251,7 @@ def _action(claim: Claim, verdict: str, pool: list[Evidence], failure_text: str,
         return f"口径不一致（{joined}）；建议按较高值准备，出发前再确认"
     if verdict == "suspect":
         return "多条内容同源且缺少可核验细节；建议谨慎，优先看官方来源"
-    return f"无法判断；{failure_text}" if failure_text else "无法判断"
+    return f"无法确定：{failure_text}" if failure_text else "无法确定：没有找到足够可靠的结果"
 
 
 def judge_unit(claim: Claim, evidence: list[Evidence], context: dict[str, Any] | None = None) -> VerificationUnit:

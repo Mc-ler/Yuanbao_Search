@@ -104,6 +104,7 @@ class LLMProvider:
     task_models: dict[str, str] = field(default_factory=dict)
     headers: dict[str, str] = field(default_factory=dict)
     vision: bool = False
+    timeout_seconds: float = 60.0
 
     @property
     def key_present(self) -> bool:
@@ -175,12 +176,15 @@ def load_llm_registry(settings: Settings, config_path: Path | None = None) -> LL
             if not name:
                 continue
             base_url = _env(raw.get("base_url_env")) or str(raw.get("base_url") or "") or settings.llm_base_url
-            api_key = (
-                _env(raw.get("api_key_env"))
-                or _env(raw.get("fallback_key_env"))
-                or settings.llm_api_key
-                or _env("TOKLENS_API_KEY")
-            )
+            explicit_key = _env(raw.get("api_key_env")) or _env(raw.get("fallback_key_env"))
+            if explicit_key:
+                api_key = explicit_key
+            elif bool(raw.get("legacy_key", True)):
+                # Only providers that opt in may reuse the legacy LLM_API_KEY /
+                # TOKLENS_API_KEY; DeepSeek must never receive a Toklens key.
+                api_key = settings.llm_api_key or _env("TOKLENS_API_KEY")
+            else:
+                api_key = ""
             preferred = [str(item).strip() for item in (raw.get("preferred_models") or []) if str(item).strip()]
             default_model = str(raw.get("default_model") or (preferred[0] if preferred else "") or settings.llm_model)
             providers[name] = LLMProvider(
@@ -195,6 +199,7 @@ def load_llm_registry(settings: Settings, config_path: Path | None = None) -> LL
                 },
                 headers={str(key): str(value) for key, value in (raw.get("headers") or {}).items()},
                 vision=bool(raw.get("vision", False)),
+                timeout_seconds=float(raw.get("timeout_seconds") or 60.0),
             )
 
     legacy = False

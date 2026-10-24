@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "default_provider": "gpt",
+  "default_provider": "deepseek",
   "providers": {
     "gpt": {
       "label": "GPT via Toklens (third-party supplier)",
@@ -35,12 +35,31 @@
       ],
       "default_model": "gpt-5.6-sol",
       "vision": true
+    },
+    "deepseek": {
+      "label": "DeepSeek (official OpenAI-compatible)",
+      "base_url": "https://api.deepseek.com/v1",
+      "base_url_env": "DEEPSEEK_BASE_URL",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "preferred_models": [
+        "deepseek-chat",
+        "deepseek-reasoner"
+      ],
+      "default_model": "deepseek-chat",
+      "timeout_seconds": 90,
+      "vision": false,
+      "legacy_key": false
     }
   },
   "task_routes": {
-    "extract_claims": "gpt",
-    "match_evidence": "gpt",
-    "report": "gpt",
+    "extract_claims": "deepseek",
+    "match_evidence": "deepseek",
+    "report": "deepseek",
+    "decompose_requirements": "deepseek",
+    "build_queries": "deepseek",
+    "answer": "deepseek",
+    "advisory": "deepseek",
+    "deepseek_probe": "deepseek",
     "code": "codex"
   },
   "task_models": {}

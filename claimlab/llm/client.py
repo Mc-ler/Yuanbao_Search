@@ -120,7 +120,7 @@ class OpenAICompatLLM:
             headers["Authorization"] = auth
         client = httpx.AsyncClient(
             base_url=provider.base_url,
-            timeout=httpx.Timeout(60.0, connect=10.0),
+            timeout=httpx.Timeout(float(provider.timeout_seconds or 60.0), connect=10.0),
             headers=headers,
         )
         self._clients[provider.name] = client
@@ -204,6 +204,27 @@ class OpenAICompatLLM:
         messages.append({"role": "user", "content": content})
         return messages
 
+    @staticmethod
+    async def _post_chat(client: httpx.AsyncClient, body: dict[str, Any]) -> httpx.Response:
+        """Post a chat completion with bounded retries for transient failures."""
+        last_error: Exception | None = None
+        for attempt in range(3):
+            try:
+                response = await client.post("/chat/completions", json=body)
+            except httpx.HTTPError as exc:
+                last_error = exc
+                if attempt >= 2:
+                    raise
+                await asyncio.sleep(0.5 * (attempt + 1))
+                continue
+            if response.status_code in {429, 500, 502, 503, 504} and attempt < 2:
+                await asyncio.sleep(0.7 * (attempt + 1))
+                continue
+            return response
+        if last_error is not None:
+            raise last_error
+        raise httpx.HTTPError("chat completion failed without response")
+
     async def json(
         self,
         task: str,
@@ -250,7 +271,7 @@ class OpenAICompatLLM:
             }
             self.calls += 1
             try:
-                response = await client.post("/chat/completions", json=body)
+                response = await self._post_chat(client, body)
             except httpx.HTTPError as exc:
                 last_error = f"transport: {type(exc).__name__}"
                 if index + 1 < len(candidates):
@@ -259,7 +280,7 @@ class OpenAICompatLLM:
             if response.status_code in (400, 422):
                 body.pop("response_format", None)
                 self.calls += 1
-                response = await client.post("/chat/completions", json=body)
+                response = await self._post_chat(client, body)
             if response.status_code >= 400 and use_images and _is_vision_error(response.status_code, response.text):
                 # The provider rejected image content. Disable vision for this
                 # provider and retry the same candidate with text-only input.
@@ -270,7 +291,7 @@ class OpenAICompatLLM:
                 body["messages"] = messages
                 body.pop("response_format", None)
                 self.calls += 1
-                response = await client.post("/chat/completions", json=body)
+                response = await self._post_chat(client, body)
             if response.status_code >= 400:
                 last_error = f"HTTP {response.status_code}: {response.text[:300]}"
                 retryable = _is_model_error(response.status_code, response.text) or response.status_code == 429

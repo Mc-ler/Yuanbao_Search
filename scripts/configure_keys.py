@@ -35,7 +35,7 @@ from claimlab.keys import (  # noqa: E402
 
 ENV_PATH = ROOT / ".env"
 ENV_EXAMPLE = ROOT / ".env.example"
-PROVIDER_PREFIX = {"gpt": "GPT", "codex": "CODEX"}
+PROVIDER_PREFIX = {"gpt": "GPT", "codex": "CODEX", "deepseek": "DEEPSEEK"}
 
 
 def read_env_lines() -> list[str]:
@@ -139,11 +139,11 @@ def cmd_llm(args: argparse.Namespace) -> int:
     config = provider_defaults()
     providers = config.get("providers") if isinstance(config, dict) else {}
     provider = args.provider
-    if provider not in {"gpt", "codex", "toklens"}:
-        print("provider must be gpt, codex, or toklens")
+    if provider not in {"gpt", "codex", "deepseek", "toklens"}:
+        print("provider must be gpt, codex, deepseek, or toklens")
         return 2
-    default_base = "https://lax.toklens.ai/v1"
-    if provider in {"gpt", "codex"} and isinstance(providers, dict):
+    default_base = "https://api.deepseek.com/v1" if provider == "deepseek" else "https://lax.toklens.ai/v1"
+    if provider in {"gpt", "codex", "deepseek"} and isinstance(providers, dict):
         raw_provider = providers.get(provider) or {}
         default_base = str(raw_provider.get("base_url") or default_base)
     base_url = normalize_base_url(args.base_url or default_base)
@@ -187,9 +187,9 @@ def main() -> int:
     yuanbao.set_defaults(func=cmd_yuanbao)
 
     llm = sub.add_parser("llm", help="write a third-party LLM key")
-    llm.add_argument("--provider", default="toklens", choices=["gpt", "codex", "toklens"])
+    llm.add_argument("--provider", default="deepseek", choices=["deepseek", "gpt", "codex", "toklens"])
     llm.add_argument("--key", help="optional non-interactive key (avoid shell history)")
-    llm.add_argument("--base-url", help="provider base URL (default: Toklens /v1)")
+    llm.add_argument("--base-url", help="provider base URL (default: DeepSeek /v1)")
     llm.add_argument("--model", help="optional explicit model; empty means auto-select")
     llm.set_defaults(func=cmd_llm)
 

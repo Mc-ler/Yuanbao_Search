@@ -373,7 +373,7 @@ Python 客户端：
 - 截图存内存（TTL 30 分钟），通过 /api/evidence/{run_id}/{n} 提供；不落盘。
 - 登录墙/反爬/动态页可能超时，失败标记并降级，不阻塞报告。
 - [n] 由程序校验；越界标记 [n?]；无有效引用退回规则摘要。
-- DeepSeek 不支持 vision：截图展示给用户，但不发送给 DeepSeek；仅 vision provider 会作为图片输入。
+- DeepSeek 当前未配置 vision（vision=false）：截图展示给用户，但不发送给 DeepSeek；仅 vision provider 会作为图片输入。
 
 ---
 
@@ -409,7 +409,7 @@ Python 客户端：
 
 安全：不提交 .env/key/Authorization/原始正文；默认 127.0.0.1；公网前启用 APP_API_TOKEN、限流、HTTPS；截图 SSRF 防护；入口拦截时政/个人/超长；日志脱敏；不评价个人，不构成消费/法律建议。
 
-边界：深度研究是综述不是判定；不抓全文；主路径不持久化（刷新/重启丢报告，/api/db/* 旧数据只读）；截图 best-effort；DeepSeek 不支持 vision；无鉴权限流；plan_id 存内存；仅文字输入，不做 OCR/持续盯梢/B 端后台/公网部署。
+边界：深度研究是综述不是判定；不抓全文；主路径不持久化（刷新/重启丢报告，/api/db/* 旧数据只读）；截图 best-effort；DeepSeek 当前未配置 vision；无鉴权限流；plan_id 存内存；仅文字输入，不做 OCR/持续盯梢/B 端后台/公网部署。
 
 路线图：P1 Skills 包；P2 Research Agent；P3 部署（容器/SSE 重放/Token/限流/清理）；质量（真实 DeepSeek 回归、截图成功率、vision provider）；发布（review/推送/录制真实查询视频）。
 

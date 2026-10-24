@@ -3,7 +3,7 @@
 Examples:
     ./.Search/Scripts/python.exe scripts/configure_keys.py show
     ./.Search/Scripts/python.exe scripts/configure_keys.py yuanbao
-    ./.Search/Scripts/python.exe scripts/configure_keys.py llm --provider toklens
+    ./.Search/Scripts/python.exe scripts/configure_keys.py llm --provider deepseek
     ./.Search/Scripts/python.exe scripts/configure_keys.py llm --provider gpt --model gpt-4o-mini
 
 Secrets are read with a terminal-safe prompt. On Windows the default is a

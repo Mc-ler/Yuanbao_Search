@@ -1,4 +1,4 @@
-# 说法鉴定所 / YuanBao Research Agent
+# Investigating Everything
 
 > 文字输入 → 元宝 SearchPro → LLM 需求拆分/查询构造 → 去重与来源分级 → 深度研究综述或 R1–R5 断言判定。
 
@@ -113,7 +113,7 @@ macOS/Linux：
 
 ## 5. DeepSeek LLM 接入（推荐）
 
-项目通过 OpenAI 兼容协议调用 DeepSeek，支持 deepseek-chat / deepseek-reasoner，默认 deepseek-chat。
+项目通过 OpenAI 兼容协议调用 DeepSeek。当前账号 /models 返回 deepseek-flash、deepseek-v4-pro；配置同时保留 deepseek-chat/deepseek-reasoner 兼容，默认 deepseek-flash。本机已用 deepseek-flash 跑通 /api/plan 与真实深度研究（answer.engine=llm）。
 
 ### 5.1 配置
 
@@ -134,12 +134,12 @@ macOS/Linux：
        DEEPSEEK_API_KEY=sk-你的密钥
        DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
        # 可选固定模型
-       LLM_MODEL=deepseek-chat
+       LLM_MODEL=deepseek-flash
 
 4. 验证：
 
        ./.Search/Scripts/python.exe scripts/test_deepseek.py
-       ./.Search/Scripts/python.exe scripts/test_deepseek.py --model deepseek-reasoner
+       ./.Search/Scripts/python.exe scripts/test_deepseek.py --model deepseek-v4-pro
 
 成功输出 OK model=... latency=...ms、content 和 usage；缺 key 以 2 退出；401/402/429/5xx 给出明确错误。
 
@@ -152,8 +152,8 @@ config/llm_providers.json 的 deepseek 片段：
       "base_url": "https://api.deepseek.com/v1",
       "base_url_env": "DEEPSEEK_BASE_URL",
       "api_key_env": "DEEPSEEK_API_KEY",
-      "preferred_models": ["deepseek-chat", "deepseek-reasoner"],
-      "default_model": "deepseek-chat",
+      "preferred_models": ["deepseek-flash", "deepseek-v4-pro", "deepseek-chat", "deepseek-reasoner"],
+      "default_model": "deepseek-flash",
       "timeout_seconds": 90,
       "vision": false,
       "legacy_key": false

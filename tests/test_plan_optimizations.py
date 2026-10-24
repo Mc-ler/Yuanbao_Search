@@ -88,3 +88,53 @@ def test_store_roundtrip(tmp_path):
     assert detail["sources"]
     exported = store.export_rows(q="q1")
     assert exported
+
+def test_build_and_render_research_report():
+    from claimlab.skills.research_report import build_research_report, render_research_markdown
+
+    rows = [{
+        "field": "scenic_history", "text": "西安城墙历史沿革", "tier": "A/B",
+        "pages": 10, "relevant_pages": 5,
+        "top_sources": [{"grade": "A", "title": "城墙", "domain": "gov.cn", "url": "https://gov.cn/x"}],
+    }]
+    answer = {
+        "answer": "结论见 [1]", "verdict": "有来源佐证", "engine": "rule",
+        "citations": [{"n": 1, "grade": "A", "title": "城墙", "domain": "gov.cn", "date": "", "url": "https://gov.cn/x"}],
+    }
+    metrics = {"fields": 1, "fields_with_ab": 1, "relevant_official_rate": 1.0, "zero_requirements": 0}
+    report = build_research_report("q", rows, answer, metrics)
+    assert report["title"] == "调查报告"
+    assert report["citations"]
+    md = render_research_markdown(report)
+    assert "# 调查报告" in md
+    assert "[1]" in md
+
+def test_city_subject_not_injected_into_queries():
+    from claimlab.contracts import Requirement
+    from claimlab.skills.query import plan_requirement_queries
+
+    req = Requirement(
+        requirement_id="r1",
+        text="电动自行车新规有哪些重点",
+        field="municipal_notice",
+        subject="西安城墙",
+        city="西安",
+        search_terms=["电动自行车", "新规"],
+    )
+    plans = plan_requirement_queries(req)
+    assert plans
+    for p in plans:
+        assert "西安" not in p.query
+        assert "西安城墙" not in p.query
+
+def test_demo_match_exact_and_miss():
+    from claimlab.demos import load_demo, match_demo
+
+    demo = load_demo("q1_statistics_bulletin")
+    if demo is None:
+        return  # demos/ not pre-generated in this environment
+    hit = match_demo(demo["question"])
+    assert hit is not None
+    assert hit.get("example_id") == "q1_statistics_bulletin"
+    assert hit.get("demo") is True
+    assert match_demo("一条完全无关的自定义问题，不匹配任何演示") is None

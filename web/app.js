@@ -1,7 +1,7 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const state = { health: null, examples: [], active: null, busy: false };
+const state = { health: null, busy: false, report: null };
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ESC[ch]);
@@ -13,53 +13,38 @@ const TIER = {
   insufficient: { label: '未找到可靠来源', cls: 'tier-insufficient' },
 };
 
-const EXAMPLE_LABEL = {
-  q1_statistics_bulletin: '统计公报',
-  q2_scenic_history: '历史 / 世遗',
-  q3_vehicle_restriction: '市政 / 电动车',
-};
-
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   bind();
   try {
-    const [health, examples] = await Promise.all([
-      fetchJSON('/api/health'),
-      fetchJSON('/api/examples'),
-    ]);
+    const health = await fetchJSON('/api/health');
     state.health = health;
-    state.examples = Array.isArray(examples) ? examples : [];
     renderHealth(health);
-    renderExamples();
-    const wanted = new URLSearchParams(location.search).get('example');
-    if (wanted) {
-      const example = state.examples.find((item) => item.example_id === wanted);
-      if (example) {
-        loadExample(example);
-        if (new URLSearchParams(location.search).get('run') === '1') {
-          await runResearch();
-        }
-      }
-    }
   } catch (error) {
     showError(`无法连接本地服务：${error.message}`);
   }
 }
-
 function bind() {
   $('runBtn').addEventListener('click', runResearch);
   $('planBtn').addEventListener('click', loadPlan);
   $('clearBtn').addEventListener('click', clearForm);
-  $('printBtn').addEventListener('click', () => window.print());
+  $('reportPrint').addEventListener('click', () => window.print());
   $('textInput').addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') runResearch();
   });
-  $('textInput').addEventListener('input', () => {
-    if (!state.active) return;
-    if ($('textInput').value.trim() === String(state.active.question || '').trim()) return;
-    detachExample(true);
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
   });
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+  $('tab-research').hidden = name !== 'research';
+  $('tab-report').hidden = name !== 'report';
+  if (name === 'report' && state.report) {
+    $('reportBox').innerHTML = reportCard(state.report);
+  }
 }
 
 async function fetchJSON(url, options) {
@@ -87,7 +72,6 @@ function renderHealth(health) {
     notice.hidden = false;
     notice.className = 'notice warn';
     notice.innerHTML = '当前是 DEMO：本地示例数据，不是真实检索。配置 <code>SEARCH_API_KEY</code> 后重启服务。';
-    $('composerHint').textContent = 'DEMO 模式不调用真实搜索。';
     return;
   }
   notice.hidden = false;
@@ -96,78 +80,22 @@ function renderHealth(health) {
     ? `${esc(health.llm.provider || 'provider')} / ${esc(health.llm.model || '自动选择')}`
     : '未配置 LLM（需求拆分使用规则回退）';
   notice.innerHTML = `真实检索已连接：元宝 SearchPro API。LLM：${llm}。`;
-  $('composerHint').textContent = '真实检索会消耗 SearchPro 额度；生成计划不消耗检索额度。';
-}
-
-function renderExamples() {
-  const root = $('examples');
-  if (!state.examples.length) {
-    root.innerHTML = '<p class="muted">暂无示例</p>';
-    return;
-  }
-  $('examplesHint').textContent = `${state.examples.length} 个固定问题`;
-  root.innerHTML = state.examples.map((item) => {
-    const question = String(item.question || item.question_suggestion || '').trim();
-    const filled = Boolean(String(item.question || '').trim());
-    return `
-      <button class="example-chip" type="button" data-example="${esc(item.example_id)}">
-        <strong>${esc(EXAMPLE_LABEL[item.example_id] || item.example_id)}</strong>
-        <span>${esc(question || '待填问题')}</span>
-        <em>${filled ? esc(item.domain || '') : '未填写'}</em>
-      </button>`;
-  }).join('');
-  root.querySelectorAll('[data-example]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const example = state.examples.find((item) => item.example_id === button.dataset.example);
-      if (example) loadExample(example);
-    });
-  });
-}
-
-function loadExample(example) {
-  const question = String(example.question || example.question_suggestion || '').trim();
-  $('textInput').value = question;
-  $('subjectInput').value = example.subject || '';
-  $('cityInput').value = example.city || '';
-  state.active = example;
-  document.querySelectorAll('.example-chip').forEach((button) => {
-    button.classList.toggle('active', button.dataset.example === example.example_id);
-  });
-  $('textInput').focus();
-  $('planPanel').hidden = true;
-  $('researchPanel').hidden = true;
-}
-
-function detachExample(clearFields = true) {
-  state.active = null;
-  document.querySelectorAll('.example-chip').forEach((button) => button.classList.remove('active'));
-  if (clearFields) {
-    $('subjectInput').value = '';
-    $('cityInput').value = '';
-  }
 }
 
 function clearForm() {
   $('textInput').value = '';
-  $('subjectInput').value = '';
-  $('cityInput').value = '';
-  state.active = null;
-  document.querySelectorAll('.example-chip').forEach((button) => button.classList.remove('active'));
   $('planPanel').hidden = true;
   $('researchPanel').hidden = true;
+  state.report = null;
+  $('reportBox').innerHTML = '<p class="muted">尚未生成调查报告。请先在「研究」页运行一次检索。</p>';
   $('textInput').focus();
 }
-
 function formPayload() {
   return {
     text: $('textInput').value.trim(),
-    subject: $('subjectInput').value.trim() || null,
-    city: $('cityInput').value.trim() || null,
-    example_id: state.active ? state.active.example_id : null,
-    refresh: $('refreshCache').checked,
+    refresh: false,
   };
 }
-
 function setBusy(busy, mode = '') {
   state.busy = busy;
   $('runBtn').disabled = busy;
@@ -240,6 +168,7 @@ async function runResearch() {
   $('metrics').innerHTML = '<p class="muted">正在执行需求拆分、查询构造和真实检索；通常需要十几秒。</p>';
   $('answer').innerHTML = '';
   $('results').innerHTML = '';
+  state.report = null;
   setBusy(true, 'run');
   try {
     const data = await fetchJSON('/api/research', {
@@ -248,7 +177,8 @@ async function runResearch() {
       body: JSON.stringify(payload),
     });
     renderResearch(data);
-    $('researchState').textContent = '已完成';
+    state.report = data.report || null;
+    $('researchState').textContent = data.demo ? '演示 · 预置结果' : '已完成';
   } catch (error) {
     $('researchState').textContent = '失败';
     $('metrics').innerHTML = '';
@@ -328,6 +258,43 @@ function answerCard(answer) {
       ${answer.uncertainty ? `<p class="answer-note">${esc(answer.uncertainty)}</p>` : ''}
       ${citations ? `<details class="citations"><summary>引用来源（${answer.citations.length}）</summary><ul class="sources">${citations}</ul></details>` : ''}
     </div>`;
+}
+
+function renderReport() {
+  if (!state.report) return;
+  $('reportBox').innerHTML = reportCard(state.report);
+  switchTab('report');
+}
+
+function reportCard(report) {
+  if (!report) return '';
+  const verdict = report.verdict || '';
+  const answer = esc(String(report.answer || '')).replace(/\n/g, '<br>');
+  const citations = (report.citations || []).map(function (c) {
+    return '<li class="source" id="cite-' + c.n + '">' +
+      '<span class="grade grade-' + esc(c.grade) + '">' + esc(c.grade) + '</span>' +
+      '<div><a href="' + esc(safeUrl(c.url)) + '" target="_blank" rel="noopener">[' + c.n + '] ' + esc(c.title || c.domain) + '</a>' +
+      '<p>' + esc(c.domain) + (c.date ? ' · ' + esc(c.date) : '') + '</p></div></li>';
+  }).join('');
+  const fields = (report.fields || []).map(function (f) {
+    const srcs = (f.top_sources || []).map(function (s) {
+      return '<li class="source"><span class="grade grade-' + esc(s.grade) + '">' + esc(s.grade) + '</span>' +
+        '<div><a href="' + esc(safeUrl(s.url)) + '" target="_blank" rel="noopener">' + esc(s.title || s.domain) + '</a>' +
+        '<p>' + esc(s.domain || '') + '</p></div></li>';
+    }).join('');
+    return '<div class="report-field"><p class="eyebrow">' + esc(f.field || '') + ' · ' + esc(f.tier || '') + '</p>' +
+      '<p>' + esc(f.text || '') + '</p>' +
+      (srcs ? '<ul class="sources">' + srcs + '</ul>' : '') + '</div>';
+  }).join('');
+  return '<div class="answer-box">' +
+    '<div class="answer-head"><span class="eyebrow">调查报告</span>' +
+    (verdict ? '<span class="verdict">' + esc(verdict) + '</span>' : '') + '</div>' +
+    '<div class="answer-text">' + answer + '</div>' +
+    (report.uncertainty ? '<p class="answer-note">' + esc(report.uncertainty) + '</p>' : '') +
+    (citations ? '<details class="citations" open><summary>引用来源（' + report.citations.length + '）</summary><ul class="sources">' + citations + '</ul></details>' : '') +
+    (fields ? '<h4>字段来源</h4>' + fields : '') +
+    '<p class="answer-note">' + esc(report.disclaimer || '') + '</p>' +
+    '</div>';
 }
 
 function metricCard(label, value) {

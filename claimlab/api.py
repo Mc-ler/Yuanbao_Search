@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from . import __version__
 from .config import ROOT, Settings, load_settings
+from .demos import match_demo
 from .contracts import ResearchTask, dumps, jsonable
 from .logging import configure_logging, event
 from .research import run_research
@@ -217,6 +218,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=400,
                 detail=f"question is empty; fill the question in examples/*.json or pass text ({hint})",
             )
+        demo = match_demo(text, request.example_id)
+        if demo is not None:
+            return {
+                "example_id": demo.get("example_id") or request.example_id,
+                "domain": demo.get("domain") or "",
+                "method": demo.get("method") or "prepared",
+                "requirements": demo.get("requirements") or [],
+                "queries": demo.get("queries") or [],
+                "fallback_queries": demo.get("fallback_queries") or [],
+                "requery_queries": demo.get("requery_queries") or [],
+                "demo": True,
+            }
         task = ResearchTask(
             text=text,
             mode="research_topic",

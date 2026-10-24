@@ -324,3 +324,14 @@ textarea:focus, input:focus {
 .citations { margin-top: 10px; }
 .citations summary { cursor: pointer; font-weight: 600; color: var(--accent); }
 .citations .sources { margin-top: 8px; }
+
+.panel-head-actions { display: flex; align-items: center; gap: 10px; }
+.report-field { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.report-field .eyebrow { margin: 0 0 4px; }
+.report-box h4 { margin: 16px 0 6px; }
+
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.tab { border: 0; background: transparent; padding: 10px 16px; cursor: pointer; font: inherit; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+.tab-panel { max-width: 880px; margin: 0 auto; }
+textarea#textInput { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: inherit; resize: vertical; }

@@ -11,94 +11,54 @@
   <header class="topbar">
     <a class="brand" href="/" aria-label="说法鉴定所首页">
       <span class="brand-mark" aria-hidden="true"></span>
-      <span>
-        <strong>说法鉴定所</strong>
-        <small>Research Agent · 元宝 SearchPro</small>
-      </span>
+      <span><strong>说法鉴定所</strong><small>Research Agent</small></span>
     </a>
-    <nav class="top-actions">
-      <span id="modeBadge" class="badge muted">连接中</span>
-      <a class="text-link" href="/rules" target="_blank" rel="noopener">判定口径</a>
-      <button id="printBtn" class="btn btn-quiet" type="button">打印</button>
-    </nav>
+    <span id="modeBadge" class="badge muted">连接中</span>
   </header>
 
   <main class="page">
-    <section class="intro">
-      <p class="eyebrow">统计 · 历史 · 市政</p>
-      <h1>把问题变成可核查的检索。</h1>
-      <p>输入一个具体问题；系统拆分需求、生成定向查询、执行真实检索，并把 A/B 可靠来源与 B/C 降级来源分开列出。</p>
-    </section>
-
     <div id="notice" class="notice" hidden></div>
 
-    <section class="card composer">
-      <label class="field-label" for="textInput">研究问题</label>
-      <textarea id="textInput" rows="4" placeholder="例如：2024年全国居民人均可支配收入41314元的数据来源和统计口径是什么？"></textarea>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="research" type="button">研究</button>
+      <button class="tab" data-tab="report" type="button">调查报告</button>
+    </nav>
 
-      <div class="field-grid">
-        <label class="field">主体（可选）
-          <input id="subjectInput" type="text" placeholder="国家统计局 / 西安城墙 / 西安市">
-        </label>
-        <label class="field">城市（可选）
-          <input id="cityInput" type="text" placeholder="西安市">
-        </label>
+    <section id="tab-research" class="tab-panel">
+      <div class="composer">
+        <label class="field-label" for="textInput">研究问题</label>
+        <textarea id="textInput" rows="3" placeholder="输入一个具体问题，例如：2024年全国居民人均可支配收入41314元的数据来源和统计口径是什么？"></textarea>
+        <div class="actions">
+          <button id="runBtn" class="btn btn-primary" type="button">开始检索</button>
+          <button id="planBtn" class="btn" type="button">生成查询计划</button>
+          <button id="clearBtn" class="btn btn-quiet" type="button">清空</button>
+        </div>
       </div>
 
-      <div class="examples-head">
-        <span class="muted">示例</span>
-        <span class="muted" id="examplesHint"></span>
-      </div>
-      <div id="examples" class="examples"></div>
+      <section id="planPanel" class="card panel" hidden>
+        <div class="panel-head"><div><h2>查询计划</h2><p id="planSub" class="muted"></p></div><span id="planState" class="state">准备中</span></div>
+        <p id="planSummary" class="summary"></p>
+        <div class="panel-grid">
+          <div><h3>初始查询</h3><div id="planQueries" class="query-list"></div></div>
+          <div><h3>B/C 回退 · 再查询</h3><div id="planFallbacks" class="query-list"></div></div>
+        </div>
+      </section>
 
-      <div class="actions">
-        <button id="runBtn" class="btn btn-primary" type="button">开始检索</button>
-        <button id="planBtn" class="btn" type="button">生成查询计划</button>
-        <label class="check"><input id="refreshCache" type="checkbox"> 跳过缓存</label>
-        <button id="clearBtn" class="btn btn-quiet" type="button">清空</button>
-      </div>
-      <p id="composerHint" class="hint">检索会消耗元宝 SearchPro 额度；生成计划不消耗检索额度。默认使用 72 小时缓存，勾选“跳过缓存”可强制重新检索。</p>
+      <section id="researchPanel" class="card panel" hidden>
+        <div class="panel-head"><div><h2 id="researchTitle">检索结果</h2><p id="researchSub" class="muted"></p></div><span id="researchState" class="state">准备中</span></div>
+        <div id="answer" class="answer"></div>
+        <div id="metrics" class="metrics"></div>
+        <div id="results" class="results"></div>
+      </section>
     </section>
 
-    <section id="planPanel" class="card panel" hidden>
-      <div class="panel-head">
-        <div>
-          <p class="eyebrow">S1 · S2</p>
-          <h2>查询计划</h2>
-          <p id="planSub" class="muted"></p>
-        </div>
-        <span id="planState" class="state">准备中</span>
-      </div>
-      <p id="planSummary" class="summary"></p>
-      <div class="panel-grid">
-        <div>
-          <h3>初始查询</h3>
-          <div id="planQueries" class="query-list"></div>
-        </div>
-        <div>
-          <h3>B/C 回退 · 再查询</h3>
-          <div id="planFallbacks" class="query-list"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="researchPanel" class="card panel" hidden>
-      <div class="panel-head">
-        <div>
-          <p class="eyebrow">真实检索</p>
-          <h2 id="researchTitle">检索结果</h2>
-          <p id="researchSub" class="muted"></p>
-        </div>
-        <span id="researchState" class="state">准备中</span>
-      </div>
-      <div id="answer" class="answer"></div>
-      <div id="metrics" class="metrics"></div>
-      <div id="results" class="results"></div>
+    <section id="tab-report" class="tab-panel" hidden>
+      <div class="panel-head"><h2>调查报告</h2><button id="reportPrint" class="btn btn-quiet" type="button">打印</button></div>
+      <div id="reportBox" class="report-box"><p class="muted">尚未生成调查报告。请先在「研究」页运行一次检索。</p></div>
     </section>
 
     <footer class="footer">
-      <p>只核对公开信息与来源，不评价个人，不构成消费或法律建议。当前只支持文字输入。</p>
-      <p>SearchPro 标准版 · API 单通道 · 本地日志见 logs/README.md</p>
+      <p>只核对公开信息与来源，不评价个人，不构成消费或法律建议。</p>
     </footer>
   </main>
 

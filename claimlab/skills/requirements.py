@@ -83,7 +83,7 @@ SYSTEM_PROMPT = """你是“需求拆分”器，不是答题器。
 输出格式：
 {"domain":"领域","requirements":[
   {"text":"可检索的需求句","field":"字段名","subject":"主体，可空","city":"城市，可空",
-   "time_window":"d30|m3|m6|y1|y2|y5","source_preference":"gov|news|acad|finance",
+   "time_window":"d30|m3|m6|y1|y2|y5","source_preference":"gov|news|acad",
    "search_terms":["2024","居民人均可支配收入","41314"],
    "rationale":"为什么拆这一条"}
 ]}
@@ -131,9 +131,6 @@ def _extract_terms(
         if value and value not in terms:
             terms.append(value)
 
-    for value in (subject, city):
-        if value:
-            add(value)
     for value in re.findall(r"(?<!\d)(20\d{2})(?!\d)", text):
         add(value)
     for value in re.findall(r"\d+(?:\.\d+)?", text):

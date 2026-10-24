@@ -12,9 +12,11 @@ from typing import Any
 from uuid import uuid4
 
 from .contracts import ResearchTask, SearchBatch, SearchPage
+from .demos import match_demo
 from .logging import event
 from .skills.answer import build_answer
 from .skills.grading import grade_page
+from .skills.research_report import build_research_report
 from .skills.query import (
     build_queries_llm,
     plan_fallback_queries,
@@ -43,6 +45,10 @@ async def run_research(
     run_id: str | None = None,
     refresh: bool = False,
 ) -> dict[str, Any]:
+    demo = match_demo(task.text, example_id)
+    if demo is not None:
+        return demo
+
     gateway = sandbox.new_gateway()
     run_id = run_id or f"research-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
     plan = await decompose_requirements(sandbox.llm, task)
@@ -57,14 +63,12 @@ async def run_research(
 
         initial = [
             plan
-            for plan in (await build_queries_llm(sandbox.llm, requirement, subject=task.subject, city=task.city))
+            for plan in (await build_queries_llm(sandbox.llm, requirement))
             if plan_key(plan) not in used
         ]
         if not initial:
             initial = plan_requirement_queries(
                 requirement,
-                subject=task.subject,
-                city=task.city,
                 used=used,
             )
         initial = initial[:2]
@@ -94,8 +98,6 @@ async def run_research(
         if tier == "insufficient":
             fallback = plan_fallback_queries(
                 requirement,
-                subject=task.subject,
-                city=task.city,
                 used=used,
             )[:1]
             all_fallbacks.extend(fallback)
@@ -121,8 +123,6 @@ async def run_research(
         if tier == "insufficient":
             requery = plan_requery_queries(
                 requirement,
-                subject=task.subject,
-                city=task.city,
                 used=used,
             )[:1]
             all_requeries.extend(requery)
@@ -240,6 +240,7 @@ async def run_research(
             pass
 
     answer = await build_answer(sandbox.llm, task.text, rows)
+    report = build_research_report(task.text, rows, answer, metrics)
     return {
         "run_id": run_id,
         "example_id": example_id or None,
@@ -253,4 +254,5 @@ async def run_research(
         "results": rows,
         "metrics": metrics,
         "answer": answer,
+        "report": report,
     }

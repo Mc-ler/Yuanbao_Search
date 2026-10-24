@@ -1,0 +1,550 @@
+{
+  "run_id": "research-20261025-002655-0d713f",
+  "example_id": "q2_scenic_history",
+  "domain": "历史/文化遗产",
+  "method": "llm",
+  "question": "西安城墙现存主体年代、唐城墙遗存在哪？它是否列入世界遗产？",
+  "requirements": [
+    {
+      "requirement_id": "req-3e42fa2b03",
+      "text": "检索西安城墙现存主体的始建、重修年代及唐城墙遗存的具体位置或分布信息",
+      "field": "scenic_history",
+      "subject": "西安城墙",
+      "city": "西安市",
+      "time_window": "y5",
+      "source_preference": "gov",
+      "rationale": "该条核实西安城墙现存主体的年代，并定位唐代城墙遗存。",
+      "importance": 1,
+      "search_terms": [
+        "西安城墙",
+        "现存主体年代",
+        "唐城墙遗存",
+        "遗址位置"
+      ]
+    },
+    {
+      "requirement_id": "req-711d3afdf5",
+      "text": "检索西安城墙是否列入联合国教科文组织世界遗产名录及其相关遗产身份",
+      "field": "heritage_status",
+      "subject": "西安城墙",
+      "city": "西安市",
+      "time_window": "y5",
+      "source_preference": "gov",
+      "rationale": "该条专门核实西安城墙的世界遗产列入状态，避免与一般文物保护身份混淆。",
+      "importance": 2,
+      "search_terms": [
+        "西安城墙",
+        "世界遗产名录",
+        "联合国教科文组织",
+        "中国世界文化遗产"
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "plan_id": "q-cc3d75df72",
+      "claim_id": "",
+      "query": "西安城墙现存主体始建年代及历代重修年代，唐城墙遗存的具体位置和分布信息",
+      "mode": 0,
+      "site": null,
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y5",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-3e42fa2b03"
+    },
+    {
+      "plan_id": "q-06891981d3",
+      "claim_id": "",
+      "query": "西安城墙现存主体建成年代、重修历史以及唐代城墙遗址遗存位置分布",
+      "mode": 0,
+      "site": null,
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y5",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-3e42fa2b03"
+    },
+    {
+      "plan_id": "q-99143f56c5",
+      "claim_id": "",
+      "query": "截至2025年西安城墙是否列入联合国教科文组织世界遗产名录及其世界文化遗产身份",
+      "mode": 0,
+      "site": "unesco.org",
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y5",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-711d3afdf5"
+    },
+    {
+      "plan_id": "q-f077aa6a90",
+      "claim_id": "",
+      "query": "截至2025年西安城墙世界遗产名录收录情况及相关遗产身份 中国政府官方信息",
+      "mode": 0,
+      "site": "gov.cn",
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y5",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-711d3afdf5"
+    }
+  ],
+  "fallback_queries": [
+    {
+      "plan_id": "q-d2a6e77493",
+      "claim_id": "",
+      "query": "西安城墙 世界遗产名录 联合国教科文组织 中国世界文化遗产 世界遗产",
+      "mode": 0,
+      "site": null,
+      "cnt": 10,
+      "industry": null,
+      "freshness": "y5",
+      "precision": "fuzzy",
+      "round": 0,
+      "strategy": "B/C降级",
+      "requirement_id": "req-711d3afdf5"
+    }
+  ],
+  "requery_queries": [],
+  "results": [
+    {
+      "requirement_id": "req-3e42fa2b03",
+      "field": "scenic_history",
+      "text": "检索西安城墙现存主体的始建、重修年代及唐城墙遗存的具体位置或分布信息",
+      "tier": "A/B",
+      "pages": 20,
+      "relevant_pages": 19,
+      "grades": {
+        "A": 8,
+        "B": 1,
+        "C": 0,
+        "D": 11,
+        "E": 0
+      },
+      "relevant_grades": {
+        "A": 8,
+        "B": 0,
+        "C": 0,
+        "D": 11,
+        "E": 0
+      },
+      "executed": [
+        {
+          "query": "西安城墙现存主体始建年代及历代重修年代，唐城墙遗存的具体位置和分布信息",
+          "strategy": "LLM构造",
+          "pages": 10,
+          "error": null,
+          "cache_hit": true
+        },
+        {
+          "query": "西安城墙现存主体建成年代、重修历史以及唐代城墙遗址遗存位置分布",
+          "strategy": "LLM构造",
+          "pages": 10,
+          "error": null,
+          "cache_hit": true
+        }
+      ],
+      "top_sources": [
+        {
+          "grade": "A",
+          "domain": "xadfz.xa.gov.cn",
+          "title": "西安城墙",
+          "url": "https://xadfz.xa.gov.cn/xadq/rwxa/1988422067937697793.html",
+          "date": "2025-11-12"
+        },
+        {
+          "grade": "A",
+          "domain": "sx-dj.gov.cn",
+          "title": "西安城墙:寄望“长安”",
+          "url": "https://sx-dj.gov.cn/dzqk/zk/2024n/d23q/1874724212094320642.html",
+          "date": "2025-01-02"
+        },
+        {
+          "grade": "A",
+          "domain": "beilin.gov.cn",
+          "title": "碑林旅游景点分布",
+          "url": "https://www.beilin.gov.cn/zjbl/msgj/5dcf9f5b65cbd81235c2345d.html",
+          "date": "2026-03-30"
+        },
+        {
+          "grade": "A",
+          "domain": "xa.gov.cn",
+          "title": "西安市文化和旅游局关于推荐历史文化旅游精品线路的公告",
+          "url": "https://www.xa.gov.cn/ztzl/ztzl/lzledc/ywdc/62b975eff8fd1c4c21051368.html",
+          "date": "2022-06-27"
+        },
+        {
+          "grade": "A",
+          "domain": "sx-dj.gov.cn",
+          "title": "西安城墙:寄望“长安”",
+          "url": "https://sx-dj.gov.cn/dzqk/zk/2024n/d23q/1874724212094320642.html",
+          "date": "2025-01-02"
+        },
+        {
+          "grade": "A",
+          "domain": "beilin.gov.cn",
+          "title": "碑林旅游景点分布",
+          "url": "https://www.beilin.gov.cn/zjbl/msgj/5dcf9f5b65cbd81235c2345d.html",
+          "date": "2026-03-30"
+        }
+      ]
+    },
+    {
+      "requirement_id": "req-711d3afdf5",
+      "field": "heritage_status",
+      "text": "检索西安城墙是否列入联合国教科文组织世界遗产名录及其相关遗产身份",
+      "tier": "A/B",
+      "pages": 15,
+      "relevant_pages": 15,
+      "grades": {
+        "A": 3,
+        "B": 1,
+        "C": 0,
+        "D": 11,
+        "E": 0
+      },
+      "relevant_grades": {
+        "A": 3,
+        "B": 1,
+        "C": 0,
+        "D": 11,
+        "E": 0
+      },
+      "executed": [
+        {
+          "query": "截至2025年西安城墙是否列入联合国教科文组织世界遗产名录及其世界文化遗产身份",
+          "strategy": "LLM构造",
+          "pages": 5,
+          "error": null,
+          "cache_hit": true
+        },
+        {
+          "query": "截至2025年西安城墙世界遗产名录收录情况及相关遗产身份 中国政府官方信息",
+          "strategy": "LLM构造",
+          "pages": 0,
+          "error": null,
+          "cache_hit": false
+        },
+        {
+          "query": "西安城墙 世界遗产名录 联合国教科文组织 中国世界文化遗产 世界遗产",
+          "strategy": "B/C降级",
+          "pages": 10,
+          "error": null
+        }
+      ],
+      "top_sources": [
+        {
+          "grade": "A",
+          "domain": "slfjq.mwr.gov.cn",
+          "title": "穿越西安城墙时光之旅",
+          "url": "http://slfjq.mwr.gov.cn/whkp/202502/t20250214_1791844.html",
+          "date": "2025-02-14"
+        },
+        {
+          "grade": "A",
+          "domain": "wltyj.yangling.gov.cn",
+          "title": "“世界级宝贝”的守望与传承",
+          "url": "https://wltyj.yangling.gov.cn/dtyw/wbdt/1889156785405440001.html",
+          "date": "2025-02-11"
+        },
+        {
+          "grade": "A",
+          "domain": "wwj.shaanxi.gov.cn",
+          "title": "对省政协十三届二次会议第585号提案的答复函",
+          "url": "https://wwj.shaanxi.gov.cn/zfxxgk/fdzdgknr/jyta/202410/t20241009_2830267.html",
+          "date": "2024-09-04"
+        },
+        {
+          "grade": "B",
+          "domain": "news.qq.com",
+          "title": "带你穿越西安城墙的时光之旅",
+          "url": "https://news.qq.com/rain/a/20250210A015VC00",
+          "date": "2025-02-10"
+        }
+      ]
+    }
+  ],
+  "metrics": {
+    "fields": 2,
+    "fields_with_ab": 2,
+    "fields_covered": 2,
+    "field_coverage": 1.0,
+    "distinct_fields": 2,
+    "distinct_fields_with_ab": 2,
+    "distinct_field_coverage": 1.0,
+    "pages": 35,
+    "relevant_pages": 34,
+    "ab_pages": 13,
+    "relevant_ab_pages": 12,
+    "official_page_rate": 0.37142857142857144,
+    "relevant_official_rate": 0.35294117647058826,
+    "zero_requirements": 0,
+    "cache_hits": 3
+  },
+  "answer": {
+    "answer": "无法确认西安城墙现存主体年代、唐城墙遗存的具体位置，以及其是否列入世界遗产。所提供材料仅有来源标题、网址和日期，未提供可核验的正文内容，无法据此支持上述结论。",
+    "verdict": "无法确认",
+    "citations": [
+      {
+        "n": 1,
+        "url": "https://xadfz.xa.gov.cn/xadq/rwxa/1988422067937697793.html",
+        "title": "西安城墙",
+        "domain": "xadfz.xa.gov.cn",
+        "grade": "A",
+        "date": "2025-11-12"
+      },
+      {
+        "n": 2,
+        "url": "https://sx-dj.gov.cn/dzqk/zk/2024n/d23q/1874724212094320642.html",
+        "title": "西安城墙:寄望“长安”",
+        "domain": "sx-dj.gov.cn",
+        "grade": "A",
+        "date": "2025-01-02"
+      },
+      {
+        "n": 3,
+        "url": "https://www.beilin.gov.cn/zjbl/msgj/5dcf9f5b65cbd81235c2345d.html",
+        "title": "碑林旅游景点分布",
+        "domain": "beilin.gov.cn",
+        "grade": "A",
+        "date": "2026-03-30"
+      },
+      {
+        "n": 4,
+        "url": "https://www.xa.gov.cn/ztzl/ztzl/lzledc/ywdc/62b975eff8fd1c4c21051368.html",
+        "title": "西安市文化和旅游局关于推荐历史文化旅游精品线路的公告",
+        "domain": "xa.gov.cn",
+        "grade": "A",
+        "date": "2022-06-27"
+      },
+      {
+        "n": 5,
+        "url": "http://slfjq.mwr.gov.cn/whkp/202502/t20250214_1791844.html",
+        "title": "穿越西安城墙时光之旅",
+        "domain": "slfjq.mwr.gov.cn",
+        "grade": "A",
+        "date": "2025-02-14"
+      },
+      {
+        "n": 6,
+        "url": "https://wltyj.yangling.gov.cn/dtyw/wbdt/1889156785405440001.html",
+        "title": "“世界级宝贝”的守望与传承",
+        "domain": "wltyj.yangling.gov.cn",
+        "grade": "A",
+        "date": "2025-02-11"
+      },
+      {
+        "n": 7,
+        "url": "https://wwj.shaanxi.gov.cn/zfxxgk/fdzdgknr/jyta/202410/t20241009_2830267.html",
+        "title": "对省政协十三届二次会议第585号提案的答复函",
+        "domain": "wwj.shaanxi.gov.cn",
+        "grade": "A",
+        "date": "2024-09-04"
+      },
+      {
+        "n": 8,
+        "url": "https://news.qq.com/rain/a/20250210A015VC00",
+        "title": "带你穿越西安城墙的时光之旅",
+        "domain": "news.qq.com",
+        "grade": "B",
+        "date": "2025-02-10"
+      }
+    ],
+    "citations_used": [],
+    "engine": "llm",
+    "uncertainty": "[1]标题与西安城墙相关，但未提供正文，无法确认现存主体年代、唐城墙遗存位置或世界遗产 status；[2]标题与西安城墙相关，但未提供正文，无法确认所问事项；[3]为碑林旅游景点分布，未提供正文，且从现有信息无法确认与所问三项直接相关；[4]为历史文化旅游精品线路公告，未提供正文，无法确认所问事项；[5]标题涉及西安城墙时光之旅，但未提供正文，无法确认所问事项；[6]标题仅称“世界级宝贝”的守望与传承，未提供正文，无法确认西安城墙是否列入世界遗产；[7]为政协提案答复函，未提供正文，无法确认所问事项；[8]标题涉及西安城墙时光之旅，但未提供正文，无法确认所问事项。"
+  },
+  "report": {
+    "title": "调查报告",
+    "question": "西安城墙现存主体年代、唐城墙遗存在哪？它是否列入世界遗产？",
+    "answer": "无法确认西安城墙现存主体年代、唐城墙遗存的具体位置，以及其是否列入世界遗产。所提供材料仅有来源标题、网址和日期，未提供可核验的正文内容，无法据此支持上述结论。",
+    "verdict": "无法确认",
+    "uncertainty": "[1]标题与西安城墙相关，但未提供正文，无法确认现存主体年代、唐城墙遗存位置或世界遗产 status；[2]标题与西安城墙相关，但未提供正文，无法确认所问事项；[3]为碑林旅游景点分布，未提供正文，且从现有信息无法确认与所问三项直接相关；[4]为历史文化旅游精品线路公告，未提供正文，无法确认所问事项；[5]标题涉及西安城墙时光之旅，但未提供正文，无法确认所问事项；[6]标题仅称“世界级宝贝”的守望与传承，未提供正文，无法确认西安城墙是否列入世界遗产；[7]为政协提案答复函，未提供正文，无法确认所问事项；[8]标题涉及西安城墙时光之旅，但未提供正文，无法确认所问事项。",
+    "engine": "llm",
+    "citations": [
+      {
+        "n": 1,
+        "url": "https://xadfz.xa.gov.cn/xadq/rwxa/1988422067937697793.html",
+        "title": "西安城墙",
+        "domain": "xadfz.xa.gov.cn",
+        "grade": "A",
+        "date": "2025-11-12"
+      },
+      {
+        "n": 2,
+        "url": "https://sx-dj.gov.cn/dzqk/zk/2024n/d23q/1874724212094320642.html",
+        "title": "西安城墙:寄望“长安”",
+        "domain": "sx-dj.gov.cn",
+        "grade": "A",
+        "date": "2025-01-02"
+      },
+      {
+        "n": 3,
+        "url": "https://www.beilin.gov.cn/zjbl/msgj/5dcf9f5b65cbd81235c2345d.html",
+        "title": "碑林旅游景点分布",
+        "domain": "beilin.gov.cn",
+        "grade": "A",
+        "date": "2026-03-30"
+      },
+      {
+        "n": 4,
+        "url": "https://www.xa.gov.cn/ztzl/ztzl/lzledc/ywdc/62b975eff8fd1c4c21051368.html",
+        "title": "西安市文化和旅游局关于推荐历史文化旅游精品线路的公告",
+        "domain": "xa.gov.cn",
+        "grade": "A",
+        "date": "2022-06-27"
+      },
+      {
+        "n": 5,
+        "url": "http://slfjq.mwr.gov.cn/whkp/202502/t20250214_1791844.html",
+        "title": "穿越西安城墙时光之旅",
+        "domain": "slfjq.mwr.gov.cn",
+        "grade": "A",
+        "date": "2025-02-14"
+      },
+      {
+        "n": 6,
+        "url": "https://wltyj.yangling.gov.cn/dtyw/wbdt/1889156785405440001.html",
+        "title": "“世界级宝贝”的守望与传承",
+        "domain": "wltyj.yangling.gov.cn",
+        "grade": "A",
+        "date": "2025-02-11"
+      },
+      {
+        "n": 7,
+        "url": "https://wwj.shaanxi.gov.cn/zfxxgk/fdzdgknr/jyta/202410/t20241009_2830267.html",
+        "title": "对省政协十三届二次会议第585号提案的答复函",
+        "domain": "wwj.shaanxi.gov.cn",
+        "grade": "A",
+        "date": "2024-09-04"
+      },
+      {
+        "n": 8,
+        "url": "https://news.qq.com/rain/a/20250210A015VC00",
+        "title": "带你穿越西安城墙的时光之旅",
+        "domain": "news.qq.com",
+        "grade": "B",
+        "date": "2025-02-10"
+      }
+    ],
+    "fields": [
+      {
+        "field": "scenic_history",
+        "text": "检索西安城墙现存主体的始建、重修年代及唐城墙遗存的具体位置或分布信息",
+        "tier": "A/B",
+        "pages": 20,
+        "relevant_pages": 19,
+        "top_sources": [
+          {
+            "grade": "A",
+            "domain": "xadfz.xa.gov.cn",
+            "title": "西安城墙",
+            "url": "https://xadfz.xa.gov.cn/xadq/rwxa/1988422067937697793.html",
+            "date": "2025-11-12"
+          },
+          {
+            "grade": "A",
+            "domain": "sx-dj.gov.cn",
+            "title": "西安城墙:寄望“长安”",
+            "url": "https://sx-dj.gov.cn/dzqk/zk/2024n/d23q/1874724212094320642.html",
+            "date": "2025-01-02"
+          },
+          {
+            "grade": "A",
+            "domain": "beilin.gov.cn",
+            "title": "碑林旅游景点分布",
+            "url": "https://www.beilin.gov.cn/zjbl/msgj/5dcf9f5b65cbd81235c2345d.html",
+            "date": "2026-03-30"
+          },
+          {
+            "grade": "A",
+            "domain": "xa.gov.cn",
+            "title": "西安市文化和旅游局关于推荐历史文化旅游精品线路的公告",
+            "url": "https://www.xa.gov.cn/ztzl/ztzl/lzledc/ywdc/62b975eff8fd1c4c21051368.html",
+            "date": "2022-06-27"
+          },
+          {
+            "grade": "A",
+            "domain": "sx-dj.gov.cn",
+            "title": "西安城墙:寄望“长安”",
+            "url": "https://sx-dj.gov.cn/dzqk/zk/2024n/d23q/1874724212094320642.html",
+            "date": "2025-01-02"
+          },
+          {
+            "grade": "A",
+            "domain": "beilin.gov.cn",
+            "title": "碑林旅游景点分布",
+            "url": "https://www.beilin.gov.cn/zjbl/msgj/5dcf9f5b65cbd81235c2345d.html",
+            "date": "2026-03-30"
+          }
+        ]
+      },
+      {
+        "field": "heritage_status",
+        "text": "检索西安城墙是否列入联合国教科文组织世界遗产名录及其相关遗产身份",
+        "tier": "A/B",
+        "pages": 15,
+        "relevant_pages": 15,
+        "top_sources": [
+          {
+            "grade": "A",
+            "domain": "slfjq.mwr.gov.cn",
+            "title": "穿越西安城墙时光之旅",
+            "url": "http://slfjq.mwr.gov.cn/whkp/202502/t20250214_1791844.html",
+            "date": "2025-02-14"
+          },
+          {
+            "grade": "A",
+            "domain": "wltyj.yangling.gov.cn",
+            "title": "“世界级宝贝”的守望与传承",
+            "url": "https://wltyj.yangling.gov.cn/dtyw/wbdt/1889156785405440001.html",
+            "date": "2025-02-11"
+          },
+          {
+            "grade": "A",
+            "domain": "wwj.shaanxi.gov.cn",
+            "title": "对省政协十三届二次会议第585号提案的答复函",
+            "url": "https://wwj.shaanxi.gov.cn/zfxxgk/fdzdgknr/jyta/202410/t20241009_2830267.html",
+            "date": "2024-09-04"
+          },
+          {
+            "grade": "B",
+            "domain": "news.qq.com",
+            "title": "带你穿越西安城墙的时光之旅",
+            "url": "https://news.qq.com/rain/a/20250210A015VC00",
+            "date": "2025-02-10"
+          }
+        ]
+      }
+    ],
+    "metrics": {
+      "fields": 2,
+      "fields_with_ab": 2,
+      "fields_covered": 2,
+      "field_coverage": 1.0,
+      "distinct_fields": 2,
+      "distinct_fields_with_ab": 2,
+      "distinct_field_coverage": 1.0,
+      "pages": 35,
+      "relevant_pages": 34,
+      "ab_pages": 13,
+      "relevant_ab_pages": 12,
+      "official_page_rate": 0.37142857142857144,
+      "relevant_official_rate": 0.35294117647058826,
+      "zero_requirements": 0,
+      "cache_hits": 3
+    },
+    "generated_at": "2026-10-25 00:26:56",
+    "disclaimer": "本报告只核对公开信息与来源，不评价个人，不构成消费或法律建议。"
+  },
+  "demo": true
+}

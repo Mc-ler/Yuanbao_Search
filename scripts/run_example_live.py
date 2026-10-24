@@ -22,6 +22,7 @@ from claimlab.contracts import ResearchTask, jsonable  # noqa: E402
 from claimlab.logging import configure_logging  # noqa: E402
 from claimlab.research import run_research  # noqa: E402
 from claimlab.runtime import build_sandbox  # noqa: E402
+from claimlab.skills.research_report import render_research_markdown  # noqa: E402
 
 
 def load_example(value: str) -> tuple[Path, dict]:
@@ -43,6 +44,8 @@ async def main_async() -> int:
     parser.add_argument("--city")
     parser.add_argument("--refresh", action="store_true", help="bypass the 72h search cache")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--report", action="store_true", help="print the investigation report as Markdown")
+    parser.add_argument("--report-file", help="also write the Markdown report to this path")
     args = parser.parse_args()
 
     path, example = load_example(args.example)
@@ -88,6 +91,13 @@ async def main_async() -> int:
         await sandbox.close()
     data = jsonable(payload)
     data["log"] = str(log_path)
+    if args.report or args.report_file:
+        report_md = render_research_markdown(data.get("report") or {})
+        if args.report:
+            print(report_md)
+        if args.report_file:
+            Path(args.report_file).write_text(report_md, encoding="utf-8")
+            print(f"[report] wrote {args.report_file}")
     if args.json:
         print(json.dumps(data, ensure_ascii=False, indent=2))
     else:

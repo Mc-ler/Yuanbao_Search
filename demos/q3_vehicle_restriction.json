@@ -1,0 +1,834 @@
+{
+  "run_id": "research-20261025-002759-3bc8e7",
+  "example_id": "q3_vehicle_restriction",
+  "domain": "市政通知电动车新规",
+  "method": "llm",
+  "question": "西安市电动自行车新规出台后有哪些重点内容？",
+  "requirements": [
+    {
+      "requirement_id": "req-80bd9f7472",
+      "text": "检索西安市电动自行车新规正式通知及其重点管理内容",
+      "field": "municipal_notice",
+      "subject": "电动自行车新规",
+      "city": "西安市",
+      "time_window": "y1",
+      "source_preference": "gov",
+      "rationale": "用于确认新规的正式文件、发布机关及主要管理措施。",
+      "importance": 1,
+      "search_terms": [
+        "西安市",
+        "电动自行车",
+        "新规",
+        "管理通知"
+      ]
+    },
+    {
+      "requirement_id": "req-5c42a8c24e",
+      "text": "检索西安市电动自行车新规中的登记上牌、备案及牌照办理要求",
+      "field": "ev_license",
+      "subject": "电动自行车",
+      "city": "西安市",
+      "time_window": "y1",
+      "source_preference": "gov",
+      "rationale": "登记上牌通常是电动自行车新规的重点内容，需要单独核实办理对象、流程和要求。",
+      "importance": 2,
+      "search_terms": [
+        "西安市",
+        "电动自行车",
+        "登记上牌",
+        "备案",
+        "牌照"
+      ]
+    },
+    {
+      "requirement_id": "req-6890ffa57c",
+      "text": "检索西安市电动自行车新规中的通行、停放、充电及违规处罚规定",
+      "field": "ev_restriction",
+      "subject": "电动自行车",
+      "city": "西安市",
+      "time_window": "y1",
+      "source_preference": "gov",
+      "rationale": "用于核实新规对道路通行、停放充电场所及违法行为处罚的具体规定。",
+      "importance": 3,
+      "search_terms": [
+        "西安市",
+        "电动自行车",
+        "通行",
+        "停放充电",
+        "处罚"
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "plan_id": "q-2691ac8c20",
+      "claim_id": "",
+      "query": "西安市电动自行车新规正式通知及重点管理内容",
+      "mode": 0,
+      "site": null,
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y1",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-80bd9f7472"
+    },
+    {
+      "plan_id": "q-04bdc8f426",
+      "claim_id": "",
+      "query": "西安市人民政府 电动自行车 管理 通知 最新规定 正式发布",
+      "mode": 0,
+      "site": "xian.gov.cn",
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y1",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-80bd9f7472"
+    },
+    {
+      "plan_id": "q-b7558cd4cc",
+      "claim_id": "",
+      "query": "西安市电动自行车新规登记上牌、备案及牌照办理要求",
+      "mode": 0,
+      "site": null,
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y1",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-5c42a8c24e"
+    },
+    {
+      "plan_id": "q-11806abb35",
+      "claim_id": "",
+      "query": "西安市公安局电动自行车登记上牌备案牌照办理具体规定和办理流程",
+      "mode": 0,
+      "site": null,
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y1",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-5c42a8c24e"
+    },
+    {
+      "plan_id": "q-733ddb4928",
+      "claim_id": "",
+      "query": "近一年西安市电动自行车新规通行、停放、充电及违规处罚规定官方文件",
+      "mode": 0,
+      "site": "xa.gov.cn",
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y1",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-6890ffa57c"
+    },
+    {
+      "plan_id": "q-7d04afcbc9",
+      "claim_id": "",
+      "query": "近一年西安市电动自行车通行管理规定，包括禁行区域、道路通行要求及交通违法处罚官方信息",
+      "mode": 0,
+      "site": "xa.gov.cn",
+      "cnt": 10,
+      "industry": "gov",
+      "freshness": "y1",
+      "precision": "precise",
+      "round": 0,
+      "strategy": "LLM构造",
+      "requirement_id": "req-6890ffa57c"
+    }
+  ],
+  "fallback_queries": [
+    {
+      "plan_id": "q-2c1416a3a5",
+      "claim_id": "",
+      "query": "西安市 电动自行车 停放充电 处罚 通行",
+      "mode": 0,
+      "site": null,
+      "cnt": 10,
+      "industry": null,
+      "freshness": "y1",
+      "precision": "fuzzy",
+      "round": 0,
+      "strategy": "B/C降级",
+      "requirement_id": "req-6890ffa57c"
+    }
+  ],
+  "requery_queries": [],
+  "results": [
+    {
+      "requirement_id": "req-80bd9f7472",
+      "field": "municipal_notice",
+      "text": "检索西安市电动自行车新规正式通知及其重点管理内容",
+      "tier": "A/B",
+      "pages": 10,
+      "relevant_pages": 10,
+      "grades": {
+        "A": 6,
+        "B": 0,
+        "C": 0,
+        "D": 4,
+        "E": 0
+      },
+      "relevant_grades": {
+        "A": 6,
+        "B": 0,
+        "C": 0,
+        "D": 4,
+        "E": 0
+      },
+      "executed": [
+        {
+          "query": "西安市电动自行车新规正式通知及重点管理内容",
+          "strategy": "LLM构造",
+          "pages": 10,
+          "error": null,
+          "cache_hit": true
+        },
+        {
+          "query": "西安市人民政府 电动自行车 管理 通知 最新规定 正式发布",
+          "strategy": "LLM构造",
+          "pages": 0,
+          "error": null,
+          "cache_hit": false
+        }
+      ],
+      "top_sources": [
+        {
+          "grade": "A",
+          "domain": "police.xa.gov.cn",
+          "title": "西安市公安局对市政协十五届五次会议第604号提案的答复函",
+          "url": "https://police.xa.gov.cn/zwgk/jytabl/2090372340155191297.html",
+          "date": "2026-06-11"
+        },
+        {
+          "grade": "A",
+          "domain": "xahy.gov.cn",
+          "title": "电动自行车最高限速拟调整",
+          "url": "http://www.xahy.gov.cn/zwgk/ggqsydw/ggjt/2094986755023912962.html",
+          "date": "2026-08-28"
+        },
+        {
+          "grade": "A",
+          "domain": "hlj.gov.cn",
+          "title": "关于电动自行车安全技术规范的权威解答,帮你问到了!",
+          "url": "https://www.hlj.gov.cn/hlj/zcbnw/202512/c00_31896918.shtml",
+          "date": "2026-06-26"
+        },
+        {
+          "grade": "A",
+          "domain": "xaepb.xa.gov.cn",
+          "title": "西安市生态环境局关于市政协十五届五次会议第486号提案的答复函",
+          "url": "https://xaepb.xa.gov.cn/xxgk/jyta/2097213375850258433.html",
+          "date": "2026-06-26"
+        },
+        {
+          "grade": "A",
+          "domain": "sfj.xianyang.gov.cn",
+          "title": "新修订的《陕西省消防条例》将于11月9日施行",
+          "url": "https://sfj.xianyang.gov.cn/zzb/zzdtyw/202610/t20261016_2124914.html",
+          "date": "2026-10-15"
+        },
+        {
+          "grade": "A",
+          "domain": "jtgl.beijing.gov.cn",
+          "title": "北京市非机动车管理条例",
+          "url": "https://jtgl.beijing.gov.cn/jgj/lszt/659722/743999803/index.html",
+          "date": "2026-05-07"
+        }
+      ]
+    },
+    {
+      "requirement_id": "req-5c42a8c24e",
+      "field": "ev_license",
+      "text": "检索西安市电动自行车新规中的登记上牌、备案及牌照办理要求",
+      "tier": "A/B",
+      "pages": 20,
+      "relevant_pages": 20,
+      "grades": {
+        "A": 13,
+        "B": 0,
+        "C": 0,
+        "D": 7,
+        "E": 0
+      },
+      "relevant_grades": {
+        "A": 13,
+        "B": 0,
+        "C": 0,
+        "D": 7,
+        "E": 0
+      },
+      "executed": [
+        {
+          "query": "西安市电动自行车新规登记上牌、备案及牌照办理要求",
+          "strategy": "LLM构造",
+          "pages": 10,
+          "error": null,
+          "cache_hit": true
+        },
+        {
+          "query": "西安市公安局电动自行车登记上牌备案牌照办理具体规定和办理流程",
+          "strategy": "LLM构造",
+          "pages": 10,
+          "error": null,
+          "cache_hit": true
+        }
+      ],
+      "top_sources": [
+        {
+          "grade": "A",
+          "domain": "zwfw.xa.gov.cn",
+          "title": "非机动车登记",
+          "url": "https://zwfw.xa.gov.cn/xixianxinqu/grbs/azt/jtcx18/2099521367373307906.html",
+          "date": "2026-09-14"
+        },
+        {
+          "grade": "A",
+          "domain": "zwfw.xa.gov.cn",
+          "title": "非机动车登记",
+          "url": "https://zwfw.xa.gov.cn/bmbs/azt/jtcx18/2005625861417472002.html",
+          "date": "2026-05-11"
+        },
+        {
+          "grade": "A",
+          "domain": "cbip.xa.gov.cn",
+          "title": "西安浐灞国际港扎实推进冬季道路交通安全工作 筑牢安全防护网",
+          "url": "https://cbip.xa.gov.cn/xwzx/gzdt/2013868443234799617.html",
+          "date": "2026-01-19"
+        },
+        {
+          "grade": "A",
+          "domain": "zwfw.xa.gov.cn",
+          "title": "非机动车登记(县级权限)",
+          "url": "https://zwfw.xa.gov.cn/xixianxinqu/grbs/azt/jtcx18/2005821764637118466.html",
+          "date": "2026-08-27"
+        },
+        {
+          "grade": "A",
+          "domain": "xinzhoupeace.gov.cn",
+          "title": "合规才是上路最快的“速度”",
+          "url": "https://www.xinzhoupeace.gov.cn/info/1027/8293.htm",
+          "date": "2026-07-08"
+        },
+        {
+          "grade": "A",
+          "domain": "ncjj.nc.gov.cn",
+          "title": "电动自行车业务办理全攻略:上牌､过户､补牌､注销,看这篇就够了",
+          "url": "https://ncjj.nc.gov.cn/ncjtglj/wnfw/202605/7e0aab396e294d7e9f30bd44b99fece0.shtml",
+          "date": "2026-05-16"
+        }
+      ]
+    },
+    {
+      "requirement_id": "req-6890ffa57c",
+      "field": "ev_restriction",
+      "text": "检索西安市电动自行车新规中的通行、停放、充电及违规处罚规定",
+      "tier": "A/B",
+      "pages": 10,
+      "relevant_pages": 10,
+      "grades": {
+        "A": 0,
+        "B": 3,
+        "C": 0,
+        "D": 7,
+        "E": 0
+      },
+      "relevant_grades": {
+        "A": 0,
+        "B": 3,
+        "C": 0,
+        "D": 7,
+        "E": 0
+      },
+      "executed": [
+        {
+          "query": "近一年西安市电动自行车新规通行、停放、充电及违规处罚规定官方文件",
+          "strategy": "LLM构造",
+          "pages": 0,
+          "error": null,
+          "cache_hit": false
+        },
+        {
+          "query": "近一年西安市电动自行车通行管理规定，包括禁行区域、道路通行要求及交通违法处罚官方信息",
+          "strategy": "LLM构造",
+          "pages": 0,
+          "error": null,
+          "cache_hit": false
+        },
+        {
+          "query": "西安市 电动自行车 停放充电 处罚 通行",
+          "strategy": "B/C降级",
+          "pages": 10,
+          "error": null
+        }
+      ],
+      "top_sources": [
+        {
+          "grade": "B",
+          "domain": "m.thepaper.cn",
+          "title": "应急科普丨规范使用电动自行车 这些安全要点请掌握!",
+          "url": "https://m.thepaper.cn/newsDetail_forward_33475062",
+          "date": "2026-06-29"
+        },
+        {
+          "grade": "B",
+          "domain": "m.thepaper.cn",
+          "title": "安全科普 拒绝违规充电!规范使用电动自行车,这些安全要点请掌握",
+          "url": "https://m.thepaper.cn/newsDetail_forward_33367096",
+          "date": "2026-06-12"
+        },
+        {
+          "grade": "B",
+          "domain": "m.thepaper.cn",
+          "title": "【以案释法】违规停放电动自行车,拒不改正,予以处罚",
+          "url": "https://m.thepaper.cn/newsDetail_forward_33493671",
+          "date": "2026-07-01"
+        }
+      ]
+    }
+  ],
+  "metrics": {
+    "fields": 3,
+    "fields_with_ab": 3,
+    "fields_covered": 3,
+    "field_coverage": 1.0,
+    "distinct_fields": 3,
+    "distinct_fields_with_ab": 3,
+    "distinct_field_coverage": 1.0,
+    "pages": 40,
+    "relevant_pages": 40,
+    "ab_pages": 22,
+    "relevant_ab_pages": 22,
+    "official_page_rate": 0.55,
+    "relevant_official_rate": 0.55,
+    "zero_requirements": 0,
+    "cache_hits": 3
+  },
+  "answer": {
+    "answer": "无法确认西安市电动自行车新规出台后的具体重点内容。现有证据中，[1]仅显示西安市公安局对相关政协提案作出答复，未提供新规条文或重点内容；[2]表述为“最高限速拟调整”，不能证明该调整已经正式出台；[7]、[8]、[10]仅涉及非机动车登记服务，未说明新规的完整内容。[1][2][7][8][10]",
+    "verdict": "无法确认",
+    "citations": [
+      {
+        "n": 1,
+        "url": "https://police.xa.gov.cn/zwgk/jytabl/2090372340155191297.html",
+        "title": "西安市公安局对市政协十五届五次会议第604号提案的答复函",
+        "domain": "police.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-06-11"
+      },
+      {
+        "n": 2,
+        "url": "http://www.xahy.gov.cn/zwgk/ggqsydw/ggjt/2094986755023912962.html",
+        "title": "电动自行车最高限速拟调整",
+        "domain": "xahy.gov.cn",
+        "grade": "A",
+        "date": "2026-08-28"
+      },
+      {
+        "n": 3,
+        "url": "https://www.hlj.gov.cn/hlj/zcbnw/202512/c00_31896918.shtml",
+        "title": "关于电动自行车安全技术规范的权威解答,帮你问到了!",
+        "domain": "hlj.gov.cn",
+        "grade": "A",
+        "date": "2026-06-26"
+      },
+      {
+        "n": 4,
+        "url": "https://xaepb.xa.gov.cn/xxgk/jyta/2097213375850258433.html",
+        "title": "西安市生态环境局关于市政协十五届五次会议第486号提案的答复函",
+        "domain": "xaepb.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-06-26"
+      },
+      {
+        "n": 5,
+        "url": "https://sfj.xianyang.gov.cn/zzb/zzdtyw/202610/t20261016_2124914.html",
+        "title": "新修订的《陕西省消防条例》将于11月9日施行",
+        "domain": "sfj.xianyang.gov.cn",
+        "grade": "A",
+        "date": "2026-10-15"
+      },
+      {
+        "n": 6,
+        "url": "https://jtgl.beijing.gov.cn/jgj/lszt/659722/743999803/index.html",
+        "title": "北京市非机动车管理条例",
+        "domain": "jtgl.beijing.gov.cn",
+        "grade": "A",
+        "date": "2026-05-07"
+      },
+      {
+        "n": 7,
+        "url": "https://zwfw.xa.gov.cn/xixianxinqu/grbs/azt/jtcx18/2099521367373307906.html",
+        "title": "非机动车登记",
+        "domain": "zwfw.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-09-14"
+      },
+      {
+        "n": 8,
+        "url": "https://zwfw.xa.gov.cn/bmbs/azt/jtcx18/2005625861417472002.html",
+        "title": "非机动车登记",
+        "domain": "zwfw.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-05-11"
+      },
+      {
+        "n": 9,
+        "url": "https://cbip.xa.gov.cn/xwzx/gzdt/2013868443234799617.html",
+        "title": "西安浐灞国际港扎实推进冬季道路交通安全工作 筑牢安全防护网",
+        "domain": "cbip.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-01-19"
+      },
+      {
+        "n": 10,
+        "url": "https://zwfw.xa.gov.cn/xixianxinqu/grbs/azt/jtcx18/2005821764637118466.html",
+        "title": "非机动车登记(县级权限)",
+        "domain": "zwfw.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-08-27"
+      },
+      {
+        "n": 11,
+        "url": "https://www.xinzhoupeace.gov.cn/info/1027/8293.htm",
+        "title": "合规才是上路最快的“速度”",
+        "domain": "xinzhoupeace.gov.cn",
+        "grade": "A",
+        "date": "2026-07-08"
+      },
+      {
+        "n": 12,
+        "url": "https://ncjj.nc.gov.cn/ncjtglj/wnfw/202605/7e0aab396e294d7e9f30bd44b99fece0.shtml",
+        "title": "电动自行车业务办理全攻略:上牌､过户､补牌､注销,看这篇就够了",
+        "domain": "ncjj.nc.gov.cn",
+        "grade": "A",
+        "date": "2026-05-16"
+      },
+      {
+        "n": 13,
+        "url": "https://m.thepaper.cn/newsDetail_forward_33475062",
+        "title": "应急科普丨规范使用电动自行车 这些安全要点请掌握!",
+        "domain": "m.thepaper.cn",
+        "grade": "B",
+        "date": "2026-06-29"
+      },
+      {
+        "n": 14,
+        "url": "https://m.thepaper.cn/newsDetail_forward_33367096",
+        "title": "安全科普 拒绝违规充电!规范使用电动自行车,这些安全要点请掌握",
+        "domain": "m.thepaper.cn",
+        "grade": "B",
+        "date": "2026-06-12"
+      },
+      {
+        "n": 15,
+        "url": "https://m.thepaper.cn/newsDetail_forward_33493671",
+        "title": "【以案释法】违规停放电动自行车,拒不改正,予以处罚",
+        "domain": "m.thepaper.cn",
+        "grade": "B",
+        "date": "2026-07-01"
+      }
+    ],
+    "citations_used": [
+      1,
+      2,
+      7,
+      8,
+      10
+    ],
+    "engine": "llm",
+    "uncertainty": "证据不足，需核实西安市正式发布的新规原文或官方公告。其余证据分别涉及外地规定、通用技术解答、消防条例、环保提案答复、道路安全工作、外地业务攻略或安全科普，不能直接证明西安市电动自行车新规的重点内容。[3][4][5][6][9][11][12][13][14][15]"
+  },
+  "report": {
+    "title": "调查报告",
+    "question": "西安市电动自行车新规出台后有哪些重点内容？",
+    "answer": "无法确认西安市电动自行车新规出台后的具体重点内容。现有证据中，[1]仅显示西安市公安局对相关政协提案作出答复，未提供新规条文或重点内容；[2]表述为“最高限速拟调整”，不能证明该调整已经正式出台；[7]、[8]、[10]仅涉及非机动车登记服务，未说明新规的完整内容。[1][2][7][8][10]",
+    "verdict": "无法确认",
+    "uncertainty": "证据不足，需核实西安市正式发布的新规原文或官方公告。其余证据分别涉及外地规定、通用技术解答、消防条例、环保提案答复、道路安全工作、外地业务攻略或安全科普，不能直接证明西安市电动自行车新规的重点内容。[3][4][5][6][9][11][12][13][14][15]",
+    "engine": "llm",
+    "citations": [
+      {
+        "n": 1,
+        "url": "https://police.xa.gov.cn/zwgk/jytabl/2090372340155191297.html",
+        "title": "西安市公安局对市政协十五届五次会议第604号提案的答复函",
+        "domain": "police.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-06-11"
+      },
+      {
+        "n": 2,
+        "url": "http://www.xahy.gov.cn/zwgk/ggqsydw/ggjt/2094986755023912962.html",
+        "title": "电动自行车最高限速拟调整",
+        "domain": "xahy.gov.cn",
+        "grade": "A",
+        "date": "2026-08-28"
+      },
+      {
+        "n": 3,
+        "url": "https://www.hlj.gov.cn/hlj/zcbnw/202512/c00_31896918.shtml",
+        "title": "关于电动自行车安全技术规范的权威解答,帮你问到了!",
+        "domain": "hlj.gov.cn",
+        "grade": "A",
+        "date": "2026-06-26"
+      },
+      {
+        "n": 4,
+        "url": "https://xaepb.xa.gov.cn/xxgk/jyta/2097213375850258433.html",
+        "title": "西安市生态环境局关于市政协十五届五次会议第486号提案的答复函",
+        "domain": "xaepb.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-06-26"
+      },
+      {
+        "n": 5,
+        "url": "https://sfj.xianyang.gov.cn/zzb/zzdtyw/202610/t20261016_2124914.html",
+        "title": "新修订的《陕西省消防条例》将于11月9日施行",
+        "domain": "sfj.xianyang.gov.cn",
+        "grade": "A",
+        "date": "2026-10-15"
+      },
+      {
+        "n": 6,
+        "url": "https://jtgl.beijing.gov.cn/jgj/lszt/659722/743999803/index.html",
+        "title": "北京市非机动车管理条例",
+        "domain": "jtgl.beijing.gov.cn",
+        "grade": "A",
+        "date": "2026-05-07"
+      },
+      {
+        "n": 7,
+        "url": "https://zwfw.xa.gov.cn/xixianxinqu/grbs/azt/jtcx18/2099521367373307906.html",
+        "title": "非机动车登记",
+        "domain": "zwfw.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-09-14"
+      },
+      {
+        "n": 8,
+        "url": "https://zwfw.xa.gov.cn/bmbs/azt/jtcx18/2005625861417472002.html",
+        "title": "非机动车登记",
+        "domain": "zwfw.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-05-11"
+      },
+      {
+        "n": 9,
+        "url": "https://cbip.xa.gov.cn/xwzx/gzdt/2013868443234799617.html",
+        "title": "西安浐灞国际港扎实推进冬季道路交通安全工作 筑牢安全防护网",
+        "domain": "cbip.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-01-19"
+      },
+      {
+        "n": 10,
+        "url": "https://zwfw.xa.gov.cn/xixianxinqu/grbs/azt/jtcx18/2005821764637118466.html",
+        "title": "非机动车登记(县级权限)",
+        "domain": "zwfw.xa.gov.cn",
+        "grade": "A",
+        "date": "2026-08-27"
+      },
+      {
+        "n": 11,
+        "url": "https://www.xinzhoupeace.gov.cn/info/1027/8293.htm",
+        "title": "合规才是上路最快的“速度”",
+        "domain": "xinzhoupeace.gov.cn",
+        "grade": "A",
+        "date": "2026-07-08"
+      },
+      {
+        "n": 12,
+        "url": "https://ncjj.nc.gov.cn/ncjtglj/wnfw/202605/7e0aab396e294d7e9f30bd44b99fece0.shtml",
+        "title": "电动自行车业务办理全攻略:上牌､过户､补牌､注销,看这篇就够了",
+        "domain": "ncjj.nc.gov.cn",
+        "grade": "A",
+        "date": "2026-05-16"
+      },
+      {
+        "n": 13,
+        "url": "https://m.thepaper.cn/newsDetail_forward_33475062",
+        "title": "应急科普丨规范使用电动自行车 这些安全要点请掌握!",
+        "domain": "m.thepaper.cn",
+        "grade": "B",
+        "date": "2026-06-29"
+      },
+      {
+        "n": 14,
+        "url": "https://m.thepaper.cn/newsDetail_forward_33367096",
+        "title": "安全科普 拒绝违规充电!规范使用电动自行车,这些安全要点请掌握",
+        "domain": "m.thepaper.cn",
+        "grade": "B",
+        "date": "2026-06-12"
+      },
+      {
+        "n": 15,
+        "url": "https://m.thepaper.cn/newsDetail_forward_33493671",
+        "title": "【以案释法】违规停放电动自行车,拒不改正,予以处罚",
+        "domain": "m.thepaper.cn",
+        "grade": "B",
+        "date": "2026-07-01"
+      }
+    ],
+    "fields": [
+      {
+        "field": "municipal_notice",
+        "text": "检索西安市电动自行车新规正式通知及其重点管理内容",
+        "tier": "A/B",
+        "pages": 10,
+        "relevant_pages": 10,
+        "top_sources": [
+          {
+            "grade": "A",
+            "domain": "police.xa.gov.cn",
+            "title": "西安市公安局对市政协十五届五次会议第604号提案的答复函",
+            "url": "https://police.xa.gov.cn/zwgk/jytabl/2090372340155191297.html",
+            "date": "2026-06-11"
+          },
+          {
+            "grade": "A",
+            "domain": "xahy.gov.cn",
+            "title": "电动自行车最高限速拟调整",
+            "url": "http://www.xahy.gov.cn/zwgk/ggqsydw/ggjt/2094986755023912962.html",
+            "date": "2026-08-28"
+          },
+          {
+            "grade": "A",
+            "domain": "hlj.gov.cn",
+            "title": "关于电动自行车安全技术规范的权威解答,帮你问到了!",
+            "url": "https://www.hlj.gov.cn/hlj/zcbnw/202512/c00_31896918.shtml",
+            "date": "2026-06-26"
+          },
+          {
+            "grade": "A",
+            "domain": "xaepb.xa.gov.cn",
+            "title": "西安市生态环境局关于市政协十五届五次会议第486号提案的答复函",
+            "url": "https://xaepb.xa.gov.cn/xxgk/jyta/2097213375850258433.html",
+            "date": "2026-06-26"
+          },
+          {
+            "grade": "A",
+            "domain": "sfj.xianyang.gov.cn",
+            "title": "新修订的《陕西省消防条例》将于11月9日施行",
+            "url": "https://sfj.xianyang.gov.cn/zzb/zzdtyw/202610/t20261016_2124914.html",
+            "date": "2026-10-15"
+          },
+          {
+            "grade": "A",
+            "domain": "jtgl.beijing.gov.cn",
+            "title": "北京市非机动车管理条例",
+            "url": "https://jtgl.beijing.gov.cn/jgj/lszt/659722/743999803/index.html",
+            "date": "2026-05-07"
+          }
+        ]
+      },
+      {
+        "field": "ev_license",
+        "text": "检索西安市电动自行车新规中的登记上牌、备案及牌照办理要求",
+        "tier": "A/B",
+        "pages": 20,
+        "relevant_pages": 20,
+        "top_sources": [
+          {
+            "grade": "A",
+            "domain": "zwfw.xa.gov.cn",
+            "title": "非机动车登记",
+            "url": "https://zwfw.xa.gov.cn/xixianxinqu/grbs/azt/jtcx18/2099521367373307906.html",
+            "date": "2026-09-14"
+          },
+          {
+            "grade": "A",
+            "domain": "zwfw.xa.gov.cn",
+            "title": "非机动车登记",
+            "url": "https://zwfw.xa.gov.cn/bmbs/azt/jtcx18/2005625861417472002.html",
+            "date": "2026-05-11"
+          },
+          {
+            "grade": "A",
+            "domain": "cbip.xa.gov.cn",
+            "title": "西安浐灞国际港扎实推进冬季道路交通安全工作 筑牢安全防护网",
+            "url": "https://cbip.xa.gov.cn/xwzx/gzdt/2013868443234799617.html",
+            "date": "2026-01-19"
+          },
+          {
+            "grade": "A",
+            "domain": "zwfw.xa.gov.cn",
+            "title": "非机动车登记(县级权限)",
+            "url": "https://zwfw.xa.gov.cn/xixianxinqu/grbs/azt/jtcx18/2005821764637118466.html",
+            "date": "2026-08-27"
+          },
+          {
+            "grade": "A",
+            "domain": "xinzhoupeace.gov.cn",
+            "title": "合规才是上路最快的“速度”",
+            "url": "https://www.xinzhoupeace.gov.cn/info/1027/8293.htm",
+            "date": "2026-07-08"
+          },
+          {
+            "grade": "A",
+            "domain": "ncjj.nc.gov.cn",
+            "title": "电动自行车业务办理全攻略:上牌､过户､补牌､注销,看这篇就够了",
+            "url": "https://ncjj.nc.gov.cn/ncjtglj/wnfw/202605/7e0aab396e294d7e9f30bd44b99fece0.shtml",
+            "date": "2026-05-16"
+          }
+        ]
+      },
+      {
+        "field": "ev_restriction",
+        "text": "检索西安市电动自行车新规中的通行、停放、充电及违规处罚规定",
+        "tier": "A/B",
+        "pages": 10,
+        "relevant_pages": 10,
+        "top_sources": [
+          {
+            "grade": "B",
+            "domain": "m.thepaper.cn",
+            "title": "应急科普丨规范使用电动自行车 这些安全要点请掌握!",
+            "url": "https://m.thepaper.cn/newsDetail_forward_33475062",
+            "date": "2026-06-29"
+          },
+          {
+            "grade": "B",
+            "domain": "m.thepaper.cn",
+            "title": "安全科普 拒绝违规充电!规范使用电动自行车,这些安全要点请掌握",
+            "url": "https://m.thepaper.cn/newsDetail_forward_33367096",
+            "date": "2026-06-12"
+          },
+          {
+            "grade": "B",
+            "domain": "m.thepaper.cn",
+            "title": "【以案释法】违规停放电动自行车,拒不改正,予以处罚",
+            "url": "https://m.thepaper.cn/newsDetail_forward_33493671",
+            "date": "2026-07-01"
+          }
+        ]
+      }
+    ],
+    "metrics": {
+      "fields": 3,
+      "fields_with_ab": 3,
+      "fields_covered": 3,
+      "field_coverage": 1.0,
+      "distinct_fields": 3,
+      "distinct_fields_with_ab": 3,
+      "distinct_field_coverage": 1.0,
+      "pages": 40,
+      "relevant_pages": 40,
+      "ab_pages": 22,
+      "relevant_ab_pages": 22,
+      "official_page_rate": 0.55,
+      "relevant_official_rate": 0.55,
+      "zero_requirements": 0,
+      "cache_hits": 3
+    },
+    "generated_at": "2026-10-25 00:28:35",
+    "disclaimer": "本报告只核对公开信息与来源，不评价个人，不构成消费或法律建议。"
+  },
+  "demo": true
+}

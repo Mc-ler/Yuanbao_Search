@@ -112,8 +112,8 @@ def plan_queries(
     field = getattr(target, "field", "unknown") or "unknown"
     field_cfg = config["fields"].get(field) or config["fields"]["unknown"]
     default_city = config.get("default_city", "西安")
-    city_value = city or getattr(target, "city", None) or default_city
-    subject_value = (subject or getattr(target, "subject", None) or city_value or "").strip()
+    city_value = (city or "").strip()
+    subject_value = (subject or "").strip()
     target_text = str(getattr(target, "text", "") or "").strip()
     search_terms = [str(item).strip() for item in (getattr(target, "search_terms", []) or []) if str(item).strip()]
     terms_list = _clean_terms(search_terms, subject_value, city_value)
@@ -244,8 +244,8 @@ def _target_values(
 ) -> tuple[str, str, str, list[str]]:
     config = load_queries()
     default_city = config.get("default_city", "西安")
-    city_value = city or getattr(target, "city", None) or default_city
-    subject_value = (subject or getattr(target, "subject", None) or city_value or "").strip()
+    city_value = (city or "").strip()
+    subject_value = (subject or "").strip()
     text = str(getattr(target, "text", "") or "").strip()
     terms = [
         str(item).strip()
@@ -357,8 +357,8 @@ def plan_time_series_queries(
     config = load_queries()
     field = getattr(target, "field", "unknown") or "unknown"
     field_cfg = config["fields"].get(field) or config["fields"]["unknown"]
-    city_value = city or getattr(target, "city", None) or config.get("default_city", "西安")
-    subject_value = (subject or getattr(target, "subject", None) or city_value or "").strip()
+    city_value = (city or "").strip()
+    subject_value = (subject or "").strip()
     target_text = str(getattr(target, "text", "") or "").strip()
     terms = [str(x).strip() for x in (getattr(target, "search_terms", []) or []) if str(x).strip()]
     variants = field_cfg.get("variants") or [f"{{subject}} {target_text}"]
@@ -406,15 +406,13 @@ def plan_time_series_queries(
                     return plans
     return plans
 
-_ALLOWED_INDUSTRY = {"gov", "news", "acad", "finance"}
+_ALLOWED_INDUSTRY = {"gov", "news", "acad"}
 _ALLOWED_FRESHNESS = {"d30", "m3", "m6", "y1", "y2", "y5"}
 
 
 def coerce_llm_queries(
     data: Any,
     requirement: Requirement,
-    subject: str | None = None,
-    city: str | None = None,
 ) -> list[QueryPlan]:
     """Validate/coerce LLM-built SearchPro request fields into QueryPlans."""
     if not isinstance(data, dict):
@@ -464,28 +462,21 @@ def coerce_llm_queries(
 async def build_queries_llm(
     llm: Any,
     requirement: Requirement,
-    subject: str | None = None,
-    city: str | None = None,
 ) -> list[QueryPlan]:
     """LLM constructs SearchPro request fields; empty list on any failure."""
     if llm is None:
         return []
     prompt = (
         "你是查询构造器。给定一个可检索需求，为元宝 SearchPro 构造请求字段，只输出 JSON。\n"
-        "输出格式：{\"queries\":[{\"query\":\"...\",\"site\":null,\"industry\":\"gov\",\"freshness\":\"y2\",\"mode\":0,\"cnt\":10}]}\n"
+        "输出格式：{\"queries\":[{\"query\":\"...\",\"site\":null,\"industry\":null,\"freshness\":null,\"mode\":0,\"cnt\":10}]}\n"
         "规则：\n"
-        "1. 生成 2-4 条查询，每条 query 可独立检索，直接可命中网页。\n"
-        "2. 至少一条带 site 或 industry。\n"
-        "3. site 填具体域名（如 gov.cn）或 null；industry 只能取 gov/news/acad/finance 或 null。\n"
-        "4. freshness 只能取 d30/m3/m6/y1/y2/y5 或 null。\n"
-        "5. cnt 取 10 或 20。\n"
-        "6. 把主体、城市、年份、指标写进 query 自然语言里，不要写进其它字段。"
+        "1. 生成 2-4 条查询，每条 query 用自然语言写全（把主体、城市、年份、指标都写进 query），可独立命中网页。\n"
+        "2. 根据问题自动判断每条是否需要 site（站内域名）、industry（gov/news/acad）、freshness（d30/m3/m6/y1/y2/y5）或 cnt；不需要的字段填 null，cnt 默认 10。\n"
+        "3. 只输出 JSON，不要解释。"
     )
     payload = {
         "text": requirement.text,
         "field": requirement.field,
-        "subject": subject or requirement.subject or "",
-        "city": city or requirement.city or "",
         "source_preference": requirement.source_preference or "",
         "time_window": requirement.time_window or "",
         "search_terms": requirement.search_terms or [],
@@ -494,4 +485,4 @@ async def build_queries_llm(
         data = await llm.json("build_queries", payload, prompt)
     except Exception:
         return []
-    return coerce_llm_queries(data, requirement, subject, city)
+    return coerce_llm_queries(data, requirement)

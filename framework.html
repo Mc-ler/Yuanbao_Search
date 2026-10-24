@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 3.0.1">
   <meta name="archify-reader-contract" content="declared-wide-v1">
-  <title>元宝搜索 Research Agent · 项目框架 v2.3</title>
+  <title>说法鉴定所 · Research Agent 框架 v3</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -4978,9 +4978,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
            data-preset-badge-blueprint="蓝图 / 修订 01"
            data-preset-badge-editorial="编辑风格 / 现场笔记">
         <div class="pulse-dot"></div>
-        <h1>元宝搜索 Research Agent · 项目框架 v2.3</h1>
+        <h1>说法鉴定所 · Research Agent 框架 v3</h1>
       </div>
-      <p class="subtitle">研究 UI · SearchPro API 单通道 · A/B→B/C 回退 · 运行日志</p>
+      <p class="subtitle">极简 UI · LLM 自动查询 · 演示快路径 · 调查报告</p>
     </div>
 
 
@@ -4988,9 +4988,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
          data-preset-badge-editorial-plate="ARCHIFY / 图版 04">
-      <svg viewBox="0 0 1228 684" data-layout-contract="readable-v2" role="img" lang="zh-CN" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
-        <title id="archify-diagram-title">元宝搜索 Research Agent · 项目框架 v2.3</title>
-        <desc id="archify-diagram-description">研究 UI · SearchPro API 单通道 · A/B→B/C 回退 · 运行日志</desc>
+      <svg viewBox="0 0 1190 676" data-layout-contract="readable-v2" role="img" lang="zh-CN" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="standard">
+        <title id="archify-diagram-title">说法鉴定所 · Research Agent 框架 v3</title>
+        <desc id="archify-diagram-description">极简 UI · LLM 自动查询 · 演示快路径 · 调查报告</desc>
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -5014,232 +5014,270 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Swimlanes -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="1172" height="106" rx="10" class="c-lane" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="1134" height="106" rx="10" class="c-lane" stroke-width="1"/>
         <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / 入口与交付</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="178" width="1172" height="114" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="200" class="t-dim" font-size="10" font-weight="600">02 / S1 需求拆分 → S2 查询构造</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="178" width="1134" height="114" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="200" class="t-dim" font-size="10" font-weight="600">02 / S1 需求拆分 → S2 LLM 查询构造</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="312" width="1172" height="114" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="334" class="t-dim" font-size="10" font-weight="600">03 / 检索 / 来源 / 结果</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="312" width="1134" height="114" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="334" class="t-dim" font-size="10" font-weight="600">03 / 检索 · 证据 · 回答/报告</text>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-3" x="40" y="446" width="1172" height="114" rx="10" class="c-lane" stroke-width="1"/>
-        <text x="54" y="468" class="t-dim" font-size="10" font-weight="600">04 / 外部服务与团队</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-3" x="40" y="446" width="1134" height="106" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="468" class="t-dim" font-size="10" font-weight="600">04 / 外部服务与存储</text>
 
         <!-- Phase headers -->
-        <line x1="82" y1="35" x2="174" y2="35" class="a-default" stroke-width="1.1"/>
-        <rect x="82" y="27" width="92" height="16" rx="4" class="c-mask"/>
-        <text x="128" y="39" class="t-muted" font-size="8" font-weight="600" text-anchor="middle">输入</text>
-        <line x1="303.4" y1="35" x2="636.2" y2="35" class="a-emphasis" stroke-width="1.1"/>
-        <rect x="303.4" y="27" width="332.80000000000007" height="16" rx="4" class="c-mask"/>
-        <text x="469.8" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">研究 UI / 需求 → 查询</text>
-        <line x1="664.2" y1="35" x2="929.2" y2="35" class="a-emphasis" stroke-width="1.1"/>
-        <rect x="664.2" y="27" width="265" height="16" rx="4" class="c-mask"/>
-        <text x="796.7" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">真实检索</text>
-        <line x1="1068.4" y1="35" x2="1160.4" y2="35" class="a-dashed" stroke-width="1.1"/>
-        <rect x="1068.4" y="27" width="92" height="16" rx="4" class="c-mask"/>
-        <text x="1114.4" y="39" class="t-messagebus" font-size="8" font-weight="600" text-anchor="middle">来源 / 结果</text>
+        <line x1="82" y1="35" x2="362" y2="35" class="a-default" stroke-width="1.1"/>
+        <rect x="82" y="27" width="280" height="16" rx="4" class="c-mask"/>
+        <text x="222" y="39" class="t-muted" font-size="8" font-weight="600" text-anchor="middle">输入 / 演示判定</text>
+        <line x1="515.8" y1="35" x2="727.8" y2="35" class="a-emphasis" stroke-width="1.1"/>
+        <rect x="515.8" y="27" width="212" height="16" rx="4" class="c-mask"/>
+        <text x="621.8" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">需求 → LLM 查询</text>
+        <line x1="798.8" y1="35" x2="890.8" y2="35" class="a-emphasis" stroke-width="1.1"/>
+        <rect x="798.8" y="27" width="92" height="16" rx="4" class="c-mask"/>
+        <text x="844.8" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">检索 / 证据</text>
+        <line x1="1020.5999999999999" y1="35" x2="1112.6" y2="35" class="a-dashed" stroke-width="1.1"/>
+        <rect x="1020.5999999999999" y="27" width="92" height="16" rx="4" class="c-mask"/>
+        <text x="1066.6" y="39" class="t-messagebus" font-size="8" font-weight="600" text-anchor="middle">回答 / 调查报告</text>
 
         <!-- Workflow groups -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-0" x="260.4" y="216" width="418.80000000000007" height="72" rx="9" class="c-lane" stroke-width="1"/>
-        <text x="270.4" y="214" class="t-backend" font-size="7" font-weight="600">无 Claim 的三域查询路径</text>
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-1" x="626.2" y="350" width="577.2" height="72" rx="9" class="c-lane" stroke-width="1"/>
-        <text x="636.2" y="348" class="t-backend" font-size="7" font-weight="600">SearchPro → 来源闸门 → 字段结果</text>
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-2" x="260.4" y="484" width="178" height="72" rx="9" class="c-lane" stroke-width="1"/>
-        <text x="270.4" y="482" class="t-messagebus" font-size="7" font-weight="600">LLM 组 / 模型</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-0" x="232" y="216" width="428.79999999999995" height="72" rx="9" class="c-lane" stroke-width="1"/>
+        <text x="242" y="214" class="t-backend" font-size="7" font-weight="600">无 subject/city 干扰的查询路径</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="group" data-composition-frame-id="group-1" x="602.8" y="350" width="562.8" height="72" rx="9" class="c-lane" stroke-width="1"/>
+        <text x="612.8" y="348" class="t-backend" font-size="7" font-weight="600">检索 → 分级 → 回答 → 报告</text>
 
         <!-- Edge paths -->
-        <path data-edge-from="evidence" data-edge-to="report" data-edge-label="A/B + B/C" data-edge-key="0" data-edge-id="evidence-report" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="968.2,387;1029.4,387" d="M 968.2 387 L 1029.4 387" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="gateway" data-edge-to="wsa" data-edge-label="SearchPro API" data-edge-key="1" data-edge-id="gateway-wsa" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="710.2,421;710.2,521;798.2,521" d="M 710.2 421 L 710.2 521 L 798.2 521" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="input" data-edge-to="plan" data-edge-label="提交问题" data-edge-key="2" data-edge-id="input-plan" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="208,120;264.4,120" d="M 208 120 L 264.4 120" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="llm" data-edge-to="requirements" data-edge-label="需求拆解" data-edge-key="3" data-edge-id="llm-requirements" data-edge-role="async" data-composition-points="349.4,487;349.4,287" d="M 349.4 487 L 349.4 287" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="plan" data-edge-to="requirements" data-edge-key="4" data-edge-id="plan-requirements" data-edge-role="" data-composition-points="349.4,154;349.4,170;20,170;20,253;264.4,253" d="M 349.4 154 L 349.4 170 L 20 170 L 20 253 L 264.4 253" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="query" data-edge-to="gateway" data-edge-label="QueryPlan" data-edge-key="5" data-edge-id="query-gateway" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="590.2,287;590.2,442;686.2,442;686.2,421" d="M 590.2 287 L 590.2 442 L 686.2 442 L 686.2 421" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="report" data-edge-to="ui" data-edge-label="结果卡" data-edge-key="6" data-edge-id="report-ui" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="1114.4,353;1114.4,154" d="M 1114.4 353 L 1114.4 154" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="requirements" data-edge-to="query" data-edge-label="Requirement" data-edge-key="7" data-edge-id="requirements-query" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="434.4,253;505.20000000000005,253" d="M 434.4 253 L 505.20000000000005 253" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="wsa" data-edge-to="evidence" data-edge-label="结果批次" data-edge-key="8" data-edge-id="wsa-evidence" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="883.2,487;883.2,421" d="M 883.2 487 L 883.2 421" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="demo" data-edge-to="requirements" data-edge-label="未命中→真实查询" data-edge-key="0" data-edge-id="demo-requirements" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="396,127;412,127;412,308;309,308;309,287" d="M 396 127 L 412 127 L 412 308 L 309 308 L 309 287" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="demo" data-edge-to="ui" data-edge-label="命中→复用预置" data-edge-key="1" data-edge-id="demo-ui" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="316,86;316,70;1066.6,70;1066.6,86" d="M 316 86 L 316 70 L 1066.6 70 L 1066.6 86" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="gateway" data-edge-to="wsa" data-edge-label="SearchPro" data-edge-key="2" data-edge-id="gateway-wsa" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="681.8,421;681.8,480" d="M 681.8 421 L 681.8 480" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="input" data-edge-to="demo" data-edge-label="判定" data-edge-key="3" data-edge-id="input-demo" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="198,120;236,120" d="M 198 120 L 236 120" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="judge" data-edge-to="report" data-edge-label="证据池" data-edge-key="4" data-edge-id="judge-report" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="924.8,387;971.5999999999999,387" d="M 924.8 387 L 971.5999999999999 387" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="llm" data-edge-to="requirements" data-edge-label="需求拆解" data-edge-key="5" data-edge-id="llm-requirements" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="316,480;316,365;412,365;412,253;396,253" d="M 316 480 L 316 365 L 412 365 L 412 253 L 396 253" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="query" data-edge-to="gateway" data-edge-label="QueryPlan" data-edge-key="6" data-edge-id="query-gateway" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="561.8,287;561.8,442;590.8,442;590.8,387;606.8,387" d="M 561.8 287 L 561.8 442 L 590.8 442 L 590.8 387 L 606.8 387" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="report" data-edge-to="db" data-edge-label="落库" data-edge-key="7" data-edge-id="report-db" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="1066.6,421;1066.6,480" d="M 1066.6 421 L 1066.6 480" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="report" data-edge-to="ui" data-edge-label="Web 报告" data-edge-key="8" data-edge-id="report-ui" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="1066.6,353;1066.6,154" d="M 1066.6 353 L 1066.6 154" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="requirements" data-edge-to="query" data-edge-label="Requirement" data-edge-key="9" data-edge-id="requirements-query" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="396,241;412,241;412,194;561.8,194;561.8,219" d="M 396 241 L 412 241 L 412 194 L 561.8 194 L 561.8 219" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="wsa" data-edge-to="judge" data-edge-label="结果批次" data-edge-key="10" data-edge-id="wsa-judge" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="756.8,514;844.8,514;844.8,421" d="M 756.8 514 L 844.8 514 L 844.8 421" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
 
         <!-- Nodes -->
-        <g id="node-input" data-node-id="input" data-node-label="研究问题 / 文字" tabindex="0" role="button" aria-label="聚焦研究问题 / 文字，统计 · 历史 · 市政, 入口与交付 › 输入" aria-pressed="false" data-node-kind="external" data-node-sublabel="统计 · 历史 · 市政" data-node-tag="仅文字" data-node-context="入口与交付 › 输入">
-          <title>研究问题 / 文字 · 统计 · 历史 · 市政 · 入口与交付 › 输入 · 仅文字</title>
-          <rect x="48" y="86" width="160" height="68" rx="6" class="c-mask"/>
-          <rect x="48" y="86" width="160" height="68" rx="6" class="c-external" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(54 92) scale(0.6875)">
+        <g id="node-input" data-node-id="input" data-node-label="研究问题" tabindex="0" role="button" aria-label="聚焦研究问题，文字输入, 入口与交付 › 输入 / 演示判定" aria-pressed="false" data-node-kind="external" data-node-sublabel="文字输入" data-node-tag="仅文字" data-node-context="入口与交付 › 输入 / 演示判定">
+          <title>研究问题 · 文字输入 · 入口与交付 › 输入 / 演示判定 · 仅文字</title>
+          <rect x="58" y="86" width="140" height="68" rx="6" class="c-mask"/>
+          <rect x="58" y="86" width="140" height="68" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(64 92) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="128" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">研究问题 / 文字</text>
-          <text data-detail="context" x="128" y="124" class="t-muted" font-size="8" text-anchor="middle">统计 · 历史 · 市政</text>
+          <text data-node-label="" data-detail-anchor="" x="128" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">研究问题</text>
+          <text data-detail="context" x="128" y="124" class="t-muted" font-size="8" text-anchor="middle">文字输入</text>
         <text data-detail="fine" x="128" y="142" class="t-external" font-size="7" text-anchor="middle">仅文字</text>
         </g>
 
-        <g id="node-plan" data-node-id="plan" data-node-label="Web 研究 UI" tabindex="0" role="button" aria-label="聚焦Web 研究 UI，/api/plan + /api/research, 入口与交付 › 研究 UI / 需求 → 查询" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="/api/plan + /api/research" data-node-tag="API-only" data-node-context="入口与交付 › 研究 UI / 需求 → 查询">
-          <title>Web 研究 UI · /api/plan + /api/research · 入口与交付 › 研究 UI / 需求 → 查询 · API-only</title>
-          <rect x="264.4" y="86" width="170" height="68" rx="6" class="c-mask"/>
-          <rect x="264.4" y="86" width="170" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(270.4 92) scale(0.6875)">
+        <g id="node-demo" data-node-id="demo" data-node-label="演示快路径" tabindex="0" role="button" aria-label="聚焦演示快路径，match_demo 精确匹配, 入口与交付 › 输入 / 演示判定" aria-pressed="false" data-node-kind="backend" data-node-sublabel="match_demo 精确匹配" data-node-tag="预置" data-node-context="入口与交付 › 输入 / 演示判定">
+          <title>演示快路径 · match_demo 精确匹配 · 入口与交付 › 输入 / 演示判定 · 预置</title>
+          <rect x="236" y="86" width="160" height="68" rx="6" class="c-mask"/>
+          <rect x="236" y="86" width="160" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(242 92) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="316" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">演示快路径</text>
+          <text data-detail="context" x="316" y="124" class="t-muted" font-size="8" text-anchor="middle">match_demo 精确匹配</text>
+        <text data-detail="fine" x="316" y="142" class="t-backend" font-size="7" text-anchor="middle">预置</text>
+        </g>
+
+        <g id="node-ui" data-node-id="ui" data-node-label="Web 极简 UI" tabindex="0" role="button" aria-label="聚焦Web 极简 UI，研究 / 调查报告 tabs, 入口与交付 › 回答 / 调查报告" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="研究 / 调查报告 tabs" data-node-tag="双入口" data-node-context="入口与交付 › 回答 / 调查报告">
+          <title>Web 极简 UI · 研究 / 调查报告 tabs · 入口与交付 › 回答 / 调查报告 · 双入口</title>
+          <rect x="986.5999999999999" y="86" width="160" height="68" rx="6" class="c-mask"/>
+          <rect x="986.5999999999999" y="86" width="160" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(992.5999999999999 92) scale(0.6875)">
             <rect x="2" y="3" width="12" height="10" rx="2"/>
             <path d="M2 6.5h12"/>
             <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="349.4" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Web 研究 UI</text>
-          <text data-detail="context" x="349.4" y="124" class="t-muted" font-size="8" text-anchor="middle">/api/plan + /api/research</text>
-        <text data-detail="fine" x="349.4" y="142" class="t-frontend" font-size="7" text-anchor="middle">API-only</text>
+          <text data-node-label="" data-detail-anchor="" x="1066.6" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Web 极简 UI</text>
+          <text data-detail="context" x="1066.6" y="124" class="t-muted" font-size="8" text-anchor="middle">研究 / 调查报告 tabs</text>
+        <text data-detail="fine" x="1066.6" y="142" class="t-frontend" font-size="7" text-anchor="middle">双入口</text>
         </g>
 
-        <g id="node-ui" data-node-id="ui" data-node-label="Web / API / CLI" tabindex="0" role="button" aria-label="聚焦Web / API / CLI，来源链接 + 打印, 入口与交付 › 来源 / 结果" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="来源链接 + 打印" data-node-tag="结果卡" data-node-context="入口与交付 › 来源 / 结果">
-          <title>Web / API / CLI · 来源链接 + 打印 · 入口与交付 › 来源 / 结果 · 结果卡</title>
-          <rect x="1034.4" y="86" width="160" height="68" rx="6" class="c-mask"/>
-          <rect x="1034.4" y="86" width="160" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(1040.4 92) scale(0.6875)">
-            <rect x="2" y="3" width="12" height="10" rx="2"/>
-            <path d="M2 6.5h12"/>
-            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
-            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="1114.4" y="107" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Web / API / CLI</text>
-          <text data-detail="context" x="1114.4" y="124" class="t-muted" font-size="8" text-anchor="middle">来源链接 + 打印</text>
-        <text data-detail="fine" x="1114.4" y="142" class="t-frontend" font-size="7" text-anchor="middle">结果卡</text>
-        </g>
-
-        <g id="node-requirements" data-node-id="requirements" data-node-label="S1 需求拆分（三域）" tabindex="0" role="button" aria-label="聚焦S1 需求拆分（三域），统计 / 历史 / 市政, S1 需求拆分 → S2 查询构造 › 无 Claim 的三域查询路径 › 研究 UI / 需求 → 查询" aria-pressed="false" data-node-kind="backend" data-node-sublabel="统计 / 历史 / 市政" data-node-tag="LLM + fallback" data-node-context="S1 需求拆分 → S2 查询构造 › 无 Claim 的三域查询路径 › 研究 UI / 需求 → 查询">
-          <title>S1 需求拆分（三域） · 统计 / 历史 / 市政 · S1 需求拆分 → S2 查询构造 › 无 Claim 的三域查询路径 › 研究 UI / 需求 → 查询 · LLM + fallback</title>
-          <rect x="264.4" y="219" width="170" height="68" rx="6" class="c-mask"/>
-          <rect x="264.4" y="219" width="170" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(270.4 225) scale(0.6875)">
+        <g id="node-requirements" data-node-id="requirements" data-node-label="S1 需求拆分" tabindex="0" role="button" aria-label="聚焦S1 需求拆分，统计 / 历史 / 市政, S1 需求拆分 → S2 LLM 查询构造 › 无 subject/city 干扰的查询路径 › 输入 / 演示判定" aria-pressed="false" data-node-kind="backend" data-node-sublabel="统计 / 历史 / 市政" data-node-tag="LLM + fallback" data-node-context="S1 需求拆分 → S2 LLM 查询构造 › 无 subject/city 干扰的查询路径 › 输入 / 演示判定">
+          <title>S1 需求拆分 · 统计 / 历史 / 市政 · S1 需求拆分 → S2 LLM 查询构造 › 无 subject/city 干扰的查询路径 › 输入 / 演示判定 · LLM + fallback</title>
+          <rect x="236" y="219" width="160" height="68" rx="6" class="c-mask"/>
+          <rect x="236" y="219" width="160" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(242 225) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="349.4" y="240" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">S1 需求拆分（三域）</text>
-          <text data-detail="context" x="349.4" y="257" class="t-muted" font-size="8" text-anchor="middle">统计 / 历史 / 市政</text>
-        <text data-detail="fine" x="349.4" y="275" class="t-backend" font-size="7" text-anchor="middle">LLM + fallback</text>
+          <text data-node-label="" data-detail-anchor="" x="316" y="240" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">S1 需求拆分</text>
+          <text data-detail="context" x="316" y="257" class="t-muted" font-size="8" text-anchor="middle">统计 / 历史 / 市政</text>
+        <text data-detail="fine" x="316" y="275" class="t-backend" font-size="7" text-anchor="middle">LLM + fallback</text>
         </g>
 
-        <g id="node-query" data-node-id="query" data-node-label="S2 查询构造（目标词）" tabindex="0" role="button" aria-label="聚焦S2 查询构造（目标词），precise 优先 / 全局去重, S1 需求拆分 → S2 查询构造 › 无 Claim 的三域查询路径 › 研究 UI / 需求 → 查询" aria-pressed="false" data-node-kind="backend" data-node-sublabel="precise 优先 / 全局去重" data-node-tag="≤4 次/字段" data-node-context="S1 需求拆分 → S2 查询构造 › 无 Claim 的三域查询路径 › 研究 UI / 需求 → 查询">
-          <title>S2 查询构造（目标词） · precise 优先 / 全局去重 · S1 需求拆分 → S2 查询构造 › 无 Claim 的三域查询路径 › 研究 UI / 需求 → 查询 · ≤4 次/字段</title>
-          <rect x="505.20000000000005" y="219" width="170" height="68" rx="6" class="c-mask"/>
-          <rect x="505.20000000000005" y="219" width="170" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(511.20000000000005 225) scale(0.6875)">
+        <g id="node-query" data-node-id="query" data-node-label="S2 LLM 查询构造" tabindex="0" role="button" aria-label="聚焦S2 LLM 查询构造，自动判断字段 · d/m/y freshness, S1 需求拆分 → S2 LLM 查询构造 › 无 subject/city 干扰的查询路径 › 需求 → LLM 查询" aria-pressed="false" data-node-kind="backend" data-node-sublabel="自动判断字段 · d/m/y freshness" data-node-tag="无主体/城市干扰" data-node-context="S1 需求拆分 → S2 LLM 查询构造 › 无 subject/city 干扰的查询路径 › 需求 → LLM 查询">
+          <title>S2 LLM 查询构造 · 自动判断字段 · d/m/y freshness · S1 需求拆分 → S2 LLM 查询构造 › 无 subject/city 干扰的查询路径 › 需求 → LLM 查询 · 无主体/城市干扰</title>
+          <rect x="466.79999999999995" y="219" width="190" height="68" rx="6" class="c-mask"/>
+          <rect x="466.79999999999995" y="219" width="190" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(472.79999999999995 225) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="593.5" y="240" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">S2 查询构造（目标词）</text>
-          <text data-detail="context" x="590.2" y="257" class="t-muted" font-size="8" text-anchor="middle">precise 优先 / 全局去重</text>
-        <text data-detail="fine" x="590.2" y="275" class="t-backend" font-size="7" text-anchor="middle">≤4 次/字段</text>
+          <text data-node-label="" data-detail-anchor="" x="561.8" y="240" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">S2 LLM 查询构造</text>
+          <text data-detail="context" x="561.8" y="257" class="t-muted" font-size="8" text-anchor="middle">自动判断字段 · d/m/y freshness</text>
+        <text data-detail="fine" x="561.8" y="275" class="t-backend" font-size="7" text-anchor="middle">无主体/城市干扰</text>
         </g>
 
-        <g id="node-gateway" data-node-id="gateway" data-node-label="检索网关" tabindex="0" role="button" aria-label="聚焦检索网关，缓存 · 预算 · 审计, 检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 真实检索" aria-pressed="false" data-node-kind="backend" data-node-sublabel="缓存 · 预算 · 审计" data-node-tag="S3 API" data-node-context="检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 真实检索">
-          <title>检索网关 · 缓存 · 预算 · 审计 · 检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 真实检索 · S3 API</title>
-          <rect x="630.2" y="353" width="160" height="68" rx="6" class="c-mask"/>
-          <rect x="630.2" y="353" width="160" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(636.2 359) scale(0.6875)">
+        <g id="node-gateway" data-node-id="gateway" data-node-label="检索网关" tabindex="0" role="button" aria-label="聚焦检索网关，缓存 · 预算 · 审计, 检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 需求 → LLM 查询" aria-pressed="false" data-node-kind="backend" data-node-sublabel="缓存 · 预算 · 审计" data-node-tag="S3" data-node-context="检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 需求 → LLM 查询">
+          <title>检索网关 · 缓存 · 预算 · 审计 · 检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 需求 → LLM 查询 · S3</title>
+          <rect x="606.8" y="353" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="606.8" y="353" width="150" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(612.8 359) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="710.2" y="374" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">检索网关</text>
-          <text data-detail="context" x="710.2" y="391" class="t-muted" font-size="8" text-anchor="middle">缓存 · 预算 · 审计</text>
-        <text data-detail="fine" x="710.2" y="409" class="t-backend" font-size="7" text-anchor="middle">S3 API</text>
+          <text data-node-label="" data-detail-anchor="" x="681.8" y="374" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">检索网关</text>
+          <text data-detail="context" x="681.8" y="391" class="t-muted" font-size="8" text-anchor="middle">缓存 · 预算 · 审计</text>
+        <text data-detail="fine" x="681.8" y="409" class="t-backend" font-size="7" text-anchor="middle">S3</text>
         </g>
 
-        <g id="node-evidence" data-node-id="evidence" data-node-label="来源分级 / 回退" tabindex="0" role="button" aria-label="聚焦来源分级 / 回退，A/B → B/C → 再查询, 检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 真实检索" aria-pressed="false" data-node-kind="backend" data-node-sublabel="A/B → B/C → 再查询" data-node-tag="S4–S6" data-node-context="检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 真实检索">
-          <title>来源分级 / 回退 · A/B → B/C → 再查询 · 检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 真实检索 · S4–S6</title>
-          <rect x="798.2" y="353" width="170" height="68" rx="6" class="c-mask"/>
-          <rect x="798.2" y="353" width="170" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(804.2 359) scale(0.6875)">
+        <g id="node-judge" data-node-id="judge" data-node-label="去重 / 分级 / 判定" tabindex="0" role="button" aria-label="聚焦去重 / 分级 / 判定，A/B → B/C · R1–R5, 检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 检索 / 证据" aria-pressed="false" data-node-kind="backend" data-node-sublabel="A/B → B/C · R1–R5" data-node-tag="S4–S7" data-node-context="检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 检索 / 证据">
+          <title>去重 / 分级 / 判定 · A/B → B/C · R1–R5 · 检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 检索 / 证据 · S4–S7</title>
+          <rect x="764.8" y="353" width="160" height="68" rx="6" class="c-mask"/>
+          <rect x="764.8" y="353" width="160" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(770.8 359) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="883.2" y="374" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">来源分级 / 回退</text>
-          <text data-detail="context" x="883.2" y="391" class="t-muted" font-size="8" text-anchor="middle">A/B → B/C → 再查询</text>
-        <text data-detail="fine" x="883.2" y="409" class="t-backend" font-size="7" text-anchor="middle">S4–S6</text>
+          <text data-node-label="" data-detail-anchor="" x="844.8" y="374" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">去重 / 分级 / 判定</text>
+          <text data-detail="context" x="844.8" y="391" class="t-muted" font-size="8" text-anchor="middle">A/B → B/C · R1–R5</text>
+        <text data-detail="fine" x="844.8" y="409" class="t-backend" font-size="7" text-anchor="middle">S4–S7</text>
         </g>
 
-        <g id="node-report" data-node-id="report" data-node-label="字段结果 / 来源卡" tabindex="0" role="button" aria-label="聚焦字段结果 / 来源卡，相关 A/B/C + 查询轨迹, 检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 来源 / 结果" aria-pressed="false" data-node-kind="backend" data-node-sublabel="相关 A/B/C + 查询轨迹" data-node-tag="S7–S8" data-node-context="检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 来源 / 结果">
-          <title>字段结果 / 来源卡 · 相关 A/B/C + 查询轨迹 · 检索 / 来源 / 结果 › SearchPro → 来源闸门 → 字段结果 › 来源 / 结果 · S7–S8</title>
-          <rect x="1029.4" y="353" width="170" height="68" rx="6" class="c-mask"/>
-          <rect x="1029.4" y="353" width="170" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(1035.4 359) scale(0.6875)">
+        <g id="node-report" data-node-id="report" data-node-label="回答引用 + 调查报告" tabindex="0" role="button" aria-label="聚焦回答引用 + 调查报告，[n] 引用 · 不编造 · 结论/来源/指标, 检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 回答 / 调查报告" aria-pressed="false" data-node-kind="backend" data-node-sublabel="[n] 引用 · 不编造 · 结论/来源/指标" data-node-tag="终端+Web" data-node-context="检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 回答 / 调查报告">
+          <title>回答引用 + 调查报告 · [n] 引用 · 不编造 · 结论/来源/指标 · 检索 · 证据 · 回答/报告 › 检索 → 分级 → 回答 → 报告 › 回答 / 调查报告 · 终端+Web</title>
+          <rect x="971.5999999999999" y="353" width="190" height="68" rx="6" class="c-mask"/>
+          <rect x="971.5999999999999" y="353" width="190" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(977.5999999999999 359) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="1114.4" y="374" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">字段结果 / 来源卡</text>
-          <text data-detail="context" x="1114.4" y="391" class="t-muted" font-size="8" text-anchor="middle">相关 A/B/C + 查询轨迹</text>
-        <text data-detail="fine" x="1114.4" y="409" class="t-backend" font-size="7" text-anchor="middle">S7–S8</text>
+          <text data-node-label="" data-detail-anchor="" x="1066.6" y="374" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">回答引用 + 调查报告</text>
+          <text data-detail="context" x="1066.6" y="391" class="t-muted" font-size="8" text-anchor="middle">[n] 引用 · 不编造 · 结论/来源/指标</text>
+        <text data-detail="fine" x="1066.6" y="409" class="t-backend" font-size="7" text-anchor="middle">终端+Web</text>
         </g>
 
-        <g id="node-llm" data-node-id="llm" data-node-label="Toklens LLM" tabindex="0" role="button" aria-label="聚焦Toklens LLM，组 / 模型矩阵, 外部服务与团队 › LLM 组 / 模型 › 研究 UI / 需求 → 查询" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="组 / 模型矩阵" data-node-tag="gpt-5.6-sol" data-node-context="外部服务与团队 › LLM 组 / 模型 › 研究 UI / 需求 → 查询">
-          <title>Toklens LLM · 组 / 模型矩阵 · 外部服务与团队 › LLM 组 / 模型 › 研究 UI / 需求 → 查询 · gpt-5.6-sol</title>
-          <rect x="264.4" y="487" width="170" height="68" rx="6" class="c-mask"/>
-          <rect x="264.4" y="487" width="170" height="68" rx="6" class="c-cloud" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(270.4 493) scale(0.6875)">
+        <g id="node-demos" data-node-id="demos" data-node-label="demos/ 预置" tabindex="0" role="button" aria-label="聚焦demos/ 预置，LLM 预生成方案+结果, 外部服务与存储 › 输入 / 演示判定" aria-pressed="false" data-node-kind="database" data-node-sublabel="LLM 预生成方案+结果" data-node-tag="离线复用" data-node-context="外部服务与存储 › 输入 / 演示判定">
+          <title>demos/ 预置 · LLM 预生成方案+结果 · 外部服务与存储 › 输入 / 演示判定 · 离线复用</title>
+          <rect x="48" y="480" width="160" height="68" rx="6" class="c-mask"/>
+          <rect x="48" y="480" width="160" height="68" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(54 486) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="128" y="501" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">demos/ 预置</text>
+          <text data-detail="context" x="128" y="518" class="t-muted" font-size="8" text-anchor="middle">LLM 预生成方案+结果</text>
+        <text data-detail="fine" x="128" y="536" class="t-database" font-size="7" text-anchor="middle">离线复用</text>
+        </g>
+
+        <g id="node-llm" data-node-id="llm" data-node-label="Toklens LLM" tabindex="0" role="button" aria-label="聚焦Toklens LLM，组 / 模型矩阵, 外部服务与存储 › 输入 / 演示判定" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="组 / 模型矩阵" data-node-tag="gpt-5.6-sol" data-node-context="外部服务与存储 › 输入 / 演示判定">
+          <title>Toklens LLM · 组 / 模型矩阵 · 外部服务与存储 › 输入 / 演示判定 · gpt-5.6-sol</title>
+          <rect x="241" y="480" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="241" y="480" width="150" height="68" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(247 486) scale(0.6875)">
             <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="349.4" y="508" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Toklens LLM</text>
-          <text data-detail="context" x="349.4" y="525" class="t-muted" font-size="8" text-anchor="middle">组 / 模型矩阵</text>
-        <text data-detail="fine" x="349.4" y="543" class="t-cloud" font-size="7" text-anchor="middle">gpt-5.6-sol</text>
+          <text data-node-label="" data-detail-anchor="" x="316" y="501" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Toklens LLM</text>
+          <text data-detail="context" x="316" y="518" class="t-muted" font-size="8" text-anchor="middle">组 / 模型矩阵</text>
+        <text data-detail="fine" x="316" y="536" class="t-cloud" font-size="7" text-anchor="middle">gpt-5.6-sol</text>
         </g>
 
-        <g id="node-wsa" data-node-id="wsa" data-node-label="元宝 SearchPro" tabindex="0" role="button" aria-label="聚焦元宝 SearchPro，API 单通道（MCP 退役）, 外部服务与团队 › 真实检索" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="API 单通道（MCP 退役）" data-node-tag="外部" data-node-context="外部服务与团队 › 真实检索">
-          <title>元宝 SearchPro · API 单通道（MCP 退役） · 外部服务与团队 › 真实检索 · 外部</title>
-          <rect x="798.2" y="487" width="170" height="68" rx="6" class="c-mask"/>
-          <rect x="798.2" y="487" width="170" height="68" rx="6" class="c-cloud" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(804.2 493) scale(0.6875)">
+        <g id="node-wsa" data-node-id="wsa" data-node-label="元宝 SearchPro" tabindex="0" role="button" aria-label="聚焦元宝 SearchPro，API 单通道, 外部服务与存储 › 需求 → LLM 查询" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="API 单通道" data-node-tag="外部" data-node-context="外部服务与存储 › 需求 → LLM 查询">
+          <title>元宝 SearchPro · API 单通道 · 外部服务与存储 › 需求 → LLM 查询 · 外部</title>
+          <rect x="606.8" y="480" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="606.8" y="480" width="150" height="68" rx="6" class="c-cloud" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(612.8 486) scale(0.6875)">
             <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="883.2" y="508" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">元宝 SearchPro</text>
-          <text data-detail="context" x="883.2" y="525" class="t-muted" font-size="8" text-anchor="middle">API 单通道（MCP 退役）</text>
-        <text data-detail="fine" x="883.2" y="543" class="t-cloud" font-size="7" text-anchor="middle">外部</text>
+          <text data-node-label="" data-detail-anchor="" x="681.8" y="501" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">元宝 SearchPro</text>
+          <text data-detail="context" x="681.8" y="518" class="t-muted" font-size="8" text-anchor="middle">API 单通道</text>
+        <text data-detail="fine" x="681.8" y="536" class="t-cloud" font-size="7" text-anchor="middle">外部</text>
+        </g>
+
+        <g id="node-db" data-node-id="db" data-node-label="SQLite 索引" tabindex="0" role="button" aria-label="聚焦SQLite 索引，store/db.py · 文件权威, 外部服务与存储 › 回答 / 调查报告" aria-pressed="false" data-node-kind="database" data-node-sublabel="store/db.py · 文件权威" data-node-tag="附加索引" data-node-context="外部服务与存储 › 回答 / 调查报告">
+          <title>SQLite 索引 · store/db.py · 文件权威 · 外部服务与存储 › 回答 / 调查报告 · 附加索引</title>
+          <rect x="991.5999999999999" y="480" width="150" height="68" rx="6" class="c-mask"/>
+          <rect x="991.5999999999999" y="480" width="150" height="68" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(997.5999999999999 486) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="1066.6" y="501" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">SQLite 索引</text>
+          <text data-detail="context" x="1066.6" y="518" class="t-muted" font-size="8" text-anchor="middle">store/db.py · 文件权威</text>
+        <text data-detail="fine" x="1066.6" y="536" class="t-database" font-size="7" text-anchor="middle">附加索引</text>
         </g>
 
         <!-- Edge labels -->
-        <g data-detail="context" data-edge-from="evidence" data-edge-to="report" data-edge-label="A/B + B/C" data-edge-key="0" data-edge-id="evidence-report">
-          <rect x="972.2" y="367" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
-          <text x="998.8000000000001" y="377" class="t-edge-emphasis" font-size="8" text-anchor="middle">A/B + B/C</text>
+        <g data-detail="context" data-edge-from="demo" data-edge-to="requirements" data-edge-label="未命中→真实查询" data-edge-key="0" data-edge-id="demo-requirements">
+          <rect x="319.5" y="288" width="82" height="14" rx="3" class="c-mask"/>
+          <text x="360.5" y="298" class="t-edge-emphasis" font-size="8" text-anchor="middle">未命中→真实查询</text>
         </g>
-        <g data-detail="context" data-edge-from="gateway" data-edge-to="wsa" data-edge-label="SearchPro API" data-edge-key="1" data-edge-id="gateway-wsa">
-          <rect x="718" y="501" width="72.4" height="14" rx="3" class="c-mask"/>
-          <text x="754.2" y="511" class="t-edge-emphasis" font-size="8" text-anchor="middle">SearchPro API</text>
+        <g data-detail="context" data-edge-from="demo" data-edge-to="ui" data-edge-label="命中→复用预置" data-edge-key="1" data-edge-id="demo-ui">
+          <rect x="655.0999999999999" y="50" width="72.4" height="14" rx="3" class="c-mask"/>
+          <text x="691.3" y="60" class="t-edge-emphasis" font-size="8" text-anchor="middle">命中→复用预置</text>
         </g>
-        <g data-detail="context" data-edge-from="input" data-edge-to="plan" data-edge-label="提交问题" data-edge-key="2" data-edge-id="input-plan">
-          <rect x="212" y="100" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="236.2" y="110" class="t-edge-emphasis" font-size="8" text-anchor="middle">提交问题</text>
+        <g data-detail="context" data-edge-from="gateway" data-edge-to="wsa" data-edge-label="SearchPro" data-edge-key="2" data-edge-id="gateway-wsa">
+          <rect x="655.1999999999999" y="440.5" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="681.8" y="450.5" class="t-edge-emphasis" font-size="8" text-anchor="middle">SearchPro</text>
         </g>
-        <g data-detail="context" data-edge-from="llm" data-edge-to="requirements" data-edge-label="需求拆解" data-edge-key="3" data-edge-id="llm-requirements">
-          <rect x="325.2" y="377" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="349.4" y="387" class="t-edge-dashed" font-size="8" text-anchor="middle">需求拆解</text>
+        <g data-detail="context" data-edge-from="input" data-edge-to="demo" data-edge-label="判定" data-edge-key="3" data-edge-id="input-demo">
+          <rect x="202" y="100" width="30" height="14" rx="3" class="c-mask"/>
+          <text x="217" y="110" class="t-edge-emphasis" font-size="8" text-anchor="middle">判定</text>
         </g>
-
-        <g data-detail="context" data-edge-from="query" data-edge-to="gateway" data-edge-label="QueryPlan" data-edge-key="5" data-edge-id="query-gateway">
-          <rect x="611.6" y="422" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
-          <text x="638.2" y="432" class="t-edge-emphasis" font-size="8" text-anchor="middle">QueryPlan</text>
+        <g data-detail="context" data-edge-from="judge" data-edge-to="report" data-edge-label="证据池" data-edge-key="4" data-edge-id="judge-report">
+          <rect x="928.8" y="367" width="38.8" height="14" rx="3" class="c-mask"/>
+          <text x="948.1999999999999" y="377" class="t-edge-emphasis" font-size="8" text-anchor="middle">证据池</text>
         </g>
-        <g data-detail="context" data-edge-from="report" data-edge-to="ui" data-edge-label="结果卡" data-edge-key="6" data-edge-id="report-ui">
-          <rect x="1095" y="243.5" width="38.8" height="14" rx="3" class="c-mask"/>
-          <text x="1114.4" y="253.5" class="t-edge-emphasis" font-size="8" text-anchor="middle">结果卡</text>
+        <g data-detail="context" data-edge-from="llm" data-edge-to="requirements" data-edge-label="需求拆解" data-edge-key="5" data-edge-id="llm-requirements">
+          <rect x="339.8" y="345" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="364" y="355" class="t-edge-dashed" font-size="8" text-anchor="middle">需求拆解</text>
         </g>
-        <g data-detail="context" data-edge-from="requirements" data-edge-to="query" data-edge-label="Requirement" data-edge-key="7" data-edge-id="requirements-query">
-          <rect x="438.40000000000003" y="233" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="469.8" y="243" class="t-edge-emphasis" font-size="8" text-anchor="middle">Requirement</text>
+        <g data-detail="context" data-edge-from="query" data-edge-to="gateway" data-edge-label="QueryPlan" data-edge-key="6" data-edge-id="query-gateway">
+          <rect x="549.6999999999999" y="422" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="576.3" y="432" class="t-edge-emphasis" font-size="8" text-anchor="middle">QueryPlan</text>
         </g>
-        <g data-detail="context" data-edge-from="wsa" data-edge-to="evidence" data-edge-label="结果批次" data-edge-key="8" data-edge-id="wsa-evidence">
-          <rect x="859" y="444" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="883.2" y="454" class="t-edge-emphasis" font-size="8" text-anchor="middle">结果批次</text>
+        <g data-detail="context" data-edge-from="report" data-edge-to="db" data-edge-label="落库" data-edge-key="7" data-edge-id="report-db">
+          <rect x="1051.6" y="440.5" width="30" height="14" rx="3" class="c-mask"/>
+          <text x="1066.6" y="450.5" class="t-edge-dashed" font-size="8" text-anchor="middle">落库</text>
+        </g>
+        <g data-detail="context" data-edge-from="report" data-edge-to="ui" data-edge-label="Web 报告" data-edge-key="8" data-edge-id="report-ui">
+          <rect x="1042.3999999999999" y="243.5" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="1066.6" y="253.5" class="t-edge-emphasis" font-size="8" text-anchor="middle">Web 报告</text>
+        </g>
+        <g data-detail="context" data-edge-from="requirements" data-edge-to="query" data-edge-label="Requirement" data-edge-key="9" data-edge-id="requirements-query">
+          <rect x="455.5" y="174" width="62.8" height="14" rx="3" class="c-mask"/>
+          <text x="486.9" y="184" class="t-edge-emphasis" font-size="8" text-anchor="middle">Requirement</text>
+        </g>
+        <g data-detail="context" data-edge-from="wsa" data-edge-to="judge" data-edge-label="结果批次" data-edge-key="10" data-edge-id="wsa-judge">
+          <rect x="776.5999999999999" y="494" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="800.8" y="504" class="t-edge-emphasis" font-size="8" text-anchor="middle">结果批次</text>
         </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
-          <text x="20" y="584" class="t-primary" font-size="12" font-weight="650">图例</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="用户界面" data-legend-x="20" data-legend-baseline="604" data-legend-width="78">
-            <rect x="20" y="596" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-            <text x="42" y="604" class="t-muted" font-size="7.5" font-weight="500">用户界面</text>
+          <text x="20" y="576" class="t-primary" font-size="12" font-weight="650">图例</text>
+          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="用户界面" data-legend-x="20" data-legend-baseline="596" data-legend-width="78">
+            <rect x="20" y="588" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+            <text x="42" y="596" class="t-muted" font-size="7.5" font-weight="500">用户界面</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Agent 逻辑" data-legend-x="105" data-legend-baseline="604" data-legend-width="87">
-            <rect x="105" y="596" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-            <text x="127" y="604" class="t-muted" font-size="7.5" font-weight="500">Agent 逻辑</text>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Agent 逻辑" data-legend-x="105" data-legend-baseline="596" data-legend-width="87">
+            <rect x="105" y="588" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+            <text x="127" y="596" class="t-muted" font-size="7.5" font-weight="500">Agent 逻辑</text>
           </g>
-          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="云服务" data-legend-x="199" data-legend-baseline="604" data-legend-width="70">
-            <rect x="199" y="596" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
-            <text x="221" y="604" class="t-muted" font-size="7.5" font-weight="500">云服务</text>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="上下文 / 追踪" data-legend-x="199" data-legend-baseline="596" data-legend-width="100">
+            <rect x="199" y="588" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+            <text x="221" y="596" class="t-muted" font-size="7.5" font-weight="500">上下文 / 追踪</text>
           </g>
-          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="外部系统" data-legend-x="276" data-legend-baseline="604" data-legend-width="78">
-            <rect x="276" y="596" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
-            <text x="298" y="604" class="t-muted" font-size="7.5" font-weight="500">外部系统</text>
+          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="云服务" data-legend-x="306" data-legend-baseline="596" data-legend-width="70">
+            <rect x="306" y="588" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
+            <text x="328" y="596" class="t-muted" font-size="7.5" font-weight="500">云服务</text>
+          </g>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="外部系统" data-legend-x="383" data-legend-baseline="596" data-legend-width="78">
+            <rect x="383" y="588" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+            <text x="405" y="596" class="t-muted" font-size="7.5" font-weight="500">外部系统</text>
           </g>
         </g>
       </svg>
@@ -5421,39 +5459,36 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>研究链路 · 字段与回退</h3>
+          <h3>LLM 自动查询构造 · 无干扰</h3>
         </div>
         <ul>
-          <li>统计 / 历史 / 市政三域；字段含 statistics_release、heritage_status、ev_restriction、municipal_effective</li>
-          <li>search_terms + precise 优先 + 全局 used 去重；2 条初始 + 1 条 B/C 回退 + 1 条再查询，≤4 次/字段</li>
-          <li>Web 与 CLI 共用 claimlab/research.py；POST /api/research 执行真实检索，POST /api/plan 只计划</li>
-          <li>当前 q1 3/3、79.7%；q2 2/2（3 需求）、49.2%；q3 3/3、81.4%；0 字段零结果</li>
+          <li>LLM 自动判断每条查询所需字段（Query/Site/Industry/Freshness/Cnt 子集），字段名与 QueryPlan 同步</li>
+          <li>freshness 统一 d/m/y 紧凑格式（d30/m3/m6/y1/y2/y5）；Industry 仅 gov/news/acad</li>
+          <li>subject/city 彻底不注入查询（仅作元数据）；互斥实测：Cnt 与 Industry/Freshness 可并用</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot amber"></div>
-          <h3>本地端口诊断 / 修复</h3>
+          <h3>演示快路径 · 真实查询为主</h3>
         </div>
         <ul>
-          <li>旧 8000 进程 21:37 启动，health 仍返回 api + mcp，且无当前 app 日志；已重启为 API-only 进程</li>
-          <li>旧页面走 verify_claim + fixture，并把 activeFixture 作为 fixture_id 发给 /api/runs；会混入示例主体</li>
-          <li>新页面只发 text/subject/city/example_id 到 /api/research；不再经过 Claim、SSE、fixture</li>
-          <li>health：search_provider=api、providers=api、mcp_disabled=true；端口冲突时先停 listener 再启动</li>
+          <li>三个演示问题由 prepare_demos.py 预生成「完整检索方案 + 检索结果」到 demos/</li>
+          <li>match_demo 精确匹配（example_id + 规范化文本）；命中秒回、零额度；未命中走真实查询</li>
+          <li>落地以真实查询为主：LLM 拆需求 → LLM 构造查询 → SearchPro → 回答/报告</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot rose"></div>
-          <h3>LLM · 日志 · 团队</h3>
+          <h3>调查报告 · 双入口 · 存储</h3>
         </div>
         <ul>
-          <li>gpt-5.6-sol；/models 是目录不是 entitlement；过期的 gpt-4.1 不再抢占候选</li>
-          <li>日志：logs/README.md；search.* / research.* / plan.*；不记 Key；5MB × 5 轮转</li>
-          <li>80 tests passed；MCP 仅存 claimlab/search/mcp.py 历史模块，未接线；是否删文件待用户决策</li>
-          <li>M5–M9 展示、录屏、海报、提交由下游团队负责；本模块交付代码/查询/示例/日志</li>
+          <li>research_report.py 组装「结论 + [n] 引用 + 来源表 + 指标」；终端 --report 输出 Markdown</li>
+          <li>Web 极简 UI：研究 / 调查报告 tabs；检索完成后一键查看/打印报告</li>
+          <li>SQLite 索引（store/db.py，文件为权威）；84 测试通过</li>
         </ul>
       </div>
     </div>

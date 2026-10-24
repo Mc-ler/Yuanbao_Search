@@ -1,4 +1,4 @@
-# Investigating Everything
+# 万物皆可查 / Investigating Everything
 
 > 文字输入 → 元宝 SearchPro → LLM 需求拆分/查询构造 → 去重与来源分级 → 深度研究综述或 R1–R5 断言判定。
 
@@ -107,14 +107,6 @@ macOS/Linux：
 | ALLOW_FAKE_SEARCH | false | 仅测试 |
 | OFFLINE | false | 只读缓存 |
 | LOG_LEVEL / MAX_BYTES / BACKUP_COUNT | INFO / 5000000 / 5 | 日志 |
-
-### 4.3 configure_keys 的输入卡住问题（已修复）
-
-在 Windows 上，Python getpass 使用 msvcrt.getwch()。如果进程没有真正的控制台（IDE 终端、任务运行器、stdin 被重定向），它可能一直阻塞且不回显，表现为“执行后无法输入任何字符”；这不是 API key 或 DeepSeek 的问题。
-
-修复：configure_keys 在 Windows 交互终端默认使用可见 input；非 TTY 时读取一行 stdin；保留 --key 与 --hidden；写入 .env 时去重（保留最后一次值）。自动化建议用 --key，隐藏输入用 --hidden。
-
-完整模板见 .env.example。安全：key 只写 .env；configure_keys 使用 getpass；日志不记录 Authorization/完整正文；默认只绑 127.0.0.1。
 
 ---
 
@@ -259,14 +251,17 @@ curl（bash）：
     netstat -ano | findstr :8000
     Get-NetTCPConnection -LocalPort 8000 -State Listen
 
-UI（v3.2 双模式工作台）：
+品牌：**万物皆可查 / Investigating Everything**；顶部 LOGO 使用 web/assets/brand-mark.png，中文显示「万物皆可查」，英文显示「Investigating Everything」。 原图完整字标的英文为 Confirming Everything，与需求写的 Investigating Everything 不一致；当前顶部只使用左侧图形标，名称按需求文本显示，避免拼接冲突。源文件保留在 output/LOGO.png（gitignored）。
 
-- 顶部栏：品牌；LLM 状态；元宝搜索状态；截图开关；主题、语言、配置。LLM/搜索状态为绿色=已配置，琥珀=未配置；点击状态或齿轮打开右侧配置抽屉。
+UI（v3.4 双模式工作台）：
+
+- 顶部栏：LOGO + 品牌名；LLM 状态；元宝搜索状态；截图开关；主题、语言。没有通用齿轮/综合设置面板，三个组件各自独立。
+- LLM 状态：绿色=已配置，琥珀=未配置；点击只打开 LLM 专属对话框（Provider / API Key / Base URL / Model），保存只调用 /api/config/llm。
+- 元宝搜索状态：点击只打开搜索专属对话框（Key / Base URL），保存只调用 /api/config/search。
+- 截图开关：直接独立开关；仅当检测到 Chrome/Edge 且 websockets 可用时可开启，不可用时禁用并显示原因；保存到 EVIDENCE_SCREENSHOTS，不影响 LLM/搜索。
 - 页面中心：唯一查询框；上方切换「深度研究 / 一句话查证」，下方是运行/清空按钮和状态徽标。两种模式共用同一个输入框，切换模式会恢复该模式上次的日志与报告。
 - 下方双栏：左侧执行日志（约 35%），右侧最终报告（约 65%，面积大于日志）；报告区可打印。日志按模式分别保留；深度研究在完成后展示步骤日志，一句话查证通过 SSE 实时追加并自动回退轮询。
-- 配置抽屉：LLM（Provider / API Key / Base URL / Model）、元宝搜索（Key / Base URL）、截图证据开关。保存后立即重建客户端；Key 只写本地 .env，不写浏览器存储。
-- 截图开关：仅当检测到 Chrome/Edge 且 websockets 可用时可开启；不可用时禁用并显示原因；保存到 EVIDENCE_SCREENSHOTS。
-- 主题/语言：右上角切换；localStorage 持久化；语言切换覆盖界面标签、按钮、状态、日志阶段名，服务端生成的报告正文保留原文。
+- 主题/语言：右上角切换；localStorage 持久化；语言切换覆盖品牌名、界面标签、按钮、状态、日志阶段名，服务端生成的报告正文保留原文。
 
 无示例按钮；演示视频用真实问题。
 

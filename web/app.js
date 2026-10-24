@@ -18,13 +18,16 @@ const state = {
 
 const I18N = {
   zh: {
-    'brand.sub': 'Research Agent',
+    'app.title': '万物皆可查 · Research Agent',
+    'brand.name': '万物皆可查',
+    'brand.sub': 'Investigating Everything',
     'status.llm': 'LLM', 'status.search': '搜索', 'status.screenshot': '截图',
     'status.llmTitle': 'LLM 配置状态', 'status.searchTitle': '元宝搜索配置状态',
     'status.screenshotTitle': '截图证据开关（需要 Chrome）', 'status.theme': '切换主题',
     'status.lang': '切换语言', 'status.settings': '配置',
     'status.checking': '检查中', 'status.missing': '未配置', 'status.ready': '就绪',
     'status.unavailable': '不可用', 'status.available': '可用',
+    'status.screenshotOn': '截图 · 已启用', 'status.screenshotOff': '截图 · 已关闭', 'status.screenshotUnavailable': '截图 · 不可用',
     'hero.eyebrow': '深度研究 · 一句话查证',
     'hero.title': '把问题变成可核查的证据链',
     'hero.sub': '检索、去重、来源分级、截图证据；研究给综述，查证给 R1–R5 判定。',
@@ -50,7 +53,7 @@ const I18N = {
     'metric.requirements': '需求覆盖 A/B', 'metric.ab': 'A/B 来源占比', 'metric.unique': '去重后页数',
     'metric.duplicates': '去重条数', 'metric.directed': '定向查询占比', 'metric.screenshots': '截图',
     'footer.disclaimer': '只核对公开信息与来源，不评价个人，不构成消费或法律建议。',
-    'config.eyebrow': 'Settings', 'config.title': '配置', 'config.provider': 'Provider',
+    'config.llmTitle': 'LLM 配置', 'config.eyebrow': 'Settings', 'config.title': '配置', 'config.provider': 'Provider',
     'config.apiKey': 'API Key', 'config.baseUrl': 'Base URL', 'config.model': 'Model',
     'config.searchTitle': '元宝搜索', 'config.screenshotTitle': '截图证据',
     'config.screenshotEnable': '启用页面截图',
@@ -77,13 +80,16 @@ const I18N = {
     'status.mode': '模式'
   },
   en: {
-    'brand.sub': 'Research Agent',
+    'app.title': 'Investigating Everything · Research Agent',
+    'brand.name': 'Investigating Everything',
+    'brand.sub': '万物皆可查',
     'status.llm': 'LLM', 'status.search': 'Search', 'status.screenshot': 'Shots',
     'status.llmTitle': 'LLM configuration status', 'status.searchTitle': 'Yuanbao Search status',
     'status.screenshotTitle': 'Screenshot evidence toggle (Chrome required)', 'status.theme': 'Toggle theme',
     'status.lang': 'Switch language', 'status.settings': 'Settings',
     'status.checking': 'checking', 'status.missing': 'not configured', 'status.ready': 'ready',
     'status.unavailable': 'unavailable', 'status.available': 'available',
+    'status.screenshotOn': 'Shots · on', 'status.screenshotOff': 'Shots · off', 'status.screenshotUnavailable': 'Shots · n/a',
     'hero.eyebrow': 'Deep research · one-sentence check',
     'hero.title': 'Turn a question into a verifiable evidence chain',
     'hero.sub': 'Search, dedupe, grade sources and attach screenshots. Research gives a synthesis; check gives an R1–R5 verdict.',
@@ -109,7 +115,7 @@ const I18N = {
     'metric.requirements': 'Requirements A/B', 'metric.ab': 'A/B source rate', 'metric.unique': 'Unique pages',
     'metric.duplicates': 'Duplicates removed', 'metric.directed': 'Directed queries', 'metric.screenshots': 'Screenshots',
     'footer.disclaimer': 'Only public information and sources are checked. No personal evaluation, no consumer or legal advice.',
-    'config.eyebrow': 'Settings', 'config.title': 'Configuration', 'config.provider': 'Provider',
+    'config.llmTitle': 'LLM configuration', 'config.eyebrow': 'Settings', 'config.title': 'Configuration', 'config.provider': 'Provider',
     'config.apiKey': 'API Key', 'config.baseUrl': 'Base URL', 'config.model': 'Model',
     'config.searchTitle': 'Yuanbao Search', 'config.screenshotTitle': 'Screenshot evidence',
     'config.screenshotEnable': 'Enable page screenshots',
@@ -177,16 +183,20 @@ function bind() {
   $('printBtn').addEventListener('click', () => window.print());
   $('themeToggle').addEventListener('click', toggleTheme);
   $('langToggle').addEventListener('click', toggleLang);
-  $('settingsBtn').addEventListener('click', () => openDrawer());
-  $('llmStatus').addEventListener('click', () => openDrawer('llm'));
-  $('searchStatus').addEventListener('click', () => openDrawer('search'));
-  $('setupLlmBtn').addEventListener('click', () => openDrawer('llm'));
-  $('closeDrawer').addEventListener('click', closeDrawer);
-  $('drawerBackdrop').addEventListener('click', closeDrawer);
+  $('llmStatus').addEventListener('click', openLlmDialog);
+  $('searchStatus').addEventListener('click', openSearchDialog);
+  $('setupLlmBtn').addEventListener('click', openLlmDialog);
+  $('closeLlm').addEventListener('click', () => $('llmDialog').close());
+  $('closeSearch').addEventListener('click', () => $('searchDialog').close());
+  ['llmDialog', 'searchDialog'].forEach((id) => {
+    const dialog = $(id);
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+  });
   $('saveLlm').addEventListener('click', saveLlm);
   $('saveSearch').addEventListener('click', saveSearch);
   $('screenshotToggle').addEventListener('change', (event) => setScreenshots(event.target.checked));
-  $('screenshotToggleDrawer').addEventListener('change', (event) => setScreenshots(event.target.checked));
   $('queryInput').addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') execute();
   });
@@ -198,6 +208,9 @@ function bind() {
 
 function applyI18n() {
   document.documentElement.lang = state.lang === 'zh' ? 'zh-CN' : 'en';
+  document.title = t('app.title');
+  const brandLink = document.querySelector('.brand');
+  if (brandLink) brandLink.setAttribute('aria-label', t('brand.name'));
   document.querySelectorAll('[data-i18n]').forEach((node) => {
     node.textContent = t(node.dataset.i18n);
   });
@@ -289,18 +302,15 @@ function renderStatus() {
   const shots = health.screenshots || {};
   const canShots = Boolean(shots.chrome) && !String(shots.reason || '').includes('websockets');
   const enabled = Boolean(shots.enabled);
-  ['screenshotToggle', 'screenshotToggleDrawer'].forEach((id) => {
-    const node = $(id);
-    node.checked = enabled;
-    node.disabled = !canShots || state.busy;
-    node.title = !canShots
-      ? (shots.reason || t('status.unavailable'))
-      : (enabled ? t('config.shotEnabled') : t('config.shotDisabled'));
-  });
-  $('screenshotConfigStatus').textContent = canShots
-    ? (enabled ? t('config.shotEnabled') : t('config.shotDisabled'))
-    : t('config.shotUnavailable');
-  $('screenshotConfigStatus').className = 'config-status ' + (canShots ? (enabled ? 'ok' : '') : 'warn');
+  const shotToggle = $('screenshotToggle');
+  shotToggle.checked = enabled;
+  shotToggle.disabled = !canShots || state.busy;
+  shotToggle.title = !canShots
+    ? (shots.reason || t('status.unavailable'))
+    : (enabled ? t('config.shotEnabled') : t('config.shotDisabled'));
+  $('screenshotLabel').textContent = !canShots
+    ? t('status.screenshotUnavailable')
+    : (enabled ? t('status.screenshotOn') : t('status.screenshotOff'));
 
   $('llmConfigStatus').textContent = llmReady ? t('config.statusReady') : t('config.statusMissing');
   $('llmConfigStatus').className = 'config-status ' + (llmReady ? 'ok' : 'warn');
@@ -362,7 +372,6 @@ function setBusy(busy) {
   $('modeResearch').disabled = busy;
   $('modeVerify').disabled = busy;
   $('screenshotToggle').disabled = busy || !canShots();
-  $('screenshotToggleDrawer').disabled = busy || !canShots();
   $('saveLlm').disabled = busy;
   $('saveSearch').disabled = busy;
   renderModeUI();
@@ -696,19 +705,16 @@ function safeUrl(value) {
   return /^https?:\/\//i.test(raw) || /^\/api\/evidence\//.test(raw) ? raw : '#';
 }
 
-function openDrawer(section) {
-  $('drawerBackdrop').hidden = false;
-  $('configDrawer').hidden = false;
-  if (section) {
-    const target = section === 'llm' ? $('llmConfigSection') : section === 'search' ? $('searchConfigSection') : $('screenshotSection');
-    if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  }
-  setTimeout(() => $('llmKey').focus(), 150);
+function openLlmDialog() {
+  const dialog = $('llmDialog');
+  if (!dialog.open) dialog.showModal();
+  setTimeout(() => $('llmKey').focus(), 80);
 }
 
-function closeDrawer() {
-  $('drawerBackdrop').hidden = true;
-  $('configDrawer').hidden = true;
+function openSearchDialog() {
+  const dialog = $('searchDialog');
+  if (!dialog.open) dialog.showModal();
+  setTimeout(() => $('searchKey').focus(), 80);
 }
 
 async function saveLlm() {
@@ -763,7 +769,6 @@ async function saveSearch() {
 async function setScreenshots(enabled) {
   if (!canShots()) {
     $('screenshotToggle').checked = false;
-    $('screenshotToggleDrawer').checked = false;
     showToast(t('config.shotUnavailable') + ': ' + ((state.health && state.health.screenshots && state.health.screenshots.reason) || ''), 'error');
     return;
   }

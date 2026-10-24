@@ -130,7 +130,7 @@ def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> 
         await sandbox.close()
 
     app = FastAPI(
-        title="说法鉴定所 / YuanBao Research Agent",
+        title="万物皆可查 / YuanBao Research Agent",
         version=__version__,
         lifespan=lifespan,
     )

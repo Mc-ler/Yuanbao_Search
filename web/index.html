@@ -4,15 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>说法鉴定所 · Research Agent</title>
-  <link rel="stylesheet" href="/static/styles.css?v=3.3">
+  <title>万物皆可查 · Research Agent</title>
+  <link rel="stylesheet" href="/static/styles.css?v=3.4">
 </head>
 <body>
   <header class="app-header">
     <div class="shell header-inner">
-      <a class="brand" href="/" aria-label="说法鉴定所">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span><strong>说法鉴定所</strong><small data-i18n="brand.sub">Research Agent</small></span>
+      <a class="brand" href="/" aria-label="万物皆可查">
+        <span class="brand-logo" aria-hidden="true"><img src="/static/assets/brand-mark.png" alt=""></span>
+        <span class="brand-copy"><strong data-i18n="brand.name">万物皆可查</strong><small data-i18n="brand.sub">Investigating Everything</small></span>
       </a>
       <div class="header-actions">
         <button id="llmStatus" class="status-chip warn" type="button" data-i18n-title="status.llmTitle">
@@ -24,11 +24,10 @@
         <label class="switch" data-i18n-title="status.screenshotTitle">
           <input id="screenshotToggle" type="checkbox">
           <span class="switch-track" aria-hidden="true"></span>
-          <span data-i18n="status.screenshot">截图</span>
+          <span id="screenshotLabel" data-i18n="status.screenshot">截图</span>
         </label>
         <button id="themeToggle" class="icon-btn" type="button" data-i18n-title="status.theme">◐</button>
         <button id="langToggle" class="icon-btn" type="button" data-i18n-title="status.lang">EN</button>
-        <button id="settingsBtn" class="icon-btn" type="button" data-i18n-title="status.settings">⚙</button>
       </div>
     </div>
   </header>
@@ -102,21 +101,17 @@
     </footer>
   </main>
 
-  <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
-  <aside id="configDrawer" class="drawer" hidden aria-label="Configuration">
-    <div class="drawer-head">
-      <div>
-        <p class="eyebrow" data-i18n="config.eyebrow">Settings</p>
-        <h2 data-i18n="config.title">配置</h2>
-      </div>
-      <button id="closeDrawer" class="icon-btn" type="button" aria-label="Close">×</button>
-    </div>
-    <div class="drawer-body">
-      <section id="llmConfigSection" class="config-section">
-        <div class="section-title">
-          <h3>LLM</h3>
-          <span id="llmConfigStatus" class="config-status warn">未配置</span>
+  <dialog id="llmDialog" class="modal" aria-labelledby="llmDialogTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">LLM</p>
+          <h2 id="llmDialogTitle" data-i18n="config.llmTitle">LLM 配置</h2>
         </div>
+        <button id="closeLlm" class="icon-btn" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title"><span id="llmConfigStatus" class="config-status warn">未配置</span></div>
         <label class="field"><span data-i18n="config.provider">Provider</span>
           <select id="llmProvider">
             <option value="deepseek">DeepSeek</option>
@@ -138,13 +133,21 @@
           <span id="llmSaveState" class="config-hint"></span>
         </div>
         <p class="config-hint" data-i18n="config.llmHint">Key 只写入本地 .env；保存后立即重建 LLM 客户端，不写入前端存储。</p>
-      </section>
+      </div>
+    </div>
+  </dialog>
 
-      <section id="searchConfigSection" class="config-section">
-        <div class="section-title">
-          <h3 data-i18n="config.searchTitle">元宝搜索</h3>
-          <span id="searchConfigStatus" class="config-status warn">未配置</span>
+  <dialog id="searchDialog" class="modal" aria-labelledby="searchDialogTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Search</p>
+          <h2 id="searchDialogTitle" data-i18n="config.searchTitle">元宝搜索</h2>
         </div>
+        <button id="closeSearch" class="icon-btn" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title"><span id="searchConfigStatus" class="config-status warn">未配置</span></div>
         <label class="field"><span data-i18n="config.apiKey">API Key</span>
           <input id="searchKey" type="password" autocomplete="off" placeholder="SearchPro key">
         </label>
@@ -156,24 +159,11 @@
           <span id="searchSaveState" class="config-hint"></span>
         </div>
         <p class="config-hint" data-i18n="config.searchHint">用于元宝 SearchPro；保存后立即重建检索客户端。</p>
-      </section>
-
-      <section id="screenshotSection" class="config-section">
-        <div class="section-title">
-          <h3 data-i18n="config.screenshotTitle">截图证据</h3>
-          <span id="screenshotConfigStatus" class="config-status">检查中</span>
-        </div>
-        <label class="switch">
-          <input id="screenshotToggleDrawer" type="checkbox">
-          <span class="switch-track" aria-hidden="true"></span>
-          <span data-i18n="config.screenshotEnable">启用页面截图</span>
-        </label>
-        <p class="config-hint" data-i18n="config.screenshotHint">需要 Chrome/Edge 与 websockets；不可用时按钮禁用并显示原因。</p>
-      </section>
+      </div>
     </div>
-  </aside>
+  </dialog>
 
   <div id="toast" class="toast" hidden></div>
-  <script src="/static/app.js?v=3.3"></script>
+  <script src="/static/app.js?v=3.4"></script>
 </body>
 </html>

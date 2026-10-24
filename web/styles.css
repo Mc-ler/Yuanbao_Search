@@ -696,3 +696,42 @@ body::after {
 
 .switch.on .switch-track { background: var(--accent) !important; }
 .switch.on .switch-track::after { transform: translateX(15px) !important; }
+
+/* v3.6 aurora background + fluid composer */
+body { background: #f6f6fb; }
+[data-theme="dark"] body { background: #070a10; }
+body::before, body::after { display: none !important; }
+.ambient-word { display: none !important; }
+.aurora { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; opacity: .72; }
+.aurora-blob { position: absolute; border-radius: 50%; filter: blur(88px) saturate(1.15); will-change: transform; }
+.blob-a { width: 48vw; height: 48vw; left: -14vw; top: -16vw; background: radial-gradient(circle at 40% 40%, rgb(255 79 163 / 62%), transparent 67%); animation: aurora-a 24s ease-in-out infinite alternate; }
+.blob-b { width: 42vw; height: 42vw; right: -13vw; top: 4vh; background: radial-gradient(circle at 45% 45%, rgb(255 151 66 / 58%), transparent 67%); animation: aurora-b 29s ease-in-out infinite alternate; }
+.blob-c { width: 38vw; height: 38vw; left: 30vw; top: 16vh; background: radial-gradient(circle at 50% 50%, rgb(255 226 92 / 46%), transparent 68%); animation: aurora-c 26s ease-in-out infinite alternate; }
+.blob-d { width: 47vw; height: 47vw; left: -8vw; bottom: -24vw; background: radial-gradient(circle at 50% 50%, rgb(45 212 191 / 48%), transparent 68%); animation: aurora-d 32s ease-in-out infinite alternate; }
+.blob-e { width: 40vw; height: 40vw; right: -10vw; bottom: -15vw; background: radial-gradient(circle at 50% 50%, rgb(124 92 255 / 52%), transparent 68%); animation: aurora-e 27s ease-in-out infinite alternate; }
+[data-theme="dark"] .aurora { opacity: .62; }
+[data-theme="dark"] .blob-a { background: radial-gradient(circle at 40% 40%, rgb(255 79 163 / 52%), transparent 67%); }
+[data-theme="dark"] .blob-b { background: radial-gradient(circle at 45% 45%, rgb(255 151 66 / 44%), transparent 67%); }
+[data-theme="dark"] .blob-c { background: radial-gradient(circle at 50% 50%, rgb(255 226 92 / 30%), transparent 68%); }
+[data-theme="dark"] .blob-d { background: radial-gradient(circle at 50% 50%, rgb(45 212 191 / 38%), transparent 68%); }
+[data-theme="dark"] .blob-e { background: radial-gradient(circle at 50% 50%, rgb(124 92 255 / 42%), transparent 68%); }
+@keyframes aurora-a { from { transform: translate3d(-3%, -2%, 0) scale(1); } to { transform: translate3d(8%, 7%, 0) scale(1.12); } }
+@keyframes aurora-b { from { transform: translate3d(2%, -3%, 0) scale(1.04); } to { transform: translate3d(-7%, 5%, 0) scale(1.15); } }
+@keyframes aurora-c { from { transform: translate3d(-4%, 2%, 0) scale(.94); } to { transform: translate3d(6%, -5%, 0) scale(1.1); } }
+@keyframes aurora-d { from { transform: translate3d(2%, 3%, 0) scale(1); } to { transform: translate3d(-5%, -6%, 0) scale(1.12); } }
+@keyframes aurora-e { from { transform: translate3d(4%, 2%, 0) scale(1.05); } to { transform: translate3d(-6%, -4%, 0) scale(.95); } }
+
+.composer { background: color-mix(in srgb, var(--surface) 88%, transparent); }
+.panel { background: color-mix(in srgb, var(--surface) 87%, transparent); }
+.composer textarea { height: 60px; min-height: 60px; max-height: 240px; resize: none; overflow-y: auto; scrollbar-width: thin; }
+.composer textarea::-webkit-scrollbar { width: 6px; }
+.composer textarea::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 30%, transparent); border-radius: 99px; }
+@media (max-width: 600px) {
+  .composer textarea { max-height: 190px; }
+  .blob-a, .blob-b { width: 75vw; height: 75vw; }
+  .blob-c { width: 60vw; height: 60vw; }
+  .blob-d, .blob-e { width: 80vw; height: 80vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob { animation: none; }
+}

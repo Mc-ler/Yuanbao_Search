@@ -161,6 +161,7 @@ async function init() {
   applyI18n();
   bind();
   setMode('research');
+  resizeComposer();
   try {
     await refreshHealth();
   } catch (error) {
@@ -197,9 +198,11 @@ function bind() {
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') execute();
   });
   $('queryInput').addEventListener('input', () => {
+    resizeComposer();
     if (state.busy) return;
     setRunState('ready');
   });
+  window.addEventListener('resize', resizeComposer);
 }
 
 function applyI18n() {
@@ -207,8 +210,6 @@ function applyI18n() {
   document.title = t('app.title');
   const brandLink = document.querySelector('.brand');
   if (brandLink) brandLink.setAttribute('aria-label', t('brand.name') + ' · ' + t('brand.sub'));
-  const ambient = $('ambientWord');
-  if (ambient) ambient.textContent = state.lang === 'zh' ? '万物皆可查' : 'CONFIRMING';
   document.querySelectorAll('[data-i18n]').forEach((node) => {
     node.textContent = t(node.dataset.i18n);
   });
@@ -331,6 +332,14 @@ function renderStatus() {
   if (!llmReady) $('setupText').textContent = t('setup.llmMissing');
 }
 
+function resizeComposer() {
+  const el = $('queryInput');
+  if (!el) return;
+  el.style.height = '0px';
+  const max = window.matchMedia('(max-width: 600px)').matches ? 190 : 240;
+  el.style.height = Math.min(Math.max(el.scrollHeight, 60), max) + 'px';
+}
+
 function setMode(mode) {
   if (state.busy && mode !== state.mode) return;
   state.mode = mode;
@@ -440,6 +449,7 @@ async function execute() {
 function clearActive() {
   if (state.busy) return;
   $('queryInput').value = '';
+  resizeComposer();
   state.logs[state.mode] = [];
   state.reports[state.mode] = null;
   state.data[state.mode] = null;

@@ -32,7 +32,15 @@ class Sandbox:
         self.evidence_images = EvidenceImageStore()
         self.screenshots = ScreenshotCapturer(settings)
 
-    def new_budget(self) -> Budget:
+    def new_budget(self, profile: str = "verify") -> Budget:
+        if profile == "research":
+            return Budget(
+                self.settings.state_dir,
+                max_per_assertion=self.settings.research_max_calls_per_requirement,
+                max_per_run=self.settings.research_max_calls_per_run,
+                max_per_day=self.settings.max_calls_per_day,
+                wall_seconds=self.settings.research_wall_seconds,
+            )
         return Budget(
             self.settings.state_dir,
             max_per_assertion=self.settings.max_calls_per_assertion,

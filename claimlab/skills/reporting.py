@@ -62,6 +62,7 @@ def build_report(
         conflicts=conflicts,
         unverified=list(dict.fromkeys(unverified)),
         citations=citations,
+        guidance=extraction.guidance,
     )
 
 
@@ -77,6 +78,9 @@ def render_markdown(report: ResearchReport) -> str:
     lines.append(f"> 输入：{report.task.text[:160]}")
     lines.append(f"> 生成：{report.generated_at}")
     lines.append("")
+    if report.guidance:
+        lines.append(f"> 提示：{report.guidance}")
+        lines.append("")
     profile = report.profile
     lines.append(
         f"**画像**：事实 {profile.get('facts', 0)} · 情绪 {profile.get('emotions', 0)} · "

@@ -22,8 +22,8 @@ from .skills.query import (
 )
 from .skills.requirements import decompose_requirements
 
-PROMPT_VERSION = "v3.0"
-MAX_INITIAL_PER_REQUIREMENT = 3
+PROMPT_VERSION = "v3.1"
+MAX_INITIAL_PER_REQUIREMENT = 5
 
 
 @dataclass
@@ -65,26 +65,49 @@ class ResearchPlan:
         }
 
 
-async def build_research_plan(llm: Any, text: str) -> ResearchPlan:
+async def build_research_plan(
+    llm: Any,
+    text: str,
+    *,
+    max_initial: int = MAX_INITIAL_PER_REQUIREMENT,
+    results_per_query: int = 20,
+) -> ResearchPlan:
     """Build requirements and the exact initial queries for a question."""
     task = ResearchTask(text=text, mode="research_topic")
     decomposition = await decompose_requirements(llm, task)
     items: list[PlanItem] = []
     used: set[tuple[str, str | None, str | None]] = set()
+    cap = max(1, int(max_initial))
     for requirement in decomposition.requirements:
         llm_queries = [
             plan
             for plan in await build_queries_llm(llm, requirement)
             if plan_key(plan) not in used
         ]
-        if not llm_queries:
-            llm_queries = plan_requirement_queries(requirement, used=used)
-        queries = llm_queries[:MAX_INITIAL_PER_REQUIREMENT]
+        template_queries = plan_requirement_queries(
+            requirement,
+            used=used,
+            max_plans=max(cap, 5),
+        )
+        merged: list[QueryPlan] = []
+        seen: set[tuple[str, str | None, str | None]] = set()
+        for plan in [*llm_queries, *template_queries]:
+            key = plan_key(plan)
+            if key in seen or key in used:
+                continue
+            plan.cnt = results_per_query
+            merged.append(plan)
+            seen.add(key)
+            if len(merged) >= cap:
+                break
+        queries = merged[:cap]
         used.update(plan_key(plan) for plan in queries)
-        fallbacks = plan_fallback_queries(requirement, used=used, max_plans=1)
+        fallbacks = plan_fallback_queries(requirement, used=used, max_plans=2)
         used.update(plan_key(plan) for plan in fallbacks)
-        requeries = plan_requery_queries(requirement, used=used, max_plans=1)
+        requeries = plan_requery_queries(requirement, used=used, max_plans=2)
         used.update(plan_key(plan) for plan in requeries)
+        for plan in [*fallbacks, *requeries]:
+            plan.cnt = results_per_query
         items.append(
             PlanItem(
                 requirement=requirement,

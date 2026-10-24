@@ -172,6 +172,7 @@ class Claim:
     falsifiable: bool = True
     importance: int = 0
     concern: str | None = None
+    search_terms: list[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Claim":
@@ -185,6 +186,7 @@ class Claim:
             falsifiable=bool(data.get("falsifiable", True)),
             importance=int(data.get("importance", 0)),
             concern=data.get("concern"),
+            search_terms=[str(item).strip() for item in (data.get("search_terms") or []) if str(item).strip()],
         )
 
 
@@ -195,6 +197,9 @@ class ExtractionResult:
     dropped: list[dict[str, Any]] = field(default_factory=list)
     subject: str | None = None
     method: str = "llm"
+    input_kind: str = "declarative"
+    reason: str = ""
+    guidance: str = ""
 
     @property
     def profile(self) -> dict[str, Any]:
@@ -412,6 +417,7 @@ class ResearchReport:
     conflicts: list[dict[str, Any]] = field(default_factory=list)
     unverified: list[str] = field(default_factory=list)
     citations: list[str] = field(default_factory=list)
+    guidance: str = ""
     disclaimer: str = "本页只核对公开说法与来源，不评价个人，不构成消费建议。"
     kind: str = "verification"
     generated_at: str = field(default_factory=now_iso)

@@ -13,7 +13,7 @@ from .citations import citation_numbers, validate_citations
 
 SYSTEM_PROMPT = """你是研究综述生成器。给定一个研究问题、一组带编号的来源元数据和可选的网页截图，产出可核验的研究综述。只输出 JSON。
 规则：
-1. 只依据给定来源元数据和截图作答；禁止编造来源里没有的出处、日期、文号、机构、人物、数字。
+1. 只依据给定来源元数据、内容节选和截图作答；禁止编造来源里没有的出处、日期、文号、机构、人物、数字。
 2. 每个事实句后带 [n] 引用编号；没有来源支撑的句子必须写（未获证据）。
 3. 截图是来源 [n] 的页面截图；截图看不清、被登录墙挡住或与问题无关时，写（未获证据），不要猜。
 4. 这是研究综述，不是 R1–R5 判定；不要输出“成立/不成立/已证实”等判定词，除非来源本身明确写了。
@@ -52,6 +52,7 @@ def build_citations(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "grade": src.get("grade") or "",
                 "date": src.get("date") or "",
                 "passage": src.get("passage") or "",
+                "content_excerpt": src.get("content_excerpt") or "",
                 "cluster_id": src.get("cluster_id") or "",
                 "cluster_size": src.get("cluster_size") or 1,
                 "cluster_domains": src.get("cluster_domains") or [],
@@ -90,7 +91,9 @@ def _evidence_text(citations: list[dict[str, Any]]) -> str:
     for c in citations:
         lines.append(
             "[" + str(c["n"]) + "] (" + (c["grade"] or "?") + ") " + (c["title"] or "")
-            + " — " + (c["domain"] or "") + " " + (c["date"] or "") + "\n" + c["url"]
+            + " — " + (c["domain"] or "") + " " + (c["date"] or "")
+            + "\nURL: " + c["url"]
+            + ("\n内容节选: " + str(c.get("content_excerpt") or "") if c.get("content_excerpt") else "")
         )
     return "\n".join(lines)
 

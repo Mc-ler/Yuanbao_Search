@@ -92,6 +92,8 @@ OFFICIAL_FIELDS = {
     "statistics_source",
     "statistics_method",
     "statistics_release",
+    "statistics_value",
+    "policy",
     "scenic_history",
     "scenic_explanation",
     "heritage_status",
@@ -211,6 +213,18 @@ def plan_queries(
                 make(variants[-1], industry="gov", precision="precise", strategy="换表述 + Industry"),
             ]
 
+    if round_no == 0:
+        # Generic facets keep every field from collapsing into only three
+        # near-identical queries. They are lower precision than the field
+        # templates, so they are appended after the primary candidates.
+        for suffix in ("官方 原文", "数据 统计", "反驳 争议", "最新"):
+            candidates.append(
+                make(
+                    "{focus} {terms} " + suffix,
+                    precision="fuzzy",
+                    strategy="通用facet/" + suffix,
+                )
+            )
     filtered = [plan for plan in candidates if plan.query and plan_key(plan) not in used]
     return _dedupe(filtered)[:max_plans]
 
@@ -437,7 +451,7 @@ async def build_queries_llm(
         "你是查询构造器。给定一个可检索需求，为元宝 SearchPro 构造请求字段，只输出 JSON。\n"
         "输出格式：{\"queries\":[{\"query\":\"...\",\"site\":null,\"industry\":null,\"freshness\":null,\"mode\":0,\"cnt\":10}]}\n"
         "规则：\n"
-        "1. 生成 2-4 条查询，每条 query 用自然语言写全（把主体、城市、年份、指标都写进 query），可独立命中网页。\n"
+        "1. 生成 4-6 条查询，每条 query 用自然语言写全（把主体、城市、年份、指标都写进 query），可独立命中网页；至少包含实体查询、官方原文、数据/统计或历史、反证/争议、时间窗口五个角度中的三个。\n"
         "2. 根据问题自动判断每条是否需要 site（站内域名）、industry（gov/news/acad）、freshness（d30/m3/m6/y1/y2/y5）或 cnt；不需要的字段填 null，cnt 默认 10。\n"
         "3. 只输出 JSON，不要解释。"
     )

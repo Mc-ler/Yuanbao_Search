@@ -92,3 +92,13 @@ def test_claim_run_streams_to_report(tmp_path):
     assert snapshot["status"] == "done"
     report = client.get("/api/report/" + run_id)
     assert report.status_code == 200
+
+
+def test_question_is_rejected_with_guidance(tmp_path):
+    app, _ = make_app(tmp_path)
+    client = TestClient(app)
+    response = client.post("/api/runs", json={"text": "西安城墙现存主体是什么年代修建的？"})
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "question_not_claim"
+    assert detail["message"]

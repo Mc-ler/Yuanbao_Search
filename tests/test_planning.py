@@ -9,7 +9,7 @@ def test_planner_builds_three_queries_with_focus():
     plan = asyncio.run(build_research_plan(FakeLLM(), "西安城墙现存主体是什么年代修建的？"))
     assert plan.items
     item = plan.items[0]
-    assert 1 <= len(item.queries) <= 3
+    assert 4 <= len(item.queries) <= 5
     assert item.requirement.focus
     joined = " ".join(q.query for q in item.queries)
     assert item.requirement.focus in joined or "西安城墙" in joined

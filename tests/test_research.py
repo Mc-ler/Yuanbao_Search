@@ -59,7 +59,8 @@ def test_deep_research_dedupes_and_does_not_persist(tmp_path, monkeypatch):
 
     result = asyncio.run(run())
     metrics = result["metrics"]
-    assert metrics["metrics_version"] == 2
+    assert metrics["metrics_version"] == 3
+    assert metrics["queries"] >= 5
     assert metrics["pages_raw"] > metrics["pages_unique"]
     assert metrics["ab_source_rate"] <= 1.0
     assert sum(metrics["grade_counts"].values()) == metrics["relevant_unique"]

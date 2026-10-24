@@ -31,7 +31,7 @@ const I18N = {
     'hero.title': '今天想查什么？',
     'mode.research': '深度研究', 'mode.researchHint': '检索、来源分册、研究综述',
     'mode.verify': '一句话查证', 'mode.verifyHint': 'R1–R5 确定性判定',
-    'input.label': '输入', 'input.placeholderResearch': '输入一个想查证的问题…',
+    'input.label': '输入', 'input.placeholderResearch': '输入一个想深度调查的问题…',
     'input.placeholderVerify': '输入一句需要核实的话…',
     'input.hintResearch': '研究综述不是判决；需要成立/不成立请切到「一句话查证」。',
     'input.hintVerify': '判定由 R1–R5 代码完成；证据不足时才附加模型参考意见。',
@@ -50,6 +50,7 @@ const I18N = {
     'report.aiAdvisory': '模型参考意见（非判定）', 'report.noSources': '没有可用来源。',
     'metric.requirements': '需求覆盖 A/B', 'metric.ab': 'A/B 来源占比', 'metric.unique': '去重后页数',
     'metric.duplicates': '去重条数', 'metric.directed': '定向查询占比', 'metric.screenshots': '截图',
+    'metric.queries': '查询数', 'metric.contentPages': '内容页', 'metric.domains': '独立域',
     'footer.disclaimer': '只核对公开信息与来源，不评价个人，不构成消费或法律建议。',
     'config.llmTitle': 'LLM 配置', 'config.eyebrow': 'Settings', 'config.title': '配置', 'config.provider': 'Provider',
     'config.apiKey': 'API Key', 'config.baseUrl': 'Base URL', 'config.model': 'Model',
@@ -110,6 +111,7 @@ const I18N = {
     'report.aiAdvisory': 'Model note (not a verdict)', 'report.noSources': 'No usable sources.',
     'metric.requirements': 'Requirements A/B', 'metric.ab': 'A/B source rate', 'metric.unique': 'Unique pages',
     'metric.duplicates': 'Duplicates removed', 'metric.directed': 'Directed queries', 'metric.screenshots': 'Screenshots',
+    'metric.queries': 'Queries', 'metric.contentPages': 'Content pages', 'metric.domains': 'Domains',
     'footer.disclaimer': 'Only public information and sources are checked. No personal evaluation, no consumer or legal advice.',
     'config.llmTitle': 'LLM configuration', 'config.eyebrow': 'Settings', 'config.title': 'Configuration', 'config.provider': 'Provider',
     'config.apiKey': 'API Key', 'config.baseUrl': 'Base URL', 'config.model': 'Model',
@@ -256,6 +258,10 @@ async function api(url, options, timeoutMs = 300000) {
     }
     if (!response.ok) {
       const detail = data && typeof data === 'object' && data.detail ? data.detail : (data || response.statusText || 'Request failed');
+      if (detail && typeof detail === 'object' && detail.message) {
+        const suggestion = detail.suggested_claim ? ' 建议改成：' + detail.suggested_claim : '';
+        throw new Error(String(detail.message) + suggestion);
+      }
       throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
     }
     return data;
@@ -544,6 +550,7 @@ function handleEvent(type, raw) {
     addLog('verify', 'connected', t('log.connected'));
   } else if (type === 'split.done') {
     addLog('verify', 'split', t('log.split', { n: (data.facts || []).length }));
+    if (!(data.facts || []).length && data.guidance) addLog('verify', 'error', data.guidance, 'error');
   } else if (type === 'query.planned') {
     addLog('verify', 'query', t('log.query', { query: data.query || '' }));
   } else if (type === 'search.result') {
@@ -656,6 +663,9 @@ function researchReport(report) {
       metricCard(t('metric.duplicates'), String(metrics.duplicates_removed || 0)) +
       metricCard(t('metric.directed'), pct(metrics.directed_query_rate)) +
       metricCard(t('metric.screenshots'), String(metrics.screenshots || 0)) +
+      metricCard(t('metric.queries'), String(metrics.queries || 0)) +
+      metricCard(t('metric.contentPages'), String(metrics.content_pages || 0)) +
+      metricCard(t('metric.domains'), String(metrics.independent_domains || 0)) +
     '</div>' +
     (citations ? '<details class="citations" open><summary>' + esc(t('report.citations')) + ' (' + report.citations.length + ')</summary><ul class="sources">' + citations + '</ul></details>' : '') +
     (ledger ? '<h3 class="report-subhead">' + esc(t('report.sources')) + '</h3><div class="source-ledger">' + ledger + '</div>' : '') +
@@ -664,6 +674,7 @@ function researchReport(report) {
 }
 
 function verificationReport(report) {
+  const guidance = report.guidance ? '<p class="answer-note">' + esc(report.guidance) + '</p>' : '';
   const units = (report.units || []).map((unit) => {
     const evidence = (unit.evidence || []).map((item) => {
       const quote = item.quote ? '<blockquote>' + esc(item.quote) + '</blockquote>' : '';
@@ -681,7 +692,7 @@ function verificationReport(report) {
       (evidence ? '<ul class="sources">' + evidence + '</ul>' : '') + '</article>';
   }).join('');
   return '<section class="report-content"><div class="report-summary"><h3>' + esc(t('report.verdict')) + '</h3>' +
-    '<p>' + esc(report.task && report.task.text || '') + '</p></div>' + units +
+    '<p>' + esc(report.task && report.task.text || '') + '</p></div>' + guidance + units +
     '<p class="answer-note">' + esc(report.disclaimer || '') + '</p></section>';
 }
 
@@ -698,7 +709,8 @@ function sourceCard(source, number) {
   const screenshot = source.screenshot_url
     ? '<a class="shot-link" href="' + esc(safeUrl(source.screenshot_url)) + '" target="_blank" rel="noopener"><img class="shot" loading="lazy" src="' + esc(safeUrl(source.screenshot_url)) + '" alt="source screenshot"></a>'
     : '';
-  const passage = source.passage ? '<p class="snippet">' + esc(String(source.passage).slice(0, 220)) + '</p>' : '';
+  const passageText = source.excerpt || source.passage;
+  const passage = passageText ? '<p class="snippet">' + esc(String(passageText).slice(0, 260)) + '</p>' : '';
   return '<li class="source"><span class="grade grade-' + esc(source.grade) + '">' + esc(source.grade || '?') + '</span>' +
     '<div class="source-body"><a href="' + esc(safeUrl(source.url)) + '" target="_blank" rel="noopener">' +
     (number ? '[' + number + '] ' : '') + esc(source.title || source.domain) + '</a>' +

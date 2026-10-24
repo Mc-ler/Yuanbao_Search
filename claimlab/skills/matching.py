@@ -196,7 +196,8 @@ async def match_evidence(llm: Any | None, claim: Claim, pages: list[SearchPage])
             "title": page.title,
             "site": page.site,
             "date": page.date,
-            "passage": page.passage or page.content or page.title,
+            "passage": page.passage or page.content[:2000] or page.title,
+            "content_excerpt": page.content[:2500] if page.content else "",
         }
         for index, page in enumerate(pages)
     ]

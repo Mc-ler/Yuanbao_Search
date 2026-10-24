@@ -20,6 +20,7 @@ from .contracts import Requirement, SearchBatch, SearchPage
 from .logging import event
 from .planning import ResearchPlan, build_research_plan
 from .skills.answer import build_answer, build_citations
+from .skills.content import best_excerpt, content_chars
 from .skills.dedup import cluster_pages, page_key
 from .skills.grading import grade_page
 from .skills.research_report import build_research_report
@@ -70,6 +71,9 @@ def _top_sources(
                 "url": page.url,
                 "date": page.date,
                 "passage": page.passage,
+                "excerpt": best_excerpt(page, requirement.search_terms),
+                "content_excerpt": best_excerpt(page, requirement.search_terms) if page.content else "",
+                "content_chars": content_chars(page),
                 "cluster_id": cluster,
                 "cluster_size": sum(
                     1 for item in pages
@@ -130,9 +134,15 @@ async def run_research(
     refresh: bool = False,
     run_id: str | None = None,
 ) -> dict[str, Any]:
-    gateway = sandbox.new_gateway()
+    gateway = sandbox.new_gateway(budget=sandbox.new_budget(profile="research"))
     run_id = run_id or f"research-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
-    plan = plan or await build_research_plan(sandbox.llm, text)
+    settings = sandbox.settings
+    plan = plan or await build_research_plan(
+        sandbox.llm,
+        text,
+        max_initial=settings.research_queries_per_requirement,
+        results_per_query=settings.research_results_per_query,
+    )
     collected: list[tuple[SearchPage, str, str]] = []
     rows: list[dict[str, Any]] = []
     all_queries = []
@@ -141,20 +151,25 @@ async def run_research(
     for item in plan.items:
         requirement = item.requirement
         executed: list[dict[str, Any]] = []
+        remaining = max(0, settings.research_max_queries_per_run - len(all_queries))
+        initial = item.queries[:remaining]
         pages = await _execute_queries(
-            gateway, run_id, requirement, item.queries[:3], refresh, collected, executed
+            gateway, run_id, requirement, initial, refresh, collected, executed
         )
-        all_queries.extend(item.queries[:3])
+        all_queries.extend(initial)
         tier = source_tier(pages, requirement=requirement)
-        if tier == "insufficient":
-            fallback = item.fallbacks[:1]
-            all_fallbacks.extend(fallback)
-            pages.extend(
-                await _execute_queries(
-                    gateway, run_id, requirement, fallback, refresh, collected, executed
+        if tier != "A/B" and settings.research_requery_rounds > 0:
+            remaining = max(0, settings.research_max_queries_per_run - len(all_queries))
+            extra = [*item.fallbacks, *item.requeries][: min(2, remaining)]
+            if extra:
+                all_fallbacks.extend(extra)
+                pages.extend(
+                    await _execute_queries(
+                        gateway, run_id, requirement, extra, refresh, collected, executed
+                    )
                 )
-            )
-            tier = source_tier(pages, requirement=requirement)
+                all_queries.extend(extra)
+                tier = source_tier(pages, requirement=requirement)
         rows.append(
             {
                 "requirement_id": requirement.requirement_id,
@@ -288,10 +303,32 @@ async def run_research(
         if item.get("site") or item.get("industry")
     )
     relevant_total = len(relevant_fields)
+    requery_calls = sum(
+        1
+        for row in rows
+        for item in row.get("executed", [])
+        if item.get("strategy") in {"B/C降级", "再查询"}
+    )
     metrics = {
-        "metrics_version": 2,
+        "metrics_version": 3,
         "requirements": len(rows),
         "queries": total_queries,
+        "queries_per_requirement": total_queries / len(rows) if rows else 0.0,
+        "requery_calls": requery_calls,
+        "content_pages": sum(1 for page in unique_pages if page.content),
+        "content_chars": sum(len(page.content or "") for page in unique_pages),
+        "sources_with_excerpt": sum(
+            1
+            for row in ledger
+            for source in row.get("sources", [])
+            if source.get("excerpt")
+        ),
+        "independent_domains": len({page.domain for page in unique_pages if page.domain}),
+        "counter_queries": sum(
+            1
+            for plan in all_queries
+            if any(marker in plan.query for marker in ("反驳", "争议", "辟谣", "不同说法"))
+        ),
         "directed_queries": directed,
         "total_queries": total_queries,
         "directed_query_rate": directed / total_queries if total_queries else 0.0,

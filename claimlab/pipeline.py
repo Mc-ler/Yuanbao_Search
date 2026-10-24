@@ -187,6 +187,9 @@ class Pipeline:
                 "dropped": extraction.dropped,
                 "profile": extraction.profile,
                 "method": extraction.method,
+                "input_kind": extraction.input_kind,
+                "reason": extraction.reason,
+                "guidance": extraction.guidance,
             },
         )
 
@@ -197,10 +200,10 @@ class Pipeline:
                 [],
                 [],
                 self.trace,
-                ReportStats(stop_reason="no_falsifiable_claim", duration_ms=int((time.monotonic() - started) * 1000)),
+                ReportStats(stop_reason=extraction.reason or "no_falsifiable_claim", duration_ms=int((time.monotonic() - started) * 1000)),
             )
             safety.lint_report_text(report)
-            await self._emit("run.done", {"report": reporting.report_to_dict(report), "stop_reason": "no_falsifiable_claim"})
+            await self._emit("run.done", {"report": reporting.report_to_dict(report), "stop_reason": report.stats.stop_reason})
             return report
 
         if search_off:

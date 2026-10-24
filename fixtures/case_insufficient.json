@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "fixture_id": "case_insufficient",
+  "title": "证据不足：新建小店，公开索引里查不到",
+  "expected": {
+    "verdicts": ["insufficient"],
+    "note": "0 条结果，显示已尝试路径，不编造答案"
+  },
+  "text": "示例小店（南门店）周一闭店，已经开了20年。",
+  "subject": "示例小店（南门店）",
+  "city": "西安",
+  "mock_pages": []
+}

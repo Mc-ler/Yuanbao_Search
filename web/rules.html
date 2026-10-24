@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>判定口径 · 说法鉴定所</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="rules-page">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div><h1>判定口径</h1><p>说法鉴定所 · 公开规则</p></div>
+    </div>
+    <div class="top-actions"><a class="link" href="/">返回鉴定所</a></div>
+  </header>
+
+  <main class="page prose">
+    <section>
+      <span class="eyebrow">可复现</span>
+      <h2>判定由代码完成，不交给模型。</h2>
+      <p>同一组证据关系，换一天跑也必须得到同一个结论。模型只负责读文本和写解释；结论由下面五条规则按顺序命中。</p>
+    </section>
+
+    <section>
+      <h3>R1–R5 字典序</h3>
+      <table class="rules-table">
+        <thead><tr><th>规则</th><th>触发条件</th><th>结论</th></tr></thead>
+        <tbody>
+          <tr><td>R1</td><td>存在 A 级反驳，且不存在 A 级支持</td><td>不成立</td></tr>
+          <tr><td>R2</td><td>存在 A 级支持，且无 A/B 级反驳</td><td>成立</td></tr>
+          <tr><td>R2b</td><td>≥2 个独立 B+ 簇支持，无 B+ 反驳，且支持值一致</td><td>成立</td></tr>
+          <tr><td>R3</td><td>A 支持与 A 反驳并存；B+ 支持与 B+ 反驳并存；或同字段出现 ≥2 个不同值</td><td>冲突（并列展示，不取平均）</td></tr>
+          <tr><td>R4</td><td>同源簇 ≥3 条且 ≥2 个域名，断言缺少可核验细节</td><td>存疑（灰卡 + 标签）</td></tr>
+          <tr><td>R5</td><td>其余</td><td>证据不足（附已尝试路径）</td></tr>
+        </tbody>
+      </table>
+      <p class="note">「只看 A 级」：用同一组规则只跑 A 级证据，得到第二行结论。它回答的是「如果只信最硬的那一层，会怎样」，不是另一个判决。</p>
+    </section>
+
+    <section>
+      <h3>来源分级 A–E</h3>
+      <table class="rules-table">
+        <thead><tr><th>级</th><th>来源</th><th>可核实度</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td>政府 / 官方公告 / 监管公示</td><td>可核验</td></tr>
+          <tr><td>B</td><td>主流媒体 / 调查报道</td><td>需人工</td></tr>
+          <tr><td>C</td><td>平台结构化页 / 百科</td><td>可核验</td></tr>
+          <tr><td>D</td><td>自媒体 / 公众号 / 资讯号</td><td>需人工</td></tr>
+          <tr><td>E</td><td>UGC / 社交平台</td><td>不可核验</td></tr>
+        </tbody>
+      </table>
+      <p class="note">分级只看域名与证据日期（超过 365 天降一级）；Industry 参数只做检索过滤，不会把 UGC 升级成权威来源。</p>
+    </section>
+
+    <section>
+      <h3>去重与计票</h3>
+      <p>对摘要做字符级 5-gram + Jaccard 相似度，取连通分量。一个簇无论被转载到多少个域名，只算一票。簇身份会写进结论旁边的「N 条结果同源，计 1 票」。</p>
+    </section>
+
+    <section>
+      <h3>预算与停机</h3>
+      <ul>
+        <li>单断言 ≤4 次检索、≤2 轮；单次运行 ≤28 次；墙钟 ≤90 秒；单日 ≤400 次。</li>
+        <li>重试必须换策略：换 Site、换 Industry、换表述；同参数重跑不算重试。</li>
+        <li>无进展即停：一轮后没有新增簇，也没有新增 A/B 级证据。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>边界</h3>
+      <ul>
+        <li>只做消费/经营主体的公开说法核验；不碰时政，不评价个人。</li>
+        <li>没有全文抓取；证据是检索接口返回的摘要与链接，不用截图冒充证据。</li>
+        <li>不做「推荐/不推荐」，只输出证据支持、冲突、无法判断和行动含义。</li>
+        <li>「证据不足」是产品功能，不是失败：会列出已尝试的检索路径。</li>
+      </ul>
+    </section>
+
+    <p class="back"><a class="link" href="/">← 返回鉴定所</a></p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "fixture_id": "case_established",
+  "title": "成立：人均 / 营业日 / 许可",
+  "expected": {
+    "verdicts": ["established", "established", "established"],
+    "note": "价格与营业日有两条独立 B 级来源支持；许可有 A 级公示支持"
+  },
+  "text": "示例泡馍（钟楼店）人均68元，周一闭店，持有食品经营许可证。",
+  "subject": "示例泡馍（钟楼店）",
+  "city": "西安",
+  "mock_pages": [
+    {
+      "_triggers": ["示例泡馍（钟楼店）"],
+      "title": "走访：钟楼这家泡馍店正常营业，人均约68元",
+      "url": "https://www.xinhuanet.com/food/example-zhonglou-1",
+      "site": "新华网",
+      "date": "2026-09-12 10:20:00",
+      "passage": "记者走访发现，该店目前正常营业，菜单显示人均消费约68元，店员称周一闭店休息。",
+      "content": "记者走访发现，该店目前正常营业，菜单显示人均消费约68元，店员称周一闭店休息。门店地址位于钟楼附近。",
+      "score": 0.91
+    },
+    {
+      "_triggers": ["示例泡馍（钟楼店）"],
+      "title": "门店公示信息：营业中，客单价68元，每周一休息",
+      "url": "https://www.people.com.cn/food/example-zhonglou-2",
+      "site": "人民网",
+      "date": "2026-10-02 08:40:00",
+      "passage": "该门店在平台上的公示信息为：营业中，客单价68元；每周一为固定休息日，请提前确认。",
+      "content": "该门店在平台上的公示信息为：营业中，客单价68元；每周一为固定休息日，请提前确认。",
+      "score": 0.88
+    },
+    {
+      "_triggers": ["示例泡馍（钟楼店）"],
+      "title": "示例泡馍（钟楼店）商户页",
+      "url": "https://www.dianping.com/shop/example-zhonglou",
+      "site": "大众点评",
+      "date": "2026-09-28 14:00:00",
+      "passage": "营业中，人均68元，周一闭店。",
+      "content": "营业中，人均68元，周一闭店。",
+      "score": 0.84
+    },
+    {
+      "_triggers": ["示例泡馍（钟楼店）"],
+      "title": "食品经营许可公示（示例）",
+      "url": "https://www.samr.gov.cn/example/food-license-zhonglou",
+      "site": "国家市场监督管理总局",
+      "date": "2026-08-01 09:00:00",
+      "passage": "示例泡馍（钟楼店）食品经营许可证在有效期内，经营项目为热食类食品制售。",
+      "content": "示例泡馍（钟楼店）食品经营许可证在有效期内，经营项目为热食类食品制售。",
+      "score": 0.79
+    }
+  ]
+}

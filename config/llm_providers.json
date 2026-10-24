@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "default_provider": "gpt",
+  "providers": {
+    "gpt": {
+      "label": "GPT via Toklens (third-party supplier)",
+      "base_url": "https://lax.toklens.ai/v1",
+      "base_url_env": "GPT_BASE_URL",
+      "api_key_env": "GPT_API_KEY",
+      "fallback_key_env": "TOKLENS_API_KEY",
+      "preferred_models": [
+        "gpt-5.6-sol",
+        "gpt-5.6-luna",
+        "gpt-6-sol",
+        "gpt-5.6-terra",
+        "gpt-6-astra"
+      ],
+      "default_model": "gpt-5.6-sol"
+    },
+    "codex": {
+      "label": "Codex via Toklens (third-party supplier)",
+      "base_url": "https://lax.toklens.ai/v1",
+      "base_url_env": "CODEX_BASE_URL",
+      "api_key_env": "CODEX_API_KEY",
+      "fallback_key_env": "TOKLENS_API_KEY",
+      "preferred_models": [
+        "codex-auto-review",
+        "gpt-5.6-sol",
+        "gpt-6.1-sol",
+        "gpt-5.6-luna",
+        "gpt-6-astra",
+        "gpt-6-sol",
+        "gpt-6-luna"
+      ],
+      "default_model": "gpt-5.6-sol"
+    }
+  },
+  "task_routes": {
+    "extract_claims": "gpt",
+    "match_evidence": "gpt",
+    "report": "gpt",
+    "code": "codex"
+  },
+  "task_models": {}
+}

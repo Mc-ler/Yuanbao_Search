@@ -1,0 +1,29 @@
+# Secrets and local state
+.env
+.env.local
+.push.json
+cache/
+archive/
+state/
+data/
+snapshots/
+probe/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.Search/
+
+# Node
+node_modules/
+
+# Large deliverables
+deliverables/recordings/*.mp4
+deliverables/recordings/*.mov
+
+# Local-only config and framework sources
+.archify/
+push.config.json
+.vscode/

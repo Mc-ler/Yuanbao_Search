@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "fixture_id": "case_conflict",
+  "title": "冲突：人均与营业日口径不一致",
+  "expected": {
+    "verdicts": ["conflict", "conflict"],
+    "note": "B 级支持与 B 级反驳并存；并列展示，禁止取平均"
+  },
+  "text": "示例泡馍（回民街店）人均68元，周一闭店。",
+  "subject": "示例泡馍（回民街店）",
+  "city": "西安",
+  "mock_pages": [
+    {
+      "_triggers": ["示例泡馍（回民街店）"],
+      "title": "回民街泡馍店探访：人均68元，周一闭店",
+      "url": "https://www.xinhuanet.com/food/example-huimin-1",
+      "site": "新华网",
+      "date": "2026-07-10 11:10:00",
+      "passage": "该店目前正常营业，人均68元，周一闭店，工作日中午排队约二十分钟。",
+      "content": "该店目前正常营业，人均68元，周一闭店，工作日中午排队约二十分钟。",
+      "score": 0.90
+    },
+    {
+      "_triggers": ["示例泡馍（回民街店）"],
+      "title": "另一份价目表：人均150元，周一正常营业",
+      "url": "https://www.people.com.cn/food/example-huimin-2",
+      "site": "人民网",
+      "date": "2026-10-05 16:30:00",
+      "passage": "该店在另一份价目表上显示人均150元，周一正常营业，节假日不休息。",
+      "content": "该店在另一份价目表上显示人均150元，周一正常营业，节假日不休息。",
+      "score": 0.87
+    },
+    {
+      "_triggers": ["示例泡馍（回民街店）"],
+      "title": "示例泡馍（回民街店）商户页",
+      "url": "https://www.dianping.com/shop/example-huimin",
+      "site": "大众点评",
+      "date": "2026-09-18 12:00:00",
+      "passage": "营业中，人均68元，周一闭店。",
+      "content": "营业中，人均68元，周一闭店。",
+      "score": 0.83
+    },
+    {
+      "_triggers": ["示例泡馍（回民街店）"],
+      "title": "探店笔记：人均120元，周一闭店",
+      "url": "https://www.xiaohongshu.com/explore/example-huimin-3",
+      "site": "小红书",
+      "date": "2026-10-08 20:15:00",
+      "passage": "人均120元，周一闭店，排队很久。",
+      "content": "人均120元，周一闭店，排队很久。",
+      "score": 0.70
+    }
+  ]
+}

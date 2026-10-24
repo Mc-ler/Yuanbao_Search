@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>说法鉴定所 · YuanBao Research Agent</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>说法鉴定所</h1>
+        <p>Research Agent · 元宝搜索 API / MCP 双通道</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="modeBadge" class="badge muted">连接中</span>
+      <a class="link" href="/rules" target="_blank" rel="noopener">判定口径</a>
+      <button id="printBtn" class="ghost" type="button">打印报告</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">查得到 · 信得过</span>
+        <h2>丢一条说法，<br>还你一份带来源的鉴定书。</h2>
+        <p>不评人，不做推荐；只把可验证的断言、来源等级和矛盾摆出来。查不到，就说查不到。</p>
+        <div class="hero-points">
+          <span>按簇计票，转载不算独立证据</span>
+          <span>A 级来源置顶，链接可点开</span>
+          <span>判定是代码，不是模型心情</span>
+        </div>
+      </div>
+
+      <div class="hero-card">
+        <label class="field-label" for="textInput">输入一条说法</label>
+        <textarea id="textInput" rows="5" placeholder="例如：这家泡馍店人均68元，周一闭店，真的吗？"></textarea>
+        <div class="row three">
+          <label class="field">主体
+            <input id="subjectInput" type="text" placeholder="店名 / 景区 / 酒店">
+          </label>
+          <label class="field">城市
+            <input id="cityInput" type="text" value="西安">
+          </label>
+          <label class="field">模式
+            <select id="modeSelect">
+              <option value="verify_claim">说法核验</option>
+              <option value="research_topic" disabled>研究问题 · P2</option>
+            </select>
+          </label>
+        </div>
+        <div class="row actions">
+          <button id="runBtn" class="primary" type="button">开始查证</button>
+          <label class="switch" title="演示用：关掉检索后，所有断言都无法判读">
+            <input id="searchOff" type="checkbox">
+            <span>演示：关掉元宝搜索</span>
+          </label>
+          <button id="clearBtn" class="ghost" type="button">清空</button>
+        </div>
+        <p id="composerHint" class="hint">示例使用本地数据；配置 Key 后会真实调用元宝搜索。</p>
+      </div>
+
+      <aside class="examples">
+        <span class="eyebrow">三态示例</span>
+        <button class="example" data-fixture="case_established" type="button">
+          <strong>成立</strong><span>人均 / 营业日 / 许可</span>
+        </button>
+        <button class="example" data-fixture="case_conflict" type="button">
+          <strong>冲突</strong><span>68 / 120 / 150 并列</span>
+        </button>
+        <button class="example" data-fixture="case_insufficient" type="button">
+          <strong>证据不足</strong><span>查不到就说查不到</span>
+        </button>
+        <p class="tiny">点击示例直接运行；也可自己输入。</p>
+      </aside>
+    </section>
+
+    <div id="notice" class="notice" hidden></div>
+
+    <section id="runPanel" class="run-panel" hidden>
+      <div class="run-head">
+        <div>
+          <span class="eyebrow">调查</span>
+          <h3 id="runTitle">正在查证…</h3>
+          <p id="runSub" class="run-sub"></p>
+        </div>
+        <div id="kpi" class="kpi"></div>
+      </div>
+
+      <div id="profile" class="profile"></div>
+
+      <div class="run-grid">
+        <div class="column">
+          <div class="column-head"><h4>过程</h4><span id="liveState" class="live-state">连接中</span></div>
+          <div id="timeline" class="timeline"></div>
+        </div>
+        <aside class="column side">
+          <h4>检索轨迹</h4>
+          <div id="trace" class="trace"></div>
+          <h4>预算</h4>
+          <div id="budget" class="budget"></div>
+        </aside>
+      </div>
+
+      <div id="results" class="results"></div>
+
+      <div id="reportActions" class="report-actions" hidden>
+        <a id="mdLink" class="link" href="#" target="_blank" rel="noopener">下载 Markdown 报告</a>
+        <button id="printBtn2" class="ghost" type="button">打印 / 存 PDF</button>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>本页只核对公开说法与来源，不评价个人，不构成消费建议。当前只支持文字输入。</p>
+      <p>元宝搜索 SearchPro · 标准版 · 6000 次/月额度内使用</p>
+    </footer>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "example_id": "q2_scenic_history",
+  "domain": "文旅景区历史查询与解释",
+  "question": "西安城墙现存主体年代、唐城墙遗存在哪？它是否列入世界遗产？",
+  "question_suggestion": "某景区（如兵马俑、大雁塔）的历史沿革、建置年代和名称由来是什么？",
+  "subject": "",
+  "city": "西安市",
+  "time_window": "y5",
+  "query_fields": ["scenic_history", "scenic_explanation"],
+  "expected_sources": ["政府文旅部门", "地方志", "景区官网", "权威媒体"],
+  "notes": "请手动填入具体景区名称到 question；subject 可填景区名，city 填所在城市。"
+}

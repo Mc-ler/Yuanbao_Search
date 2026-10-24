@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "default_grade": "D",
+  "age_downgrade_days": 365,
+  "industry_cap": {
+    "gov": "B",
+    "news": "B"
+  },
+  "grades": {
+    "A": {
+      "label": "政府 / 官方公告 / 监管公示",
+      "verifiable": "可核验",
+      "suffixes": ["gov.cn"],
+      "domains": [
+        "samr.gov.cn",
+        "mct.gov.cn",
+        "creditchina.gov.cn",
+        "12315.cn",
+        "court.gov.cn",
+        "ncha.gov.cn",
+        "shaanxi.gov.cn",
+        "xa.gov.cn"
+      ]
+    },
+    "B": {
+      "label": "主流媒体 / 调查报道",
+      "verifiable": "需人工",
+      "suffixes": [
+        "xinhuanet.com",
+        "news.cn",
+        "people.com.cn",
+        "cctv.com",
+        "cnr.cn",
+        "thepaper.cn",
+        "caixin.com",
+        "jiemian.com",
+        "bjnews.com.cn",
+        "chinanews.com.cn",
+        "news.qq.com",
+        "news.sina.com.cn",
+        "ifeng.com",
+        "gmw.cn",
+        "youth.cn",
+        "ce.cn",
+        "chinadaily.com.cn",
+        "stdaily.com",
+        "news.sohu.com"
+      ],
+      "domains": []
+    },
+    "C": {
+      "label": "平台结构化页 / 百科",
+      "verifiable": "可核验",
+      "suffixes": [
+        "ctrip.com",
+        "qunar.com",
+        "maoyan.com",
+        "dianping.com",
+        "meituan.com",
+        "amap.com",
+        "baike.baidu.com"
+      ],
+      "domains": []
+    },
+    "D": {
+      "label": "自媒体 / 公众号 / 资讯号",
+      "verifiable": "需人工",
+      "suffixes": [
+        "mp.weixin.qq.com",
+        "zhihu.com",
+        "baijiahao.baidu.com",
+        "toutiao.com",
+        "sohu.com",
+        "36kr.com",
+        "sspai.com"
+      ],
+      "domains": []
+    },
+    "E": {
+      "label": "UGC / 社交平台",
+      "verifiable": "不可核验",
+      "suffixes": [
+        "xiaohongshu.com",
+        "weibo.com",
+        "douban.com",
+        "bilibili.com",
+        "tieba.baidu.com"
+      ],
+      "domains": []
+    }
+  }
+}

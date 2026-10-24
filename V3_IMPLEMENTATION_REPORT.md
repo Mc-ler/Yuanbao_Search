@@ -172,7 +172,7 @@
 
 ## 9. 交付物
 
-- 分支：main（本地合并；refactor/v3-two-boards 同 commit；远端未推送）
+- 分支：main（本地合并；refactor/v3-two-boards 保留，main 多一个报告提交；远端未推送）
 - 代码：claimlab/、web/、scripts/、tests/
 - 文档：README.md、PROJECT_PLAN.md、web/rules.html、framework.html
 - 证明：deliverables/screenshots/v3-home.png、v3-research.png、v3-verify.png、v3-report.png、v3-framework.png

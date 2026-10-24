@@ -7,16 +7,38 @@ append-only audit record. It always returns a normalized SearchBatch.
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import asdict
 from typing import Any
 
 from ..config import Settings
 from ..contracts import SearchBatch, SearchPage, SearchRequest
+from ..logging import event
 from .archive import ArchiveWriter
 from .base import ProviderHealth, SearchProvider
 from .budget import Budget, BudgetExceeded
 from .cache import DiskCache, cache_key
+
+logger = logging.getLogger("claimlab.search")
+
+
+def _official(domain: str) -> bool:
+    return domain.endswith(".gov.cn") or domain in {"gov.cn", "stats.gov.cn"}
+
+
+def _batch_fields(batch: SearchBatch) -> dict[str, Any]:
+    domains = [page.domain for page in batch.pages if page.domain]
+    return {
+        "provider": batch.provider,
+        "pages": len(batch.pages),
+        "official": sum(1 for domain in domains if _official(domain)),
+        "domains": domains[:8],
+        "latency_ms": round(batch.latency_ms, 1),
+        "error_kind": batch.error_kind or None,
+        "error": batch.error,
+    }
+
 
 
 def _batch_to_cache(batch: SearchBatch) -> dict[str, Any]:
@@ -87,6 +109,17 @@ class SearchGateway:
 
     async def search(self, run_id: str, assertion_id: str, plan: Any) -> SearchBatch:
         request = plan.to_request()
+        event(
+            logger,
+            "search.start",
+            run_id=run_id,
+            assertion_id=assertion_id,
+            query=request.query,
+            site=request.site,
+            industry=request.industry,
+            freshness=request.freshness,
+            provider=self.settings.search_provider,
+        )
         key = cache_key("search", self.settings.search_provider, request.to_api_body())
         cached = self.cache.get(key)
         if cached is not None:
@@ -94,37 +127,44 @@ class SearchGateway:
             self.budget.hit()
             self.cache_hits += 1
             self.archive.write_search(run_id, request.to_api_body(), batch, batch.provider, True)
+            event(logger, "search.cache_hit", query=request.query, **_batch_fields(batch))
             return batch
 
         if self.settings.offline:
-            return SearchBatch(
+            batch = SearchBatch(
                 provider=self.settings.search_provider,
                 error="cache miss in offline mode (run a live search or warm the cache first)",
                 error_kind="cache",
                 request=request,
                 query=request.query,
             )
+            event(logger, "search.error", level=logging.WARNING, query=request.query, **_batch_fields(batch))
+            return batch
 
         try:
             self.budget.charge(assertion_id)
         except BudgetExceeded as exc:
-            return SearchBatch(
+            batch = SearchBatch(
                 provider=self.settings.search_provider,
                 error=f"budget: {exc.reason}",
                 error_kind="budget",
                 request=request,
                 query=request.query,
             )
+            event(logger, "search.error", level=logging.WARNING, query=request.query, **_batch_fields(batch))
+            return batch
 
         candidates = self._candidates()
         if not candidates:
-            return SearchBatch(
+            batch = SearchBatch(
                 provider=self.settings.search_provider,
                 error=f"provider not configured: {self.settings.search_provider}",
                 error_kind="config",
                 request=request,
                 query=request.query,
             )
+            event(logger, "search.error", level=logging.WARNING, query=request.query, **_batch_fields(batch))
+            return batch
 
         last: SearchBatch | None = None
         for index, name in enumerate(candidates):
@@ -135,13 +175,22 @@ class SearchGateway:
             if batch.ok:
                 self.cache.set(key, _batch_to_cache(batch))
                 self.archive.write_search(run_id, request.to_api_body(), batch, name, False)
+                event(
+                    logger,
+                    "search.done" if batch.pages else "search.zero",
+                    level=logging.INFO if batch.pages else logging.WARNING,
+                    query=request.query,
+                    **_batch_fields(batch),
+                )
                 return batch
             last = batch
             if self.settings.search_provider == "auto" and batch.error_kind == "transport" and index + 1 < len(candidates):
+                event(logger, "search.retry", level=logging.WARNING, query=request.query, provider=name, error_kind=batch.error_kind)
                 continue
             break
         assert last is not None
         self.archive.write_search(run_id, request.to_api_body(), last, last.provider, False)
+        event(logger, "search.error", level=logging.WARNING, query=request.query, **_batch_fields(last))
         return last
 
     async def health(self) -> list[ProviderHealth]:

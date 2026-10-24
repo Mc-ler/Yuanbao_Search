@@ -54,43 +54,67 @@
       "keywords": ["统计公报", "数据来源", "口径来源", "公报", "统计局"],
       "freshness": "y2",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 统计公报 数据来源", "{subject} 统计口径 来源", "{subject} 统计局 公报 原文"]
+      "variants": ["{subject} {terms} 统计公报", "{subject} {terms} 数据来源", "{subject} {terms} 官方 原文"]
     },
     "statistics_method": {
-      "keywords": ["统计口径", "口径", "抽样", "样本", "调查方法", "测算"],
+      "keywords": ["统计口径", "口径", "抽样", "样本", "调查方法", "测算", "住户调查", "指标解释"],
       "freshness": "y2",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 统计口径", "{subject} 抽样 方法", "{subject} 统计 测算 说明"]
+      "variants": ["{subject} {terms} 统计口径", "{subject} {terms} 住户调查", "{subject} {terms} 指标解释"]
+    },
+    "statistics_release": {
+      "keywords": ["数据发布", "新闻发布会", "解读", "发布稿"],
+      "freshness": "y2",
+      "precise": { "industry": "gov" },
+      "variants": ["{subject} {terms} 数据发布", "{subject} {terms} 新闻发布会", "{subject} {terms} 解读"]
     },
     "scenic_history": {
-      "keywords": ["历史沿革", "历史", "沿革", "建于", "朝代", "遗址", "年代", "起源"],
+      "keywords": ["历史沿革", "历史", "沿革", "建于", "朝代", "遗址", "遗存", "年代", "起源"],
       "freshness": "y5",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 历史 沿革", "{subject} 建于 哪个朝代", "{subject} 地方志 记载"]
+      "variants": ["{subject} {terms} 历史沿革", "{subject} {terms} 建于 朝代", "{subject} {terms} 地方志"]
     },
     "scenic_explanation": {
-      "keywords": ["由来", "典故", "解释", "文化", "讲解", "介绍"],
+      "keywords": ["由来", "典故", "解释", "文化", "讲解", "介绍", "名称"],
       "freshness": "y5",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 由来 典故", "{subject} 文化 介绍", "{subject} 历史 解释"]
+      "variants": ["{subject} {terms} 由来", "{subject} {terms} 名称 由来", "{subject} {terms} 文化 介绍"]
+    },
+    "heritage_status": {
+      "keywords": ["世界遗产", "申遗", "文物保护单位", "遗产名录", "全国重点"],
+      "freshness": "y5",
+      "precise": { "industry": "gov" },
+      "variants": ["{subject} {terms} 世界遗产", "{subject} {terms} 全国重点文物保护单位", "{subject} {terms} 申遗"]
     },
     "traffic_restriction": {
-      "keywords": ["限行", "限号", "尾号", "通行", "车辆"],
+      "keywords": ["限行", "限号", "尾号", "通行", "车辆", "机动车"],
       "freshness": "d30",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 限行 通知", "{subject} 尾号 限行", "{subject} 限号 规则"]
+      "variants": ["{subject} {terms} 限行", "{subject} {terms} 尾号 限行", "{subject} {terms} 限号 规则"]
     },
     "ev_license": {
-      "keywords": ["电动自行车", "电动车", "牌照", "上牌", "登记", "新国标"],
+      "keywords": ["电动自行车", "电动车", "牌照", "上牌", "登记", "新国标", "号牌"],
       "freshness": "y1",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 电动自行车 上牌", "{subject} 电动车 牌照 要求", "{subject} 登记 规定"]
+      "variants": ["{subject} {terms} 上牌", "{subject} {terms} 号牌 登记", "{subject} {terms} 新国标"]
+    },
+    "ev_restriction": {
+      "keywords": ["电动自行车", "电动车", "通行", "停放", "充电", "头盔"],
+      "freshness": "y1",
+      "precise": { "industry": "gov" },
+      "variants": ["{subject} {terms} 通行", "{subject} {terms} 停放 充电", "{subject} {terms} 头盔"]
     },
     "municipal_notice": {
-      "keywords": ["通知", "公告", "政策", "实施", "规定"],
+      "keywords": ["通知", "公告", "政策", "实施", "规定", "新规", "办法", "条例"],
       "freshness": "m6",
       "precise": { "industry": "gov" },
-      "variants": ["{subject} 通知 公告", "{subject} 政策 原文", "{subject} 实施 时间"]
+      "variants": ["{subject} {terms} 通知", "{subject} {terms} 政策 原文", "{subject} {terms} 官方 公告"]
+    },
+    "municipal_effective": {
+      "keywords": ["实施时间", "生效", "有效期", "施行", "截止"],
+      "freshness": "m6",
+      "precise": { "industry": "gov" },
+      "variants": ["{subject} {terms} 实施时间", "{subject} {terms} 生效 日期", "{subject} {terms} 有效期"]
     },
     "unknown": {
       "keywords": [],

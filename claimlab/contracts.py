@@ -7,6 +7,7 @@ shape stable for fixtures and the UI.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field
@@ -231,6 +232,7 @@ class Requirement:
     source_preference: str | None = None
     rationale: str = ""
     importance: int = 0
+    search_terms: list[str] = dataclasses.field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Requirement":
@@ -245,6 +247,7 @@ class Requirement:
             source_preference=data.get("source_preference"),
             rationale=str(data.get("rationale") or ""),
             importance=int(data.get("importance", 0)),
+            search_terms=[str(item).strip() for item in (data.get("search_terms") or []) if str(item).strip()],
         )
 
 

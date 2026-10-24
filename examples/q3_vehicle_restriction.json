@@ -4,10 +4,10 @@
   "domain": "市政通知车辆限号及电动车牌照要求",
   "question": "西安市电动自行车新规出台后有哪些重点内容？",
   "question_suggestion": "电动自行车上牌需要哪些材料？",
-  "subject": "",
+  "subject": "西安市",
   "city": "",
   "time_window": "d30",
-  "query_fields": ["municipal_notice", "traffic_restriction", "ev_license"],
+  "query_fields": ["municipal_notice", "ev_license", "ev_restriction"],
   "expected_sources": ["市政府", "公安局交管部门", "政府公报"],
-  "notes": "请手动填入具体城市和年份到 question；subject 可填“某市交管局”，city 填城市。"
+  "notes": "当前 question 聚焦电动自行车新规；若要同时测试机动车限号，请在 question 中加入限行问题，并使用 traffic_restriction。"
 }

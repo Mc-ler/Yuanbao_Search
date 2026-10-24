@@ -13,7 +13,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -21,8 +23,11 @@ sys.path.insert(0, str(ROOT))
 
 from claimlab.config import load_settings  # noqa: E402
 from claimlab.contracts import SearchRequest, jsonable  # noqa: E402
+from claimlab.logging import configure_logging, event  # noqa: E402
 from claimlab.search.api import ApiSearchProvider  # noqa: E402
 from claimlab.search.mcp import MCP_SDK_AVAILABLE, McpSearchProvider  # noqa: E402
+
+probe_log = logging.getLogger("claimlab.probe")
 
 PROBES = [
     {"name": "P1 公众号索引", "query": "西安 探店", "site": "mp.weixin.qq.com"},
@@ -68,6 +73,21 @@ async def probe_one(provider_name: str, provider, spec: dict, out_dir: Path) -> 
     filename = f"{provider_name}-{spec['name'].split()[0]}.json"
     (out_dir / filename).write_text(json.dumps(record, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     status = "ok" if batch.ok else f"ERROR {batch.error}"
+    domains = [page.domain for page in batch.pages if page.domain]
+    official = sum(1 for domain in domains if domain.endswith(".gov.cn") or domain in {"gov.cn", "stats.gov.cn"})
+    event(
+        probe_log,
+        "probe.search",
+        level=logging.INFO if batch.ok and batch.pages else logging.WARNING,
+        provider=provider_name,
+        probe=spec["name"],
+        query=request.query,
+        pages=len(batch.pages),
+        official=official,
+        domains=domains[:8],
+        latency_ms=round(batch.latency_ms, 1),
+        error=batch.error,
+    )
     print(
         f"{provider_name:4} {spec['name']:16} pages={len(batch.pages):2} "
         f"version={batch.version or '-':8} {round(batch.latency_ms):5}ms  {status}"
@@ -84,6 +104,14 @@ async def main_async(args: argparse.Namespace) -> int:
         return 2
     out_dir = settings.root / "probe" / "raw"
     out_dir.mkdir(parents=True, exist_ok=True)
+    log_path = configure_logging(
+        settings.logs_dir,
+        f"probe-search-{datetime.now():%Y%m%d-%H%M%S}.log",
+        level=settings.log_level,
+        max_bytes=settings.log_max_bytes,
+        backup_count=settings.log_backup_count,
+    )
+    event(probe_log, "probe.start", provider=args.provider, log=log_path)
     providers = []
     if args.provider in {"api", "both"}:
         providers.append(("api", ApiSearchProvider(settings)))

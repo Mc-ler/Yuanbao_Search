@@ -13,7 +13,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -22,8 +24,16 @@ sys.path.insert(0, str(ROOT))
 from claimlab.config import load_settings  # noqa: E402
 from claimlab.contracts import ResearchTask, jsonable  # noqa: E402
 from claimlab.llm.client import build_llm  # noqa: E402
-from claimlab.skills.query import plan_requirement_queries  # noqa: E402
+from claimlab.logging import configure_logging, event  # noqa: E402
+from claimlab.skills.query import (  # noqa: E402
+    plan_fallback_queries,
+    plan_key,
+    plan_requery_queries,
+    plan_requirement_queries,
+)
 from claimlab.skills.requirements import decompose_requirements  # noqa: E402
+
+example_log = logging.getLogger("claimlab.example")
 
 
 def load_example(value: str) -> tuple[Path, dict]:
@@ -50,6 +60,15 @@ async def run(args: argparse.Namespace) -> int:
 
     subject = (args.subject or str(example.get("subject") or "")).strip() or None
     city = (args.city or str(example.get("city") or "")).strip() or None
+    settings = load_settings()
+    example_id = str(example.get("example_id") or path.stem)
+    log_path = configure_logging(
+        settings.logs_dir,
+        f"example-{example_id}-{datetime.now():%Y%m%d-%H%M%S}.log",
+        level=settings.log_level,
+        max_bytes=settings.log_max_bytes,
+        backup_count=settings.log_backup_count,
+    )
     task = ResearchTask(
         text=question,
         mode="research_topic",
@@ -62,18 +81,28 @@ async def run(args: argparse.Namespace) -> int:
         },
     )
 
-    llm = None if args.heuristic else build_llm(load_settings())
+    llm = None if args.heuristic else build_llm(settings)
     try:
         plan = await decompose_requirements(llm, task)
         queries = []
+        fallback_queries = []
+        requery_queries = []
+        used: set[tuple[str, str | None, str | None]] = set()
         for requirement in plan.requirements:
-            queries.extend(
-                plan_requirement_queries(
-                    requirement,
-                    subject=subject,
-                    city=city,
-                )
+            initial = plan_requirement_queries(
+                requirement,
+                subject=subject,
+                city=city,
+                used=used,
             )
+            queries.extend(initial)
+            used.update(plan_key(item) for item in initial)
+            fallback = plan_fallback_queries(requirement, subject=subject, city=city, used=used)
+            fallback_queries.extend(fallback)
+            used.update(plan_key(item) for item in fallback)
+            requery = plan_requery_queries(requirement, subject=subject, city=city, used=used)
+            requery_queries.extend(requery)
+            used.update(plan_key(item) for item in requery)
     finally:
         if llm is not None:
             await llm.close()
@@ -85,7 +114,20 @@ async def run(args: argparse.Namespace) -> int:
         "method": plan.method,
         "requirements": jsonable(plan.requirements),
         "queries": jsonable(queries),
+        "fallback_queries": jsonable(fallback_queries),
+        "requery_queries": jsonable(requery_queries),
     }
+    event(
+        example_log,
+        "example.plan",
+        example_id=payload["example_id"],
+        method=plan.method,
+        requirements=len(plan.requirements),
+        queries=len(queries),
+        fallback_queries=len(fallback_queries),
+        requery_queries=len(requery_queries),
+        log=log_path,
+    )
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0

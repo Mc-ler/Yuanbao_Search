@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -16,9 +18,15 @@ from pydantic import BaseModel
 from . import __version__
 from .config import ROOT, Settings, load_settings
 from .contracts import ResearchTask, dumps, jsonable
+from .logging import configure_logging, event
 from .runtime import build_sandbox
 from .runs import RunRecord, RunStore
-from .skills.query import plan_requirement_queries
+from .skills.query import (
+    plan_fallback_queries,
+    plan_key,
+    plan_requery_queries,
+    plan_requirement_queries,
+)
 from .skills.reporting import render_markdown
 from .skills.requirements import decompose_requirements
 from .store.fixtures import fixture_public_list
@@ -63,6 +71,16 @@ SKILLS = [
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
+    settings.ensure_dirs()
+    log_path = configure_logging(
+        settings.logs_dir,
+        f"app-{datetime.now():%Y%m%d}.log",
+        level=settings.log_level,
+        max_bytes=settings.log_max_bytes,
+        backup_count=settings.log_backup_count,
+    )
+    api_log = logging.getLogger("claimlab.api")
+    event(api_log, "app.start", version=__version__, log=log_path, search_provider=settings.search_provider)
     sandbox = build_sandbox(settings)
     store = RunStore()
 
@@ -93,6 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if record.status == "cancelling":
                 record.status = "cancelled"
         except Exception as exc:  # keep the SSE stream informative
+            event(api_log, "run.error", run_id=record.run_id, error=f"{type(exc).__name__}: {exc}")
             store.fail(record.run_id, f"{type(exc).__name__}: {exc}")
 
     @app.get("/api/health")
@@ -180,20 +199,42 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         plan = await decompose_requirements(sandbox.llm, task)
         queries = []
+        fallback_queries = []
+        requery_queries = []
+        used: set[tuple[str, str | None, str | None]] = set()
         for requirement in plan.requirements:
-            queries.extend(
-                plan_requirement_queries(
-                    requirement,
-                    subject=subject,
-                    city=city,
-                )
+            initial = plan_requirement_queries(
+                requirement,
+                subject=subject,
+                city=city,
+                used=used,
             )
+            queries.extend(initial)
+            used.update(plan_key(item) for item in initial)
+            fallback = plan_fallback_queries(requirement, subject=subject, city=city, used=used)
+            fallback_queries.extend(fallback)
+            used.update(plan_key(item) for item in fallback)
+            requery = plan_requery_queries(requirement, subject=subject, city=city, used=used)
+            requery_queries.extend(requery)
+            used.update(plan_key(item) for item in requery)
+        event(
+            api_log,
+            "plan.done",
+            example_id=request.example_id,
+            method=plan.method,
+            requirements=len(plan.requirements),
+            queries=len(queries),
+            fallback_queries=len(fallback_queries),
+            requery_queries=len(requery_queries),
+        )
         return {
             "example_id": request.example_id,
             "domain": plan.domain,
             "method": plan.method,
             "requirements": jsonable(plan.requirements),
             "queries": jsonable(queries),
+            "fallback_queries": jsonable(fallback_queries),
+            "requery_queries": jsonable(requery_queries),
         }
 
     @app.post("/api/runs")

@@ -19,6 +19,17 @@ from ..contracts import Grade, SearchPage
 GRADE_ORDER: dict[str, int] = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
 DOWNGRADE = {"A": "B", "B": "C", "C": "D", "D": "E", "E": "E"}
 
+# Historical/heritage facts and annual statistics are not "stale" on the same
+# 365-day clock as a municipal notice or a restaurant's opening hours.
+FIELD_AGE_DAYS = {
+    "statistics_source": 730,
+    "statistics_method": 730,
+    "statistics_release": 730,
+    "scenic_history": 3650,
+    "scenic_explanation": 3650,
+    "heritage_status": 3650,
+}
+
 
 @lru_cache(maxsize=1)
 def load_domains(path: Path | None = None) -> dict[str, Any]:
@@ -62,7 +73,7 @@ def _base_grade(host: str) -> tuple[Grade, str]:
     return config.get("default_grade", "D"), "未知域名，默认按自媒体处理"
 
 
-def grade_page(page: SearchPage, industry: str | None = None) -> GradeResult:
+def grade_page(page: SearchPage, industry: str | None = None, field: str | None = None) -> GradeResult:
     host = (page.domain or "").lower()
     grade, reason = _base_grade(host)
     config = load_domains()
@@ -72,7 +83,7 @@ def grade_page(page: SearchPage, industry: str | None = None) -> GradeResult:
     if industry:
         reason = f"{reason}；检索过滤 Industry={industry}，不改变来源等级"
     older = False
-    limit = int(config.get("age_downgrade_days", 365))
+    limit = FIELD_AGE_DAYS.get(field or "", int(config.get("age_downgrade_days", 365)))
     if page.age_days is not None and page.age_days > limit:
         downgraded = DOWNGRADE[grade]
         if downgraded != grade:
@@ -83,8 +94,12 @@ def grade_page(page: SearchPage, industry: str | None = None) -> GradeResult:
     return GradeResult(grade=grade, reason=reason, verifiable=verifiable, older=older)
 
 
-def grade_pages(pages: list[SearchPage], industry: str | None = None) -> list[GradeResult]:
-    return [grade_page(page, industry) for page in pages]
+def grade_pages(
+    pages: list[SearchPage],
+    industry: str | None = None,
+    field: str | None = None,
+) -> list[GradeResult]:
+    return [grade_page(page, industry, field) for page in pages]
 
 
 def grade_rank(grade: str) -> int:

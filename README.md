@@ -5,9 +5,9 @@
 ## 当前状态
 
 - **P0 已可运行**：文字输入、三态用例、检索网关、去重/分级/匹配/判定、SSE UI、契约 C 报告。
-- **73 个测试通过**（pytest 0.93s；含新增需求/示例/推送/LLM 诊断测试）。
+- **77 个测试通过**（pytest 1.37s；含范围字段、目标词、回退/再查询、来源策略）。
 - **S1 已改为「需求拆分」**：研究问题 → 1–3 条 `Requirement` → `plan_requirement_queries`，不再经过 Claim。
-- **查询接口**：`POST /api/plan`、`GET /api/examples`、`scripts/run_example.py`；三个汇报问题在 `examples/`，q1 已填并跑通，q2/q3 待手动填。
+- **查询接口**：`POST /api/plan`、`GET /api/examples`、`scripts/run_example.py`、`run_example_live.py`；q1/q2/q3 均已填并跑通 live 验证。
 - **Key 处理已集中**：Yuanbao Search 自动拼接一次 `Bearer `（已带前缀也不会重复）；GPT/Codex 走第三方 Toklens 供应商，按 provider 配置 Key 并自动选择模型。
 - **团队协作**：`scripts/git_push.py` 首次配置 repo/remote，之后只填 commit 信息即可提交并推送 GitHub。
 - **M5–M9 展示/汇报/录屏/提交由下游团队负责**，不属于本模块。
@@ -95,18 +95,65 @@ Copy-Item .env.example .env
 
 `probe_search.py` 会把归一化结果与原始响应写到 `probe/raw/`，用于核对 API/MCP 字段差异与去重阈值；`probe/` 已在 `.gitignore` 中。
 
-## 需求拆分与查询接口
+## 日志与调试
 
-S1 不再做断言抽取。研究问题先进入 `skills/requirements.py`，拆成 1–3 条 `Requirement`，再直接交给 `plan_requirement_queries`。
-
-三个汇报示例在 `examples/`，`question` 留空，需手动填入具体地区/年份/主体：
+- 规范：[logs/README.md](<logs/README.md>)。`logs/*.log` 本地保存、gitignored；`LOG_LEVEL=DEBUG` 可临时加详。
+- 搜索事件：`claimlab/search/gateway.py` 记录 `search.start` / `search.done` / `search.zero` / `search.error`，含 query、pages、official、domains、延迟；不记录 Key。
+- 服务事件：`claimlab/api.py` 记录启动、`/api/plan`、run 异常。
+- 查询对照：`scripts/debug_search.py --matrix q1 --gov` 对通用词与目标词做实时对照，写 `logs/debug-search-*.log` 和 `probe/debug/*.json`。
+- 结果审计：`scripts/analyze_results.py` 汇总 M1 探针与 `archive/` 真实 run 的页数、官方域名、零结果。
 
 ```powershell
-# 先编辑 examples/q1_statistics_bulletin.json 的 question
-./.Search/Scripts/python.exe scripts/run_example.py --example q1_statistics_bulletin
-./.Search/Scripts/python.exe scripts/run_example.py --example q2_scenic_history --json
-./.Search/Scripts/python.exe scripts/run_example.py --example q3_vehicle_restriction --heuristic
+./.Search/Scripts/python.exe scripts/analyze_results.py
+./.Search/Scripts/python.exe scripts/debug_search.py --matrix q1 --gov
 ```
+
+## 查询范围与构造
+
+项目主动收窄为三类可靠信源领域；旧餐厅/价格/营业时间字段只保留给 legacy `verify_claim`，不进入研究查询。
+
+| 领域 | 字段 |
+|---|---|
+| 国家统计 | `statistics_source`、`statistics_method`、`statistics_release` |
+| 历史/文化遗产 | `scenic_history`、`scenic_explanation`、`heritage_status` |
+| 市政 | `municipal_notice`、`traffic_restriction`、`ev_license`、`ev_restriction`、`municipal_effective` |
+
+构造规则：
+
+- S1 输出 `Requirement`，包含 `search_terms`（年份、指标、数值、主体、文件类型）。
+- 初始查询先走 **precise / Industry=gov**，第二条做目标词扩展；不再先打裸查询。
+- 每个字段最多 4 次：2 条初始 + 1 条 B/C 回退 + 1 条再查询；全局 `used` 去重，避免 q2 那种三条同字段重复查询。
+- 有 A/B 直接接受；没有 A/B 才降级 B/C；仍不足才发起一次不同策略的再查询；最终不足则明确标 `insufficient`。
+- **查询数量扩展本轮不做，写入后续计划**；当前只调整字段与目标词，不扩大限额。
+- `/api/plan` 返回 `queries`、`fallback_queries`、`requery_queries` 三组，供下游按上述策略执行。
+
+三个示例已填；默认使用 LLM 拆分（`--heuristic` 只作离线回退）：
+
+```powershell
+./.Search/Scripts/python.exe scripts/run_example.py --example q1_statistics_bulletin --subject "国家统计局"
+./.Search/Scripts/python.exe scripts/run_example.py --example q2_scenic_history
+./.Search/Scripts/python.exe scripts/run_example.py --example q3_vehicle_restriction
+```
+
+真实检索与字段覆盖验证：
+
+```powershell
+./.Search/Scripts/python.exe scripts/run_example_live.py --example q1_statistics_bulletin --subject "国家统计局" --json
+./.Search/Scripts/python.exe scripts/run_example_live.py --example q2_scenic_history --json
+./.Search/Scripts/python.exe scripts/run_example_live.py --example q3_vehicle_restriction --json
+```
+
+当前 live 结果（每字段 2 条初始查询，未触发回退）：
+
+| 示例 | 字段覆盖 | 页数 | 相关 A/B 页 | 相关官方率 |
+|---|---:|---:|---:|---:|
+| q1 统计 | 3/3 | 60 | 43/58 | 74.1% |
+| q2 历史 | 2/2（3 条需求） | 60 | 29/60 | 48.3% |
+| q3 市政 | 3/3 | 60 | 25/50 | 50.0% |
+
+验收线：字段覆盖 **100%**（q2 为 2 类字段 / 3 条需求）；q1 相关官方率 ≥70%，q2/q3 ≥45%；**0 个字段零结果**；每字段 ≤4 次；无重复查询。当前 q1/q2/q3 均通过（q2 48.3%，高于 45% 线）。
+
+q2 当前问题是“城墙年代 + 唐遗存 + 世遗身份”，没有问“名称由来”，所以不产生 `scenic_explanation`；如要测解释字段，在 question 中加入“名称由来”。q3 当前问题聚焦电动自行车新规，不产生 `traffic_restriction`；如要测机动车限号，在 question 中加入限行问题。
 
 HTTP 查询接口（不执行检索、不消耗检索预算）：
 
@@ -140,7 +187,7 @@ POST /api/plan   {"text": "某市2025年统计公报中人均可支配收入的�
 | GET | `/api/fixtures` | 三个示例用例 |
 | GET | `/api/skills` | 9 个 Skill 的静态清单（S1 为需求拆分） |
 | GET | `/api/examples` | 三个汇报示例；显示 question 是否已填 |
-| POST | `/api/plan` | `{text?, example_id?}` → Requirement + QueryPlan（不执行检索） |
+| POST | `/api/plan` | `{text?, example_id?}` → Requirement + 初始查询 + B/C 回退 + 再查询（不执行检索） |
 | POST | `/api/runs` | `{text, subject, city, fixture_id, search_off}` → `{run_id}` |
 | GET | `/api/runs/{id}/events` | SSE：run.started / split.done / query.planned / search.result / unit.verdict / run.done |
 | GET | `/api/runs/{id}` | 状态 / 报告 |
@@ -163,9 +210,10 @@ claimlab/
 web/                UI、判定口径页、样式
 config/             domains / queries / lexicons / llm_providers.json
 fixtures/           成立 / 冲突 / 证据不足
-examples/           三个汇报问题（q1 已填，q2/q3 手动填）
-scripts/            configure_keys / probe_* / run_example / git_push
-tests/              73 个测试
+examples/           三个汇报问题（q1/q2/q3 已填）
+scripts/            configure_keys / probe_* / run_example / run_example_live / debug_search / analyze_results / git_push
+tests/              77 个测试
+logs/               运行日志（logs/README.md；*.log gitignored）
 PROJECT_PLAN.md     当前项目规划（唯一规划文档）
 framework.html      当前流程框架图
 push.config.example.json
@@ -186,6 +234,6 @@ push.config.example.json
 
 1. **WP0 基线**：`configure_keys.py show` 确认真实通道；health `demo_mode=false`。
 2. **WP1 真实检索**：API/MCP 探针、θ 标定、3 个真实展示用例、来源可点。
-3. **WP2 查询接口**：填入三个 `examples/*.json` 的 question，跑 `/api/plan` / `run_example.py`。
+3. **WP2/M3 查询与来源**：三例已填；用 `run_example_live.py` 复核字段覆盖与 A/B/B-C；查询数量扩展留待后续。
 4. **WP6 团队协作**：验证 `push.config.json` 指向当前仓库，完成首次 push；之后只填 commit；M5–M9 交给下游。
 5. **WP3–WP5**：Skills 包 → Research Agent → 部署，按计划里程碑推进。

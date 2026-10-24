@@ -17,6 +17,7 @@ CACHE_DIR = ROOT / "cache"
 ARCHIVE_DIR = ROOT / "archive"
 STATE_DIR = ROOT / "state"
 WEB_DIR = ROOT / "web"
+LOGS_DIR = ROOT / "logs"
 DELIVERABLES_DIR = ROOT / "deliverables"
 
 
@@ -91,6 +92,9 @@ class Settings:
     dedup_threshold: float = 0.65
     cache_ttl_hours: float = 72.0
     offline: bool = False
+    log_level: str = "INFO"
+    log_max_bytes: int = 5_000_000
+    log_backup_count: int = 5
 
     root: Path = ROOT
     cache_dir: Path = CACHE_DIR
@@ -99,6 +103,7 @@ class Settings:
     config_dir: Path = CONFIG_DIR
     fixtures_dir: Path = FIXTURES_DIR
     web_dir: Path = WEB_DIR
+    logs_dir: Path = LOGS_DIR
 
     @property
     def search_key_present(self) -> bool:
@@ -118,7 +123,7 @@ class Settings:
         return not self.search_key_present
 
     def ensure_dirs(self) -> None:
-        for path in (self.cache_dir, self.archive_dir, self.state_dir, DELIVERABLES_DIR):
+        for path in (self.cache_dir, self.archive_dir, self.state_dir, self.logs_dir, DELIVERABLES_DIR):
             path.mkdir(parents=True, exist_ok=True)
 
     def public_dict(self) -> dict:
@@ -166,6 +171,9 @@ def load_settings(env_file: Path | None = None) -> Settings:
         dedup_threshold=_env_float("DEDUP_THRESHOLD", 0.65),
         cache_ttl_hours=_env_float("CACHE_TTL_HOURS", 72.0),
         offline=_env_bool("OFFLINE", False),
+        log_level=_env_str("LOG_LEVEL", "INFO").upper(),
+        log_max_bytes=_env_int("LOG_MAX_BYTES", 5_000_000),
+        log_backup_count=_env_int("LOG_BACKUP_COUNT", 5),
     )
     if settings.search_provider not in {"api", "mcp", "auto", "fake"}:
         settings.search_provider = "api"

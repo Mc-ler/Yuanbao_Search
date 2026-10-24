@@ -15,23 +15,21 @@ from typing import Any
 
 from ..contracts import Requirement, RequirementPlan, ResearchTask, make_id
 
-# Ordered so more specific domains win before generic "notice"/"history".
+# Active query scope: municipal notices, history/heritage, national statistics.
+# Restaurant price/hours/license fields remain available only to the legacy
+# Claim verifier; the research/query interface does not decompose into them.
 FIELD_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("statistics_source", ("统计公报", "数据来源", "口径来源", "公报", "统计局", "可支配收入", "居民收入", "统计数据")),
-    ("statistics_method", ("统计口径", "口径", "抽样", "样本", "调查方法", "测算")),
-    ("scenic_history", ("历史沿革", "历史", "沿革", "建于", "朝代", "遗址", "年代", "起源")),
-    ("scenic_explanation", ("由来", "典故", "解释", "文化", "讲解", "介绍")),
-    ("traffic_restriction", ("限行", "限号", "尾号", "通行", "车辆")),
-    ("ev_license", ("电动自行车", "电动车", "牌照", "上牌", "登记", "新国标")),
-    ("municipal_notice", ("通知", "公告", "政策", "实施", "规定")),
-    ("business_status", ("营业", "闭店", "停业", "开业", "注销")),
-    ("price", ("人均", "价格", "多少钱", "消费")),
-    ("hours", ("营业时间", "周一", "营业日")),
-    ("address", ("地址", "位于")),
-    ("reservation", ("预约", "限流", "门票")),
-    ("license", ("许可", "资质", "营业执照", "备案")),
-    ("penalty", ("处罚", "罚款", "抽检", "不合格")),
-    ("ad_disclosure", ("广告", "探店", "推广", "商业合作")),
+    ("statistics_method", ("统计口径", "口径", "抽样", "样本", "调查方法", "测算", "住户调查", "指标解释")),
+    ("statistics_release", ("数据发布", "新闻发布会", "统计公报", "解读", "发布稿")),
+    ("scenic_history", ("历史沿革", "历史", "沿革", "建于", "朝代", "遗址", "遗存", "年代", "起源")),
+    ("scenic_explanation", ("由来", "典故", "解释", "文化", "讲解", "介绍", "名称")),
+    ("heritage_status", ("世界遗产", "申遗", "文物保护单位", "遗产名录", "全国重点", "UNESCO")),
+    ("municipal_notice", ("通知", "公告", "政策", "实施", "规定", "新规", "办法", "条例")),
+    ("traffic_restriction", ("限行", "限号", "尾号", "通行", "车辆", "机动车")),
+    ("ev_license", ("电动自行车", "电动车", "牌照", "上牌", "登记", "新国标", "号牌")),
+    ("ev_restriction", ("电动自行车", "电动车", "停放", "充电", "头盔", "违规")),
+    ("municipal_effective", ("实施时间", "生效", "有效期", "施行", "截止")),
 ]
 
 REQUIREMENT_FIELDS = tuple(field for field, _ in FIELD_KEYWORDS) + ("unknown",)
@@ -39,30 +37,54 @@ REQUIREMENT_FIELDS = tuple(field for field, _ in FIELD_KEYWORDS) + ("unknown",)
 FIELD_TIME_WINDOW = {
     "statistics_source": "y2",
     "statistics_method": "y2",
+    "statistics_release": "y2",
     "scenic_history": "y5",
     "scenic_explanation": "y5",
+    "heritage_status": "y5",
     "traffic_restriction": "d30",
     "ev_license": "y1",
+    "ev_restriction": "y1",
     "municipal_notice": "m6",
+    "municipal_effective": "m6",
 }
 
 FIELD_SOURCE_PREFERENCE = {
     "statistics_source": "gov",
     "statistics_method": "gov",
+    "statistics_release": "gov",
     "scenic_history": "gov",
     "scenic_explanation": "acad",
+    "heritage_status": "gov",
     "traffic_restriction": "gov",
     "ev_license": "gov",
+    "ev_restriction": "gov",
     "municipal_notice": "gov",
+    "municipal_effective": "gov",
+}
+
+FIELD_TERMS = {
+    "statistics_source": ("统计公报",),
+    "statistics_method": ("统计口径",),
+    "statistics_release": ("数据发布",),
+    "scenic_history": ("历史沿革",),
+    "scenic_explanation": ("由来",),
+    "heritage_status": ("世界遗产",),
+    "municipal_notice": ("通知",),
+    "traffic_restriction": ("限行",),
+    "ev_license": ("电动自行车", "上牌"),
+    "ev_restriction": ("电动自行车", "通行"),
+    "municipal_effective": ("实施时间",),
 }
 
 SYSTEM_PROMPT = """你是“需求拆分”器，不是答题器。
 把一个研究问题拆成 1–3 个可被搜索验证的需求单元。只输出 JSON，不解释。
+只服务三类可靠信源领域：国家统计、历史/文化遗产、市政通知。
 
 输出格式：
 {"domain":"领域","requirements":[
   {"text":"可检索的需求句","field":"字段名","subject":"主体，可空","city":"城市，可空",
    "time_window":"d30|m3|m6|y1|y2|y5","source_preference":"gov|news|acad|finance",
+   "search_terms":["2024","居民人均可支配收入","41314"],
    "rationale":"为什么拆这一条"}
 ]}
 
@@ -71,7 +93,10 @@ SYSTEM_PROMPT = """你是“需求拆分”器，不是答题器。
 
 规则：
 - 每条需求必须能直接生成搜索查询，不要写“综合分析”“给出结论”这类不可检索的话。
-- 不回答问题本身，不预设结论，不评价个人。
+- search_terms 填 2–5 个具体检索词：年份、指标/文件/遗址名、数值、发布主体；不要填整句。
+- 历史问题优先拆 scenic_history；世界遗产/文保身份拆 heritage_status。
+- 市政问题优先拆 municipal_notice；车辆限行拆 traffic_restriction；电动自行车上牌拆 ev_license；通行/停放/充电拆 ev_restriction；生效时间拆 municipal_effective。
+- 统计问题优先拆 statistics_source、statistics_method；需要发布稿/解读时拆 statistics_release。
 - 最多 3 条；问题很短时只拆 1 条。
 """
 
@@ -83,9 +108,42 @@ def _infer_fields(text: str) -> list[str]:
             continue
         if any(keyword in text for keyword in keywords):
             found.append(field)
-    if any(field in found for field in ("statistics_source", "statistics_method")):
-        found = [field for field in found if field != "price"]
+    # A numeric statistic with a derived/period claim needs both source and
+    # method, even when the user did not literally say “统计口径”.
+    if "statistics_source" in found and any(
+        keyword in text for keyword in ("人均", "每月", "折算", "口径", "年")
+    ):
+        if "statistics_method" not in found:
+            found.append("statistics_method")
     return found[:3]
+
+
+def _extract_terms(
+    text: str,
+    field: str,
+    subject: str | None = None,
+    city: str | None = None,
+) -> list[str]:
+    terms: list[str] = []
+
+    def add(value: str) -> None:
+        value = value.strip()
+        if value and value not in terms:
+            terms.append(value)
+
+    for value in (subject, city):
+        if value:
+            add(value)
+    for value in re.findall(r"(?<!\d)(20\d{2})(?!\d)", text):
+        add(value)
+    for value in re.findall(r"\d+(?:\.\d+)?", text):
+        if len(value) >= 2:
+            add(value)
+    for value in re.findall(r"[“\"]([^”\"]{2,20})[”\"]", text):
+        add(value)
+    for value in FIELD_TERMS.get(field, ()):
+        add(value)
+    return terms[:6]
 
 
 def _build_requirement(
@@ -95,6 +153,7 @@ def _build_requirement(
     index: int,
     *,
     rationale: str = "",
+    search_terms: list[str] | None = None,
 ) -> Requirement:
     subject = (task.subject or "").strip() or None
     city = (task.city or "").strip() or None
@@ -108,6 +167,7 @@ def _build_requirement(
         source_preference=FIELD_SOURCE_PREFERENCE.get(field),
         rationale=rationale,
         importance=index,
+        search_terms=search_terms or _extract_terms(text, field, subject, city),
     )
 
 
@@ -160,6 +220,11 @@ def _normalize_llm_plan(task: ResearchTask, data: dict[str, Any]) -> Requirement
             text,
             index + 1,
             rationale=str(raw.get("rationale") or ""),
+            search_terms=[
+                str(item).strip()
+                for item in (raw.get("search_terms") or [])
+                if str(item).strip()
+            ],
         )
         city = str(raw.get("city") or "").strip()
         subject = str(raw.get("subject") or "").strip()

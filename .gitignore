@@ -23,7 +23,11 @@ node_modules/
 deliverables/recordings/*.mp4
 deliverables/recordings/*.mov
 
-# Local-only config and framework sources
+# Local-only config and runtime logs
 .archify/
 push.config.json
 .vscode/
+logs/*.log
+logs/*.log.*
+logs/*.jsonl
+logs/*.json

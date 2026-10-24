@@ -1,4 +1,4 @@
-# 万物皆可查 / Investigating Everything
+# 万物皆可查 / Confirming Everything
 
 > 文字输入 → 元宝 SearchPro → LLM 需求拆分/查询构造 → 去重与来源分级 → 深度研究综述或 R1–R5 断言判定。
 
@@ -251,19 +251,19 @@ curl（bash）：
     netstat -ano | findstr :8000
     Get-NetTCPConnection -LocalPort 8000 -State Listen
 
-品牌：**万物皆可查 / Investigating Everything**；顶部 LOGO 使用 web/assets/brand-mark.png，中文显示「万物皆可查」，英文显示「Investigating Everything」。 原图完整字标的英文为 Confirming Everything，与需求写的 Investigating Everything 不一致；当前顶部只使用左侧图形标，名称按需求文本显示，避免拼接冲突。源文件保留在 output/LOGO.png（gitignored）。
+品牌：**万物皆可查 / Confirming Everything**；顶部使用去背景图形标 web/assets/brand-mark-light.png（浅色）与 brand-mark-dark.png（深色）加字标文本；完整字标 brand-logo-light/dark.png 保留备用。中文「万物皆可查」、英文「Confirming Everything」。源文件保留在 output/LOGO.png（gitignored）。
 
-UI（v3.4 双模式工作台）：
+UI（v3.5 双模式工作台，简洁 LLM 风格）：
 
 - 顶部栏：LOGO + 品牌名；LLM 状态；元宝搜索状态；截图开关；主题、语言。没有通用齿轮/综合设置面板，三个组件各自独立。
 - LLM 状态：绿色=已配置，琥珀=未配置；点击只打开 LLM 专属对话框（Provider / API Key / Base URL / Model），保存只调用 /api/config/llm。
 - 元宝搜索状态：点击只打开搜索专属对话框（Key / Base URL），保存只调用 /api/config/search。
 - 截图开关：直接独立开关；仅当检测到 Chrome/Edge 且 websockets 可用时可开启，不可用时禁用并显示原因；保存到 EVIDENCE_SCREENSHOTS，不影响 LLM/搜索。
-- 页面中心：唯一查询框；上方切换「深度研究 / 一句话查证」，下方是运行/清空按钮和状态徽标。两种模式共用同一个输入框，切换模式会恢复该模式上次的日志与报告。
+- 页面中心：唯一查询框，框内只保留占位提示；上方切换「深度研究 / 一句话查证」，模式按钮不显示副标题，输入框下不再显示解释性提示。两种模式共用同一个输入框，切换模式会恢复该模式上次的日志与报告。
 - 下方双栏：左侧执行日志（约 35%），右侧最终报告（约 65%，面积大于日志）；报告区可打印。日志按模式分别保留；深度研究在完成后展示步骤日志，一句话查证通过 SSE 实时追加并自动回退轮询。
 - 主题/语言：右上角切换；localStorage 持久化；语言切换覆盖品牌名、界面标签、按钮、状态、日志阶段名，服务端生成的报告正文保留原文。
 
-无示例按钮；演示视频用真实问题。
+视觉：浅/深色自适应，柔和渐变光斑、低透明度背景字、玻璃拟态面板；桌面与移动端均自适应。无示例按钮；演示视频用真实问题。
 
 ---
 
@@ -439,6 +439,7 @@ Python 客户端：
 
 ## 15. 变更记录
 
+- v3.5（2026-10-25）：品牌切到 Confirming Everything；LOGO 去背景并做浅/深色对比版；极简 LLM 风格（删除模式副标题与输入提示，背影字/渐变光斑/玻璃面板）；组件配置独立。
 - v3.2（2026-10-25）：修复 configure_keys 交互卡住；统一 DeepSeek 测试脚本（--all-models/--apply）；/api/research 并发/超时与截图全局限流；前端 300s 超时/连接诊断/缓存破坏；真实 DeepSeek 与一句话查证实测。
 - v3.1（2026-10-25）：DeepSeek provider（默认）、密钥隔离、重试/超时、test_deepseek.py、configure_keys deepseek、README 统一整合、清理冗余文档/运行产物。
 - v3.0（2026-10-25）：双板块、删除预置、focus/plan_id、全局去重/来源分册、截图/vision、引用校验、R1–R5 UI、不持久化、预算 4/28/400。

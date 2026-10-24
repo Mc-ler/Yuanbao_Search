@@ -18,9 +18,9 @@ const state = {
 
 const I18N = {
   zh: {
-    'app.title': '万物皆可查 · Research Agent',
+    'app.title': '万物皆可查 · Confirming Everything',
     'brand.name': '万物皆可查',
-    'brand.sub': 'Investigating Everything',
+    'brand.sub': 'Confirming Everything',
     'status.llm': 'LLM', 'status.search': '搜索', 'status.screenshot': '截图',
     'status.llmTitle': 'LLM 配置状态', 'status.searchTitle': '元宝搜索配置状态',
     'status.screenshotTitle': '截图证据开关（需要 Chrome）', 'status.theme': '切换主题',
@@ -28,13 +28,11 @@ const I18N = {
     'status.checking': '检查中', 'status.missing': '未配置', 'status.ready': '就绪',
     'status.unavailable': '不可用', 'status.available': '可用',
     'status.screenshotOn': '截图 · 已启用', 'status.screenshotOff': '截图 · 已关闭', 'status.screenshotUnavailable': '截图 · 不可用',
-    'hero.eyebrow': '深度研究 · 一句话查证',
-    'hero.title': '把问题变成可核查的证据链',
-    'hero.sub': '检索、去重、来源分级、截图证据；研究给综述，查证给 R1–R5 判定。',
+    'hero.title': '今天想查什么？',
     'mode.research': '深度研究', 'mode.researchHint': '检索、来源分册、研究综述',
     'mode.verify': '一句话查证', 'mode.verifyHint': 'R1–R5 确定性判定',
-    'input.label': '输入', 'input.placeholderResearch': '输入一个具体的研究问题，例如：2024年全国居民人均可支配收入41314元的数据来源和统计口径是什么？',
-    'input.placeholderVerify': '输入一句可被公开事实证明的话，例如：该店人均68元，周一闭店。',
+    'input.label': '输入', 'input.placeholderResearch': '输入一个想查证的问题…',
+    'input.placeholderVerify': '输入一句需要核实的话…',
     'input.hintResearch': '研究综述不是判决；需要成立/不成立请切到「一句话查证」。',
     'input.hintVerify': '判定由 R1–R5 代码完成；证据不足时才附加模型参考意见。',
     'action.runResearch': '开始研究', 'action.runVerify': '开始查证', 'action.clear': '清空',
@@ -80,8 +78,8 @@ const I18N = {
     'status.mode': '模式'
   },
   en: {
-    'app.title': 'Investigating Everything · Research Agent',
-    'brand.name': 'Investigating Everything',
+    'app.title': 'Confirming Everything · 万物皆可查',
+    'brand.name': 'Confirming Everything',
     'brand.sub': '万物皆可查',
     'status.llm': 'LLM', 'status.search': 'Search', 'status.screenshot': 'Shots',
     'status.llmTitle': 'LLM configuration status', 'status.searchTitle': 'Yuanbao Search status',
@@ -90,13 +88,11 @@ const I18N = {
     'status.checking': 'checking', 'status.missing': 'not configured', 'status.ready': 'ready',
     'status.unavailable': 'unavailable', 'status.available': 'available',
     'status.screenshotOn': 'Shots · on', 'status.screenshotOff': 'Shots · off', 'status.screenshotUnavailable': 'Shots · n/a',
-    'hero.eyebrow': 'Deep research · one-sentence check',
-    'hero.title': 'Turn a question into a verifiable evidence chain',
-    'hero.sub': 'Search, dedupe, grade sources and attach screenshots. Research gives a synthesis; check gives an R1–R5 verdict.',
+    'hero.title': 'What would you like to verify?',
     'mode.research': 'Deep research', 'mode.researchHint': 'sources, source ledger, synthesis',
     'mode.verify': 'One-sentence check', 'mode.verifyHint': 'deterministic R1–R5 verdict',
-    'input.label': 'Input', 'input.placeholderResearch': 'Ask a concrete research question, e.g. what is the source and methodology behind the 2024 national per-capita disposable income figure of 41,314 CNY?',
-    'input.placeholderVerify': 'Enter a falsifiable sentence, e.g. the restaurant costs 68 CNY per person and closes on Mondays.',
+    'input.label': 'Input', 'input.placeholderResearch': 'Ask a question to research…',
+    'input.placeholderVerify': 'Enter a sentence to verify…',
     'input.hintResearch': 'A research synthesis is not a verdict. Switch to One-sentence check for a verdict.',
     'input.hintVerify': 'R1–R5 is deterministic code. A model note is added only when evidence is insufficient.',
     'action.runResearch': 'Start research', 'action.runVerify': 'Start check', 'action.clear': 'Clear',
@@ -210,7 +206,9 @@ function applyI18n() {
   document.documentElement.lang = state.lang === 'zh' ? 'zh-CN' : 'en';
   document.title = t('app.title');
   const brandLink = document.querySelector('.brand');
-  if (brandLink) brandLink.setAttribute('aria-label', t('brand.name'));
+  if (brandLink) brandLink.setAttribute('aria-label', t('brand.name') + ' · ' + t('brand.sub'));
+  const ambient = $('ambientWord');
+  if (ambient) ambient.textContent = state.lang === 'zh' ? '万物皆可查' : 'CONFIRMING';
   document.querySelectorAll('[data-i18n]').forEach((node) => {
     node.textContent = t(node.dataset.i18n);
   });
@@ -304,6 +302,8 @@ function renderStatus() {
   const enabled = Boolean(shots.enabled);
   const shotToggle = $('screenshotToggle');
   shotToggle.checked = enabled;
+  const shotSwitch = shotToggle.closest('.switch');
+  if (shotSwitch) shotSwitch.classList.toggle('on', enabled);
   shotToggle.disabled = !canShots || state.busy;
   shotToggle.title = !canShots
     ? (shots.reason || t('status.unavailable'))
@@ -347,7 +347,6 @@ function setMode(mode) {
 function renderModeUI() {
   const research = state.mode === 'research';
   $('queryInput').setAttribute('placeholder', t(research ? 'input.placeholderResearch' : 'input.placeholderVerify'));
-  $('inputHint').textContent = t(research ? 'input.hintResearch' : 'input.hintVerify');
   $('runBtn').textContent = state.busy
     ? t(research ? 'state.researching' : 'state.verifying')
     : t(research ? 'action.runResearch' : 'action.runVerify');

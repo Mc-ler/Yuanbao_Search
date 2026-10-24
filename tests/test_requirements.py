@@ -67,6 +67,13 @@ def test_vehicle_question_decomposes_notice_restriction_and_ev_license():
     assert len(plan.requirements) == 3
 
 
+def test_unmatched_question_falls_back_to_general_fact_not_unknown():
+    plan = heuristic_decompose(_task("火星土壤的矿物成分是什么？"))
+    fields = {item.field for item in plan.requirements}
+    assert "general_fact" in fields
+    assert "unknown" not in fields
+
+
 def test_requirement_queries_are_directed_and_keep_requirement_id():
     requirement = Requirement(
         requirement_id="req-test",

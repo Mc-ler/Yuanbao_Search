@@ -94,11 +94,31 @@ def test_claim_run_streams_to_report(tmp_path):
     assert report.status_code == 200
 
 
-def test_question_is_rejected_with_guidance(tmp_path):
+def _wait_run(client, run_id):
+    for _ in range(40):
+        snapshot = client.get("/api/runs/" + run_id).json()
+        if snapshot["status"] in {"done", "error"}:
+            return snapshot
+        time.sleep(0.05)
+    return snapshot
+
+
+def test_open_question_gets_actionable_guidance(tmp_path):
     app, _ = make_app(tmp_path)
     client = TestClient(app)
     response = client.post("/api/runs", json={"text": "西安城墙现存主体是什么年代修建的？"})
-    assert response.status_code == 422
-    detail = response.json()["detail"]
-    assert detail["code"] == "question_not_claim"
-    assert detail["message"]
+    assert response.status_code == 200
+    snapshot = _wait_run(client, response.json()["run_id"])
+    assert snapshot["status"] == "done"
+    assert snapshot["report"]["profile"]["facts"] == 0
+    assert snapshot["report"]["guidance"]
+
+
+def test_yes_no_question_is_rewritten_to_a_claim(tmp_path):
+    app, _ = make_app(tmp_path)
+    client = TestClient(app)
+    response = client.post("/api/runs", json={"text": "西安城墙现存主体是否是明代修建的？"})
+    assert response.status_code == 200
+    snapshot = _wait_run(client, response.json()["run_id"])
+    assert snapshot["status"] == "done"
+    assert snapshot["report"]["profile"]["facts"] >= 1

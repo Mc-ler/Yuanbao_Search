@@ -7,19 +7,23 @@ vision inputs; the model must say "未获证据" when it cannot read one.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from .citations import citation_numbers, validate_citations
 
+logger = logging.getLogger("claimlab.answer")
+
 NO_RESULT_TEXT = "不知道：当前没有检索到可核验的结果，无法确定。"
 
-SYSTEM_PROMPT = """你是研究综述生成器。给定一个研究问题、一组带编号的来源元数据和可选的网页截图，产出可核验的研究综述。只输出 JSON。
+SYSTEM_PROMPT = """你是研究综述生成器。给定一个研究问题、一组带编号的 A/B/C/D 来源元数据、内容节选和可选网页截图，产出可核验的研究综述。只输出 JSON。
 规则：
 1. 只依据给定来源元数据、内容节选和截图作答；禁止编造来源里没有的出处、日期、文号、机构、人物、数字。
 2. 每个事实句后带 [n] 引用编号；没有来源支撑的句子必须写（未获证据），并明确说“不知道/没有结果/无法确定”，不得猜测。
 3. 截图是来源 [n] 的页面截图；截图看不清、被登录墙挡住或与问题无关时，写（未获证据），不要猜。
 4. 这是研究综述，不是 R1–R5 判定；不要输出“成立/不成立/已证实”等判定词，除非来源本身明确写了。
-5. 先给结论，再给依据；不确定就直说“不确定/需核实”。
+5. 综述至少包含：结论（2–4 句）、主要依据（2–4 点，逐点带 [n]）、证据缺口；不要只列标题或写“尚无模型综述”。
+6. 优先使用 A/B 来源的内容节选组织具体表述；C/D 来源只能作为弱补充。不能把“没有检索到”写成“不存在”。
 输出：{"text":"...","citations_used":[1,2],"uncertainty":"..."}
 """
 
@@ -68,12 +72,12 @@ def _rule_answer(rows: list[dict[str, Any]], citations: list[dict[str, Any]]) ->
         return NO_RESULT_TEXT
     lines: list[str] = []
     for row in rows:
-        field = row.get("field") or "结论"
+        field = row.get("field_label") or row.get("field") or "综合"
         tier = row.get("tier") or "insufficient"
         if tier == "A/B":
-            verdict = "有 A/B 级来源可读，尚无模型综述"
+            verdict = "A/B 级来源可读；以下为来源内容节选"
         elif tier == "B/C":
-            verdict = "仅有 B/C 降级来源，尚无模型综述"
+            verdict = "仅有 B/C 降级来源；以下为来源内容节选"
         else:
             verdict = "没有结果，无法确定"
         srcs = _sources_for(row)
@@ -85,6 +89,17 @@ def _rule_answer(rows: list[dict[str, Any]], citations: list[dict[str, Any]]) ->
                     break
         suffix = ("（引用 " + "、".join("[" + r + "]" for r in refs[:5]) + "）") if refs else ""
         lines.append("- " + field + "：" + verdict + suffix)
+        # The rule fallback must still give source-grounded points; it never
+        # pretends a model synthesis exists.
+        excerpt_lines = []
+        for src in srcs[:3]:
+            excerpt = src.get("content_excerpt") or src.get("excerpt") or src.get("passage") or ""
+            if excerpt:
+                label = src.get("title") or src.get("domain") or "来源"
+                excerpt_lines.append(str(label)[:48] + "：" + str(excerpt)[:260])
+        if excerpt_lines and tier in {"A/B", "B/C"}:
+            lines.append("  来源要点：")
+            lines.extend("  - " + line for line in excerpt_lines)
     return "\n".join(lines)
 
 
@@ -169,16 +184,35 @@ async def build_answer(
         payload = {"question": question, "evidence": _evidence_text(citations)}
         try:
             data = await llm.json("answer", payload, SYSTEM_PROMPT, images=images or None)
-        except Exception:
+        except Exception as exc:
+            logger.warning("answer.llm_error %s: %s", type(exc).__name__, str(exc)[:300])
             data = None
+        if isinstance(data, dict):
+            draft = str(data.get("text") or data.get("answer") or "").strip()
+            _, draft_issues = validate_citations(draft, citations)
+            if citations and any(item.get("reason") == "no_valid_citation" for item in draft_issues):
+                # One bounded repair attempt. The model must cite source
+                # numbers; the deterministic fallback below remains available.
+                try:
+                    repair = await llm.json(
+                        "answer",
+                        payload,
+                        SYSTEM_PROMPT + "\n注意：必须使用 [1]、[2] 等来源编号逐句引用；没有引用会被视为无效。",
+                        images=images or None,
+                    )
+                    if isinstance(repair, dict):
+                        data = repair
+                except Exception as exc:
+                    logger.warning("answer.repair_error %s: %s", type(exc).__name__, str(exc)[:300])
 
     if isinstance(data, dict) and (str(data.get("text") or data.get("answer") or "")).strip():
         text, issues = validate_citations(str(data.get("text") or data.get("answer")).strip(), citations)
         valid_refs = citation_numbers(text, citations)
         if citations and not valid_refs:
             issues.append({"n": 0, "reason": "no_valid_citation"})
+            logger.warning("answer.no_valid_citation sources=%s", len(citations))
             fallback = _rule_answer(rows, citations)
-            return _response(fallback, "rule", citations, [], issues, "模型未给出有效引用，已退回规则摘要")
+            return _response(fallback, "rule", citations, [], issues, "模型未给出有效引用，已退回来源要点摘要")
         used = [
             int(x)
             for x in (data.get("citations_used") or [])

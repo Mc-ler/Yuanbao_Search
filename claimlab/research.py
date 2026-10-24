@@ -25,6 +25,7 @@ from .skills.answer import build_answer, build_citations
 from .skills.content import best_excerpt, content_chars
 from .skills.dedup import cluster_pages, page_key
 from .skills.grading import grade_page
+from .skills.judging import FIELD_LABELS
 from .skills.research_report import build_research_report
 from .search.content_fetch import ContentFetcher
 from .skills.source_policy import is_relevant, source_tier
@@ -208,6 +209,7 @@ async def run_research(
             {
                 "requirement_id": requirement.requirement_id,
                 "field": requirement.field,
+                "field_label": FIELD_LABELS.get(requirement.field, requirement.field),
                 "text": requirement.text,
                 "focus": requirement.focus,
                 "tier": tier,
@@ -297,6 +299,7 @@ async def run_research(
             {
                 "requirement_id": requirement.requirement_id,
                 "field": requirement.field,
+                "field_label": FIELD_LABELS.get(requirement.field, requirement.field),
                 "text": requirement.text,
                 "focus": requirement.focus,
                 "tier": tier,
@@ -441,6 +444,7 @@ async def run_research(
         {
             "requirement_id": row["requirement_id"],
             "field": row["field"],
+            "field_label": row.get("field_label") or row["field"],
             "tier": row["tier"],
             "text": row["text"],
         }

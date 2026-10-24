@@ -28,7 +28,6 @@ from .planning import build_research_plan
 from .research import run_research
 from .runtime import build_sandbox
 from .search.api import ApiSearchProvider
-from .skills.claim_input import classify_input
 from .runs import RunRecord, RunStore
 from .skills.reporting import render_markdown
 from .skills.safety import SafetyError, check_task
@@ -353,16 +352,6 @@ def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> 
         if not settings.search_ready:
             raise HTTPException(status_code=503, detail="未配置 SEARCH_API_KEY；无法执行真实检索")
         text = _validate_text(request.text)
-        classification = classify_input(text)
-        if classification.get("kind") == "question":
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "code": "question_not_claim",
-                    "message": classification.get("guidance") or "这是研究问题，不能作为一句话查证输入。",
-                    "suggested_claim": classification.get("suggested_claim") or "",
-                },
-            )
         task = ResearchTask(text=text, mode="verify_claim")
         event(api_log, "run.create", run_id="pending", text_len=len(text), search_off=request.search_off)
         record = store.create(task, search_off=request.search_off)

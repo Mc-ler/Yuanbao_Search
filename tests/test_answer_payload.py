@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from claimlab.skills.answer import NO_RESULT_TEXT, build_answer
+from claimlab.skills.answer import NO_RESULT_TEXT, _rule_answer, build_answer, build_citations
 
 
 class CaptureLLM:
@@ -52,3 +52,13 @@ def test_no_sources_returns_explicit_unknown():
     result = asyncio.run(build_answer(None, "问题", []))
     assert result["engine"] == "rule"
     assert NO_RESULT_TEXT in result["text"]
+
+
+def test_rule_fallback_has_ab_source_points_not_unknown_placeholder():
+    sample = rows()
+    sample[0]["field_label"] = "历史沿革"
+    text = _rule_answer(sample, build_citations(sample))
+    assert "尚无模型综述" not in text
+    assert "历史沿革" in text
+    assert "来源要点" in text
+    assert "unknown" not in text

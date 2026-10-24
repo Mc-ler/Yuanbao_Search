@@ -32,7 +32,7 @@ FIELD_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("municipal_effective", ("实施时间", "生效", "有效期", "施行", "截止")),
 ]
 
-REQUIREMENT_FIELDS = tuple(field for field, _ in FIELD_KEYWORDS) + ("unknown",)
+REQUIREMENT_FIELDS = tuple(field for field, _ in FIELD_KEYWORDS) + ("general_fact", "unknown")
 
 FIELD_TIME_WINDOW = {
     "statistics_source": "y2",
@@ -46,6 +46,7 @@ FIELD_TIME_WINDOW = {
     "ev_restriction": "y1",
     "municipal_notice": "m6",
     "municipal_effective": "m6",
+    "general_fact": "y5",
 }
 
 FIELD_SOURCE_PREFERENCE = {
@@ -60,6 +61,7 @@ FIELD_SOURCE_PREFERENCE = {
     "ev_restriction": "gov",
     "municipal_notice": "gov",
     "municipal_effective": "gov",
+    "general_fact": "news",
 }
 
 FIELD_TERMS = {
@@ -74,6 +76,7 @@ FIELD_TERMS = {
     "ev_license": ("电动自行车", "上牌"),
     "ev_restriction": ("电动自行车", "通行"),
     "municipal_effective": ("实施时间",),
+    "general_fact": (),
 }
 
 SYSTEM_PROMPT = """你是“需求拆分”器，不是答题器。
@@ -160,7 +163,7 @@ def _build_requirement(
     return Requirement(
         requirement_id=make_id("req", task.task_id, field, index, clean_text[:60]),
         text=clean_text,
-        field=field if field in REQUIREMENT_FIELDS else "unknown",
+        field=field if field in REQUIREMENT_FIELDS else "general_fact",
         focus=clean_focus,
         time_window=FIELD_TIME_WINDOW.get(field, "12m"),
         source_preference=FIELD_SOURCE_PREFERENCE.get(field),
@@ -176,7 +179,7 @@ def heuristic_decompose(task: ResearchTask) -> RequirementPlan:
         return RequirementPlan(requirements=[], domain=_domain(task), method="heuristic")
     fields = _infer_fields(text)
     if not fields:
-        fields = ["unknown"]
+        fields = ["general_fact"]
     requirements = [
         _build_requirement(
             task,
@@ -210,9 +213,9 @@ def _normalize_llm_plan(task: ResearchTask, data: dict[str, Any]) -> Requirement
         text = str(raw.get("text") or "").strip()
         if not text:
             continue
-        field = str(raw.get("field") or "unknown")
+        field = str(raw.get("field") or "general_fact")
         if field not in REQUIREMENT_FIELDS:
-            field = "unknown"
+            field = "general_fact"
         requirement = _build_requirement(
             task,
             field,

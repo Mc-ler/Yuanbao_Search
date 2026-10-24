@@ -52,6 +52,23 @@ def build_report(
         if unit.verdict in {"insufficient", "suspect"}:
             unverified.extend(unit.unverified or [unit.assertion.get("text", "")])
     citations = sorted({item.url for unit in units for item in unit.evidence if item.url})
+    counts: dict[str, int] = {}
+    for unit in units:
+        counts[unit.verdict] = counts.get(unit.verdict, 0) + 1
+    verdicts = set(counts)
+    if not units:
+        overall = "no_claim"
+    elif verdicts == {"established"}:
+        overall = "all_established"
+    elif verdicts == {"refuted"}:
+        overall = "all_refuted"
+    elif not verdicts - {"insufficient", "suspect"}:
+        overall = "insufficient"
+    elif verdicts & {"established", "refuted", "conflict"}:
+        overall = "mixed"
+    else:
+        overall = "partial"
+    aggregate = {"overall": overall, "counts": counts, "units": len(units)}
     return ResearchReport(
         task=task,
         profile=extraction.profile,
@@ -62,6 +79,7 @@ def build_report(
         conflicts=conflicts,
         unverified=list(dict.fromkeys(unverified)),
         citations=citations,
+        aggregate=aggregate,
         guidance=extraction.guidance,
     )
 
@@ -78,6 +96,9 @@ def render_markdown(report: ResearchReport) -> str:
     lines.append(f"> 输入：{report.task.text[:160]}")
     lines.append(f"> 生成：{report.generated_at}")
     lines.append("")
+    if report.aggregate:
+        lines.append("> 汇总：" + str(report.aggregate.get("overall", "")) + " · " + str(report.aggregate.get("counts", {})))
+        lines.append("")
     if report.guidance:
         lines.append(f"> 提示：{report.guidance}")
         lines.append("")

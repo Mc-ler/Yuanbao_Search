@@ -69,7 +69,7 @@ def classify_input(text: str) -> dict[str, str]:
 def _suggest_question_to_claim(text: str) -> str:
     """Only produce a suggestion; never auto-submit it."""
     raw = text.strip().rstrip("?？")
-    raw = raw.replace("是不是", "是").replace("是否", "是").replace("有没有", "有")
+    raw = raw.replace("是否是", "是").replace("是不是", "是").replace("是否", "是").replace("有没有", "有")
     raw = raw.rstrip("吗呢")
     if any(marker in raw for marker in ("什么", "为什么", "如何", "怎样", "多少", "哪", "谁", "何时", "怎么")):
         return ""

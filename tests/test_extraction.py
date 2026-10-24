@@ -27,8 +27,15 @@ def test_question_has_actionable_reason():
     result = heuristic_extract(ResearchTask(text="西安城墙现存主体是什么年代修建的？"))
     assert result.facts == []
     assert result.input_kind == "question"
-    assert result.reason == "question_not_claim"
+    assert result.reason == "open_question_needs_research"
     assert result.guidance
+
+
+def test_yes_no_question_is_rewritten():
+    result = heuristic_extract(ResearchTask(text="西安城墙现存主体是否是明代修建的？"))
+    assert result.facts
+    assert result.input_kind == "question_rewritten"
+    assert "明代" in result.facts[0].text
 
 
 def test_pure_opinion_is_not_a_fact():

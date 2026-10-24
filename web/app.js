@@ -690,6 +690,10 @@ function researchReport(report) {
 
 function verificationReport(report) {
   const guidance = report.guidance ? '<p class="answer-note">' + esc(report.guidance) + '</p>' : '';
+  const aggregateLabels = { all_established: '全部成立', all_refuted: '全部不成立', insufficient: '无法确定', mixed: '结论混合', partial: '部分可判定', no_claim: '未拆出断言' };
+  const aggregate = report.aggregate && report.aggregate.overall
+    ? '<p class="result-summary">' + esc(aggregateLabels[report.aggregate.overall] || report.aggregate.overall) + ' · ' + esc(JSON.stringify(report.aggregate.counts || {})) + '</p>'
+    : '';
   const units = (report.units || []).map((unit) => {
     const evidence = (unit.evidence || []).map((item) => {
       const quote = item.quote ? '<blockquote>' + esc(item.quote) + '</blockquote>' : '';
@@ -707,13 +711,13 @@ function verificationReport(report) {
       (evidence ? '<ul class="sources">' + evidence + '</ul>' : '') + '</article>';
   }).join('');
   return '<section class="report-content"><div class="report-summary"><h3>' + esc(t('report.verdict')) + '</h3>' +
-    '<p>' + esc(report.task && report.task.text || '') + '</p></div>' + guidance + units +
+    '<p>' + esc(report.task && report.task.text || '') + '</p>' + aggregate + '</div>' + guidance + units +
     '<p class="answer-note">' + esc(report.disclaimer || '') + '</p></section>';
 }
 
 function ledgerCard(entry) {
   const sources = (entry.sources || []).map((source) => sourceCard(source, source.n)).join('');
-  return '<article class="result-card"><div class="result-head"><div><p class="eyebrow">' + esc(entry.field || '') + '</p>' +
+  return '<article class="result-card"><div class="result-head"><div><p class="eyebrow">' + esc(entry.field_label || (entry.field === 'unknown' ? '综合' : entry.field) || '') + '</p>' +
     '<h3>' + esc(entry.text || entry.field || '') + '</h3></div><span class="tier">' + esc(entry.tier || '') + '</span></div>' +
     '<p class="result-summary">' + (entry.unique_pages || 0) + ' pages · ' + (entry.clusters || 0) + ' clusters</p>' +
     (sources ? '<ul class="sources">' + sources + '</ul>' : '<p class="empty-source">' + esc(t('report.noSources')) + '</p>') + '</article>';

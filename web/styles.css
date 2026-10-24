@@ -735,3 +735,30 @@ body::before, body::after { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .aurora-blob { animation: none; }
 }
+
+.brand { align-items: center; }
+.brand-logo { width: 44px; height: 50px; padding: 2px; flex: 0 0 auto; overflow: visible; }
+.brand-logo img { width: 100%; height: 100%; object-fit: contain; object-position: center; }
+@media (max-width: 900px) {
+  .brand-logo { width: 40px; height: 46px; }
+}
+@media (max-width: 600px) {
+  .brand-logo { width: 36px; height: 42px; }
+  .app-header .brand { max-width: none; }
+}
+
+.brand-logo { width: auto; height: 56px; padding: 0; display: inline-flex; align-items: center; }
+.brand-logo img { width: auto; height: 100%; }
+@media (max-width: 900px) { .brand-logo { height: 50px; } }
+@media (max-width: 600px) { .brand-logo { height: 44px; } }
+
+@media (max-width: 600px) {
+  .header-inner { align-items: stretch; }
+  .header-actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+  .status-chip { flex: 1 1 calc(50% - 8px); min-width: 0; justify-content: flex-start; }
+  .status-chip b { max-width: 100%; }
+  .header-actions .switch, .header-actions .icon-btn { flex: 0 0 auto; }
+  .brand { width: 100%; }
+  .mode-switch { width: 100%; display: flex; }
+  .mode-btn { flex: 1 1 50%; min-width: 0; }
+}

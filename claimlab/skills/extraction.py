@@ -52,7 +52,7 @@ SYSTEM_PROMPT = """你是「万物皆可查」的断言抽取器。任务：把�
 规则：
 1. 只输出 JSON，不要 Markdown。
 2. 先判断输入类型：question / opinion / declarative。问句不是断言；纯主观评价也不是事实；只有 declarative 才抽取 facts。
-3. 对 declarative，facts 最多 3 条，按可核验性与重要性排序；每条必须有 field、text、source_sentence。
+3. 对 declarative，facts 最多 5 条，按可核验性与重要性排序；每条必须有 field、text、source_sentence；复合说法要拆成多个独立子断言。
 4. field 优先从以下类型选择：
    business_status, price, hours, penalty, license, address, reservation, ad_disclosure,
    statistics_value, statistics_source, statistics_method, statistics_release,
@@ -63,7 +63,9 @@ SYSTEM_PROMPT = """你是「万物皆可查」的断言抽取器。任务：把�
 6. 不能改写成原文没有的事实；source_sentence 必须是输入中的原句；text 可以压缩但不能新增实体/数字。
 7. 主观评价（难吃、服务差、氛围绝了）放入 emotions，不要放入 facts；没有证据就留空，不要用常识补全。
 8. 不评价个人，不涉及时政。
-9. 若输入是问句或纯观点，facts 返回空数组，并在 dropped 写明 question_not_claim 或 opinion_only。
+9. 若输入是纯观点，facts 返回空数组，并在 dropped 写明 opinion_only。
+10. 若输入是疑问句：只改写问句中已经明确表达的命题（例如“X 是否是 Y”改成“X 是 Y”），然后抽取事实；不要回答问句、不要发明问句没有给出的答案。开放问题无法安全改写时，facts 返回空数组，reason 写 open_question_needs_research，并建议使用深度研究。
+11. 如果原文包含多个并列、递进或独立说法，拆成最多 5 条独立子断言；不要把多个事实合并成一条。
 
 输出结构：
 {"input_kind":"declarative|question|opinion|ambiguous","subject":"主体名或空","facts":[{"text":"...","field":"general_fact","value":"...","source_sentence":"...","importance":1,"search_terms":["..."]}],"emotions":[{"text":"...","field":"taste|service|wait|hygiene|value","source_sentence":"..."}],"dropped":[{"text":"...","reason":"..."}],"guidance":"可选，给用户的改写建议"}
@@ -142,7 +144,21 @@ def heuristic_extract(task: ResearchTask) -> ExtractionResult:
     dropped: list[dict[str, Any]] = []
 
     if kind == "question":
-        dropped.append({"text": text[:120], "reason": "question_not_claim"})
+        suggestion = classification.get("suggested_claim") or ""
+        if suggestion:
+            claim = _generic_claim(task, suggestion, 1)
+            if claim is not None:
+                return ExtractionResult(
+                    facts=[claim],
+                    emotions=[],
+                    dropped=[],
+                    subject=subject,
+                    method="heuristic",
+                    input_kind="question_rewritten",
+                    reason="rewritten_question",
+                    guidance="已把问句中的明确命题改写为陈述句；若这不是你的原意，请手动改写。",
+                )
+        dropped.append({"text": text[:120], "reason": "open_question_needs_research"})
         return ExtractionResult(
             facts=[],
             emotions=[],
@@ -150,8 +166,8 @@ def heuristic_extract(task: ResearchTask) -> ExtractionResult:
             subject=subject,
             method="heuristic",
             input_kind="question",
-            reason="question_not_claim",
-            guidance=classification.get("guidance", ""),
+            reason="open_question_needs_research",
+            guidance="这是开放问题，无法在不臆测答案的情况下改写；请使用深度研究，或给出一个明确陈述句。",
         )
     if kind == "opinion":
         lexicons = _load_lexicons()
@@ -263,13 +279,13 @@ def heuristic_extract(task: ResearchTask) -> ExtractionResult:
             claim = _generic_claim(task, sentence, index)
             if claim is not None:
                 facts.append(claim)
-            if len(facts) >= 3:
+            if len(facts) >= 5:
                 break
 
-    if len(facts) > 3:
-        for claim in facts[3:]:
-            dropped.append({"text": claim.text, "reason": "超过 3 条可验证断言上限"})
-        facts = facts[:3]
+    if len(facts) > 5:
+        for claim in facts[5:]:
+            dropped.append({"text": claim.text, "reason": "超过 5 条可验证断言上限"})
+        facts = facts[:5]
     if not facts:
         dropped.append({"text": text[:120], "reason": "empty_declarative" if kind in {"declarative", "ambiguous"} else "no_falsifiable_claim"})
 
@@ -319,8 +335,6 @@ def _coerce_claim(item: dict[str, Any], kind: str, task: ResearchTask) -> Claim 
 async def extract_claims(llm: Any | None, task: ResearchTask) -> ExtractionResult:
     classification = classify_input(task.text)
     kind = classification.get("kind", "declarative")
-    if kind == "question":
-        return heuristic_extract(task)
     if llm is None:
         return heuristic_extract(task)
     payload = {
@@ -355,7 +369,7 @@ async def extract_claims(llm: Any | None, task: ResearchTask) -> ExtractionResul
                 dropped.append({"text": task.text[:120], "reason": "empty_declarative"})
     subject = str(data.get("subject") or "").strip() or None
     return ExtractionResult(
-        facts=facts[:3],
+        facts=facts[:5],
         emotions=emotions[:5],
         dropped=dropped,
         subject=subject,

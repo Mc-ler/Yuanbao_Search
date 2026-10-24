@@ -61,7 +61,7 @@ def render_research_markdown(report: dict[str, Any]) -> str:
     lines.append("")
     lines.append("## 来源分册")
     for entry in report.get("source_ledger") or []:
-        lines.append(f"### {entry.get('field') or 'unknown'} · {entry.get('tier') or 'insufficient'}")
+        lines.append(f"### {entry.get('field_label') or entry.get('field') or '综合'} · {entry.get('tier') or 'insufficient'}")
         if entry.get("text"):
             lines.append(str(entry["text"]))
         for source in entry.get("sources") or []:
@@ -74,7 +74,7 @@ def render_research_markdown(report: dict[str, Any]) -> str:
     if gaps:
         lines.append("## 证据缺口")
         for gap in gaps:
-            lines.append(f"- {gap.get('field') or 'unknown'}：{gap.get('text') or ''}（{gap.get('tier')}）")
+            lines.append(f"- {gap.get('field_label') or gap.get('field') or '综合'}：{gap.get('text') or ''}（{gap.get('tier')}）")
         lines.append("")
     lines.append("## 指标")
     m = report.get("metrics") or {}

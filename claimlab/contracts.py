@@ -417,6 +417,7 @@ class ResearchReport:
     conflicts: list[dict[str, Any]] = field(default_factory=list)
     unverified: list[str] = field(default_factory=list)
     citations: list[str] = field(default_factory=list)
+    aggregate: dict[str, Any] = field(default_factory=dict)
     guidance: str = ""
     disclaimer: str = "本页只核对公开说法与来源，不评价个人，不构成消费建议。"
     kind: str = "verification"

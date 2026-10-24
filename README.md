@@ -30,7 +30,7 @@
 - <strong>一句话查证</strong>：说法 → 断言抽取 → 定向查询 → 检索 → 去重 → 分级 → 匹配（引文校验）→ <strong>R1–R5 确定性判定</strong> → 报告。R5 时附加“非判定”模型参考意见。
 - 共用检索网关、来源分级、安全护栏、缓存/预算/审计。
 
-当前基线：v3.8；<strong>123 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120。
+当前基线：v4.0；<strong>127 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120。
 
 ---
 
@@ -263,7 +263,7 @@ curl（bash）：
     netstat -ano | findstr :8000
     Get-NetTCPConnection -LocalPort 8000 -State Listen
 
-品牌：**万物皆可查 / Confirming Everything**；顶部使用 LOGO-2 去背景图形标 web/assets/team-logo2-light.png（浅色）与 team-logo2-dark.png（深色）加字标文本；LOGO-2 原图保留在 output/LOGO-2.png。中文「万物皆可查」、英文「Confirming Everything」。原图保留在 output/LOGO-2.png（gitignored）。
+品牌：**万物皆可查 / Confirming Everything**；顶部使用 LOGO-2 完整去背景图片 web/assets/team-logo2-light.png（浅色）与 team-logo2-dark.png（深色），包含 D 图形与 GOLDEN-US 字标；高度按屏幕响应式调整，object-fit: contain，不裁切。LOGO-2 原图保留在 output/LOGO-2.png。中文「万物皆可查」、英文「Confirming Everything」。原图保留在 output/LOGO-2.png（gitignored）。
 
 UI（v3.7 双模式工作台，简洁 LLM 风格）：
 
@@ -311,7 +311,7 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
     config/             domains / queries / lexicons / llm_providers.json
     fixtures/           测试夹具
     scripts/            configure_keys / test_deepseek / run_research / run_verify / run_plan / probes / git_push
-    tests/              123 个测试
+    tests/              127 个测试
     framework.html      v3.0 双板块架构图
     README.md           本文件
 
@@ -404,11 +404,13 @@ Python 客户端：
 
     ./.Search/Scripts/python.exe -m pytest -q
 
-当前 123 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
+当前 127 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
 
 无结果政策：没有可核验结果时，研究综述与断言报告必须明确写“不知道/没有结果/无法确定”，不得用标题或常识补全；抓取失败自动降级，不阻塞流程。
 
-真实 DeepSeek 验证：配置 key → test_deepseek.py OK → 重启 → 深度研究 answer.engine=llm → 一句话查证 R1–R5。历史/统计类陈述会走通用 Claim 抽取；开放问题返回 question_not_claim 并提示改用深度研究或改写。没有 key 时 test_deepseek.py 明确提示；应用层回退规则摘要，不抛 500。
+一句话查证现在允许输入问句：LLM 只改写问句中已明确的命题，不替用户回答；开放问题返回 guidance 并建议深度研究。一次输入最多拆 5 条独立子断言，逐条查证后由 aggregate 汇总。
+
+真实 DeepSeek 验证：配置 key → test_deepseek.py OK → 重启 → 深度研究 answer.engine=llm → 一句话查证 R1–R5。历史/统计类陈述会走通用 Claim 抽取；开放问题返回 guidance 并建议改用深度研究。没有 key 或 key 失效时 test_deepseek.py 明确提示；应用层回退来源要点摘要，不抛 500。
 
 ---
 
@@ -427,6 +429,8 @@ Python 客户端：
 | Failed to fetch / 连接中断 | 本地服务已停止或重启；确认 8000 正在运行；UI 已有 300s 超时与明确提示 |
 | 研究返回 429/504 | 并发研究已满或超过 180s；等待后重试/关闭截图 |
 | 一句话查证无响应 | 确认服务在线；SSE 断开会自动轮询；刷新页面加载新 app.js |
+| 深度研究显示 unknown | 旧 plan/旧缓存或 LLM 未给出 field；新代码无匹配时回退 general_fact，并在 source ledger 使用 field_label；重启并重新生成 plan |
+| 深度研究 engine=rule / 无模型综述 | 查看 logs 的 answer.llm_error；若为 HTTP 401 INVALID_API_KEY，更新 DEEPSEEK_API_KEY（或 LLM_PROVIDER/LLM_API_KEY）并重启；代码已有一次引用修复重试与来源要点降级 |
 | 拆分 0 条断言 | 若输入是问题/纯观点，这是预期分类；按 guidance 改写。历史/统计陈述若仍为 0，检查 cache/llm 是否命中旧 prompt，重启并清理 cache/llm |
 | 研究正文抓取失败 | 默认自动降级到 SearchPro 的 passage/content；不影响报告。检查 URL 是否为登录墙/非 HTML/私网 |
 | 时间遍历查询过多 | 调整 RESEARCH_TIME_TRAVERSAL_ROUNDS / QUERIES 或 RESEARCH_MAX_QUERIES_PER_RUN |
@@ -457,6 +461,7 @@ Python 客户端：
 
 ## 15. 变更记录
 
+- v4.0（2026-10-25）：完整 LOGO-2 自适应展示；问句自动改写/多断言拆分/汇总；unknown 回退 general_fact；研究综述 A/B 内容节选与规则降级；LLM 401 可诊断。
 - v3.8（2026-10-25）：无结果明确话术；时间遍历增量查询；默认公开页正文抓取+失败降级；问题改写提示限次；rule/模型提示词强化。
 - v3.7（2026-10-25）：通用 Claim/输入分类、question_not_claim、通用查询 facet、深度研究 5 查询/需求、研究独立预算、内容节选与交叉验证指标。
 - v3.6（2026-10-25）：多巴胺高斯模糊动态背景；移除背景文字；搜索框自适应高度；整体简洁度与对比度优化。

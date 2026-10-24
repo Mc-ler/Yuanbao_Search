@@ -207,7 +207,7 @@ class Pipeline:
             return report
 
         if search_off:
-            for claim in extraction.facts[:3]:
+            for claim in extraction.facts[:5]:
                 unit = VerificationUnit(
                     unit_id=make_id("unit", claim.claim_id, claim.text),
                     assertion={"field": claim.field, "value": claim.value, "text": claim.text},
@@ -257,7 +257,7 @@ class Pipeline:
             await self._emit("run.done", {"report": reporting.report_to_dict(report), "stop_reason": "search_off"})
             return report
 
-        for claim in extraction.facts[:3]:
+        for claim in extraction.facts[:5]:
             if cancel_event is not None and getattr(cancel_event, "is_set", lambda: False)():
                 self.budget.stop_reason = "cancelled"
                 break

@@ -29,6 +29,17 @@
 - 截图不落盘（profile 除外）；报告只引用内存图片。
 - Chrome 启动失败会自动重试一次；stderr 写入 profile 内 `chrome-stderr.log`，只把尾部放进 error。
 
+### Web 端“截图”按钮到底做什么
+
+- 顶部“截图”开关只控制 `EVIDENCE_SCREENSHOTS` 的开/关，**点击不会立刻截图**。
+- 真正截图发生在开始一次深度研究/一句话查证之后：服务端对 `citations[:SCREENSHOT_MAX]`（默认前 3 条来源）启动 Chrome。
+- 成功时：
+  - `metrics.screenshots` 增加；
+  - `answer.screenshots` 出现 `captured=true` 和 `/api/evidence/{run_id}/{n}`；
+  - 来源卡片的 `screenshot_url` 指向该图片，UI 在来源下方显示缩略图。
+- 因此“按钮没反应”通常不是按钮本身，而是：服务端 Chrome 启动失败、开关被关闭、没有 citations、或目标页超时。
+- 2026-10-25 12:38 复核：在可启动 Chrome 的 API 服务下，`metrics.screenshots=3`，三张图均 `captured=True`，`/api/evidence/.../1` 返回 200 image/jpeg。
+
 ---
 
 ## 2. 受限环境下的历史错误（已定位）

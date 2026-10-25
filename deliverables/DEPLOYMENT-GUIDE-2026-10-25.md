@@ -4,7 +4,22 @@
 - 默认分支：`main`
 - Pages 站点目录：`docs/`
 - 部署工作流：`.github/workflows/pages.yml`
-- 预期地址：`https://mc-ler.github.io/Yuanbao_Search/`
+- 线上地址：`https://mc-ler.github.io/Yuanbao_Search/`
+
+## 0. 本次实际结果（已验证）
+
+| 项目 | 结果 |
+|---|---|
+| 推送 | `main` 已推送；远端最新提交以 GitHub 仓库为准 |
+| Pages | 已启用，`build_type=workflow`，`https_enforced=true`，无自定义域名 |
+| Actions | 首次上线 run 成功：Configure Pages / Upload / Deploy 全部 success |
+| 首页 | `200 text/html`，包含“万物皆可查” |
+| 资源 | `assets/desktop.png` / `logo-light.png` 均为 `200 image/png` |
+| 404 | 返回自定义 404（“这个页面不在项目介绍站里”） |
+| HTTPS | `http://` 301 到 `https://` |
+| 自定义域名 | 未配置（`cname=null`） |
+
+> 第一次 `Configure Pages` 失败，是因为仓库当时尚未启用 Pages，`GITHUB_TOKEN` 没有管理员权限去创建站点；在 Settings → Pages（或用管理员 token 调用 `POST /repos/{owner}/{repo}/pages`，`build_type=workflow`）启用后，重新运行同一 workflow 即成功。以后新 fork/新仓库若未启用 Pages，同样需要先启用一次。
 
 > **重要边界**：GitHub Pages 只能托管静态文件。本项目的完整检索/查证需要 Python FastAPI、SearchPro 与 DeepSeek 后端，**不能只靠 Pages 运行**。本 Pages 站点是项目介绍、截图与文档入口；完整应用请按 README 本地启动，或把后端部署到独立服务器后再让静态页指向它。
 

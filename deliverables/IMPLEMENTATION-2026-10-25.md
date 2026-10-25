@@ -114,18 +114,32 @@ degraded={"extraction_method":"llm","unknown_evidence":0,"reasons":[]}
 
 ## 3. 截图 B 的当前状态
 
-代码已按 B 落地，但本会话仍然失败，原因已可诊断：
+**已恢复正常。** 2026-10-25 12:38 在可启动 Chrome 的会话中复核：
+
+```text
+scripts/test_capture.py: bytes=110531, matched=True, error=-
+API /api/research: metrics.screenshots=3
+answer.screenshots: 1/2/3 captured=True
+/api/evidence/{run_id}/1: 200 image/jpeg (98543 bytes)
+health.screenshots.last_error: ""
+```
+
+关键改动：
+- profile 改到 `state/screenshot-profiles` 并用 `mkdir`，避免 `mkdtemp` 的 ACL 问题；
+- Chrome stderr 落文件、等待 15s、失败重试一次；
+- `SCREENSHOT_TIMEOUT_MS=15000`（8s 时 3 张里有 2 张超时，15s 后 3/3 成功）。
+
+早期在 DSH 受限沙箱中的错误（历史记录）：
 
 ```
 chrome exited before DevTools started:
 [ERROR:crashpad_client_win.cc:430] OpenProcess: 拒绝访问 (0x5)
-[ERROR:crashpad_client_win.cc:144] crash server failed to launch, self-terminating
 ```
 
-这是 DSH 沙箱阻止 Chrome crashpad 启动，不是 profile 路径问题（profile 已改为 `state/screenshot-profiles` 并用 `mkdir`）。
+这是受限会话阻止 Chrome crashpad 启动，不是 profile 路径问题。**API 服务必须启动在能启动 Chrome 的普通 PowerShell 中**；只跑通 `test_capture.py` 但用受限服务跑 8000，Web 截图仍会失败。
+
 - 详细排查步骤见 [SCREENSHOT-GUIDE-2026-10-25.md](SCREENSHOT-GUIDE-2026-10-25.md)。
 - 独立验证：`scripts/test_capture.py`（可 `--save` 保存 JPEG）。
-- 在**普通 PowerShell**中按指南重试；若能启动，`screenshots.last_error` 会清空。
 - 若仍失败，先 `EVIDENCE_SCREENSHOTS=false`，不要让截图影响研究主流程（当前失败会降级，不阻塞报告）。
 
 ---

@@ -4,6 +4,9 @@
 
 本 README 是统一入口文档，整合了架构、环境、DeepSeek/SearchPro 配置、运行、API、验证、日志、安全与路线图。交互规则见 <a href="web/rules.html">rules.html</a>，架构图见 <a href="framework.html">framework.html</a>。
 
+> **在线项目页（静态介绍）**：<a href="https://mc-ler.github.io/Yuanbao_Search/">https://mc-ler.github.io/Yuanbao_Search/</a><br>
+> GitHub Pages 只托管 `docs/` 的项目介绍与截图；完整的检索/查证仍需按下方“快速开始”在本机启动 FastAPI 后端。
+
 ## 目录
 
 1. 项目定位与当前状态
@@ -117,7 +120,7 @@ macOS/Linux：
 | MAX_CONCURRENT_RESEARCH | 2 | 并发 |
 | EVIDENCE_SCREENSHOTS | true | 截图开关 |
 | SCREENSHOT_CHROME | 空 | Chrome 路径 |
-| SCREENSHOT_MAX / TIMEOUT_MS | 3 / 8000 | 截图上限/超时 |
+| SCREENSHOT_MAX / TIMEOUT_MS | 3 / 15000 | 截图上限/超时 |
 | LLM_ADVISORY | true | R5 参考意见 |
 | ALLOW_FAKE_SEARCH | false | 仅测试 |
 | OFFLINE | false | 只读缓存 |

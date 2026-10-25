@@ -3,7 +3,8 @@
 - 适用版本：v4.3（`claimlab/evidence/capture.py`）
 - 相关开关：`EVIDENCE_SCREENSHOTS`、`SCREENSHOT_CHROME`、`SCREENSHOT_MAX`、`SCREENSHOT_TIMEOUT_MS`
 - 一键诊断：`scripts/test_capture.py`
-- 结论先说：当前会话里 Chrome 能启动到一半，但 **crashpad 被宿主/安全软件拒绝 `OpenProcess`**，Chrome 自行退出；这是运行环境限制，不是研究/查证主链路的问题。截图是 best-effort，失败不应阻塞报告。
+- **最新验证（2026-10-25 12:38）**：在可启动 Chrome 的会话中，`scripts/test_capture.py` 成功（110531 bytes，matched=True）；API 研究 `metrics.screenshots=3`，三张截图均 `captured=True`，`/api/evidence/{run_id}/{n}` 返回 200 image/jpeg；`health.screenshots.last_error` 清空。截图会自动进入报告来源卡，不是单独输出文件。
+- 结论先说：截图功能本身可用；之前 Web 端失败是因为 **API 服务进程运行在无法启动 Chrome 的受限上下文**。把 8000 启动在普通 PowerShell（与 `test_capture.py` 相同的会话）即可。截图是 best-effort，失败不应阻塞报告。
 
 ---
 
@@ -30,7 +31,9 @@
 
 ---
 
-## 2. 当前实测状态（2026-10-25）
+## 2. 受限环境下的历史错误（已定位）
+
+> 这是本次会话早期在 DSH 受限沙箱中的错误；同一台机器换成可启动 Chrome 的普通 PowerShell 后已成功（见开头“最新验证”）。保留此节用于识别同类环境问题。
 
 ```text
 chrome       : C:\Program Files\Google\Chrome\Application\chrome.exe

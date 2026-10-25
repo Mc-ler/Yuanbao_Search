@@ -42,7 +42,7 @@ Windows PowerShell：
     ./.Search/Scripts/python.exe scripts/configure_keys.py yuanbao
     ./.Search/Scripts/python.exe scripts/configure_keys.py llm --provider deepseek
     ./.Search/Scripts/python.exe scripts/test_deepseek.py
-    ./.Search/Scripts/python.exe -m claimlab.api
+    powershell -ExecutionPolicy Bypass -File scripts/restart_api.ps1
     # http://127.0.0.1:8000
 
 macOS/Linux：
@@ -258,10 +258,11 @@ curl（bash）：
 
 关注 search_ready、llm_ready、screenshots_ready、llm.model/provider、store（旧数据只读）。
 
-停止：前台 Ctrl+C；后台先查 PID 再 taskkill /F /PID。端口占用：
+停止：前台 Ctrl+C；旧后台进程用：
 
-    netstat -ano | findstr :8000
-    Get-NetTCPConnection -LocalPort 8000 -State Listen
+    powershell -ExecutionPolicy Bypass -File scripts/restart_api.ps1 -StopOnly
+
+端口占用时不要直接 kill 任意 PID；先确认命令行包含 claimlab.api，或用上面的脚本只清理自身旧进程。
 
 品牌：**万物皆可查 / Confirming Everything**；顶部使用 LOGO-2 完整去背景图片 web/assets/team-logo2-light.png（浅色）与 team-logo2-dark.png（深色），包含 D 图形与 GOLDEN-US 字标；高度按屏幕响应式调整，object-fit: contain，不裁切。LOGO-2 原图保留在 output/LOGO-2.png。中文「万物皆可查」、英文「Confirming Everything」。原图保留在 output/LOGO-2.png（gitignored）。
 
@@ -436,7 +437,7 @@ Python 客户端：
 | 时间遍历查询过多 | 调整 RESEARCH_TIME_TRAVERSAL_ROUNDS / QUERIES 或 RESEARCH_MAX_QUERIES_PER_RUN |
 | 研究查询仍为 3 条 | 确认 env 的 RESEARCH_QUERIES_PER_REQUIREMENT，重启服务；旧 plan_id 缓存计划仍是旧数量 |
 | 旧客户端 422 | 删除 subject/city/example_id/fixture_id |
-| 端口占用 | 查 PID 后停止旧进程 |
+| 端口占用 / 重启后仍旧行为 | 旧 claimlab.api 子进程可能仍占用 8000；运行 powershell -ExecutionPolicy Bypass -File scripts/restart_api.ps1，脚本只清理自身旧进程，再启动新进程 |
 | 缓存旧结果 | 删除 cache/ 或用 refresh（CLI） |
 
 ---

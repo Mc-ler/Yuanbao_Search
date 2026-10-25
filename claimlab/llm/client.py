@@ -71,6 +71,20 @@ def _extract_json(text: str) -> dict[str, Any]:
     raise LLMError("model did not return a JSON object")
 
 
+def _coerce_content(task: str, content: str) -> dict[str, Any]:
+    """Parse strict JSON; for research answers only, accept prose as text."""
+    try:
+        return _extract_json(content)
+    except LLMError:
+        if task == "answer" and str(content or "").strip():
+            return {
+                "text": str(content).strip(),
+                "citations_used": [],
+                "uncertainty": "模型返回非严格 JSON，已按文本读取。",
+            }
+        raise
+
+
 def _is_model_error(status_code: int, text: str) -> bool:
     lowered = (text or "").lower()
     if status_code == 404:
@@ -266,7 +280,7 @@ class OpenAICompatLLM:
                 "model": candidate,
                 "messages": messages,
                 "temperature": 0,
-                "max_tokens": 1200,
+                "max_tokens": 2400 if task == "answer" else 1200,
                 "response_format": {"type": "json_object"},
             }
             self.calls += 1
@@ -303,7 +317,7 @@ class OpenAICompatLLM:
                 content = data["choices"][0]["message"]["content"]
             except (KeyError, IndexError, TypeError) as exc:
                 raise LLMError("unexpected LLM response shape") from exc
-            parsed = _extract_json(content)
+            parsed = _coerce_content(task, content)
             self._selected[(provider.name, task)] = candidate
             self.model = candidate
             self.last_vision_used = use_images

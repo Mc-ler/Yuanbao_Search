@@ -30,7 +30,7 @@
 - <strong>一句话查证</strong>：说法 → 断言抽取 → 定向查询 → 检索 → 去重 → 分级 → 匹配（引文校验）→ <strong>R1–R5 确定性判定</strong> → 报告。R5 时附加“非判定”模型参考意见。
 - 共用检索网关、来源分级、安全护栏、缓存/预算/审计。
 
-当前基线：v4.0；<strong>127 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120。
+当前基线：v4.1；<strong>129 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120。
 
 ---
 
@@ -311,7 +311,7 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
     config/             domains / queries / lexicons / llm_providers.json
     fixtures/           测试夹具
     scripts/            configure_keys / test_deepseek / run_research / run_verify / run_plan / probes / git_push
-    tests/              127 个测试
+    tests/              129 个测试
     framework.html      v3.0 双板块架构图
     README.md           本文件
 
@@ -404,7 +404,7 @@ Python 客户端：
 
     ./.Search/Scripts/python.exe -m pytest -q
 
-当前 127 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
+当前 129 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
 
 无结果政策：没有可核验结果时，研究综述与断言报告必须明确写“不知道/没有结果/无法确定”，不得用标题或常识补全；抓取失败自动降级，不阻塞流程。
 
@@ -430,7 +430,7 @@ Python 客户端：
 | 研究返回 429/504 | 并发研究已满或超过 180s；等待后重试/关闭截图 |
 | 一句话查证无响应 | 确认服务在线；SSE 断开会自动轮询；刷新页面加载新 app.js |
 | 深度研究显示 unknown | 旧 plan/旧缓存或 LLM 未给出 field；新代码无匹配时回退 general_fact，并在 source ledger 使用 field_label；重启并重新生成 plan |
-| 深度研究 engine=rule / 无模型综述 | 查看 logs 的 answer.llm_error；若为 HTTP 401 INVALID_API_KEY，更新 DEEPSEEK_API_KEY（或 LLM_PROVIDER/LLM_API_KEY）并重启；代码已有一次引用修复重试与来源要点降级 |
+| 深度研究 engine=rule / 无模型综述 | 查看 logs 的 answer.llm_error。HTTP 401 表示 key 无效或更新后未重启；model did not return a JSON object 表示服务端返回散文，新代码会按 answer 文本接收并校验引用；确认 LLM_PROVIDER=deepseek、DEEPSEEK_API_KEY/DEEPSEEK_BASE_URL 生效、LLM_MODEL 为空或 DeepSeek 模型 |
 | 拆分 0 条断言 | 若输入是问题/纯观点，这是预期分类；按 guidance 改写。历史/统计陈述若仍为 0，检查 cache/llm 是否命中旧 prompt，重启并清理 cache/llm |
 | 研究正文抓取失败 | 默认自动降级到 SearchPro 的 passage/content；不影响报告。检查 URL 是否为登录墙/非 HTML/私网 |
 | 时间遍历查询过多 | 调整 RESEARCH_TIME_TRAVERSAL_ROUNDS / QUERIES 或 RESEARCH_MAX_QUERIES_PER_RUN |
@@ -461,6 +461,7 @@ Python 客户端：
 
 ## 15. 变更记录
 
+- v4.1（2026-10-25）：DeepSeek 散文答案兼容；answer max_tokens 2400；当前配置实测 engine=llm。
 - v4.0（2026-10-25）：完整 LOGO-2 自适应展示；问句自动改写/多断言拆分/汇总；unknown 回退 general_fact；研究综述 A/B 内容节选与规则降级；LLM 401 可诊断。
 - v3.8（2026-10-25）：无结果明确话术；时间遍历增量查询；默认公开页正文抓取+失败降级；问题改写提示限次；rule/模型提示词强化。
 - v3.7（2026-10-25）：通用 Claim/输入分类、question_not_claim、通用查询 facet、深度研究 5 查询/需求、研究独立预算、内容节选与交叉验证指标。

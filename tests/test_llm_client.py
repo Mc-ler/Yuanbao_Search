@@ -10,6 +10,11 @@ def test_answer_prose_is_preserved_when_json_is_missing():
     assert "非严格 JSON" in parsed["uncertainty"]
 
 
+def test_malformed_answer_json_extracts_text():
+    parsed = _coerce_content("answer", '{"text": "结论 [1]", "claims": [')
+    assert parsed["text"] == "结论 [1]"
+
+
 def test_non_answer_prose_still_fails_json_contract():
     with pytest.raises(LLMError):
         _coerce_content("extract_claims", "not json")

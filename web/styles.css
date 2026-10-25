@@ -762,3 +762,12 @@ body::before, body::after { display: none !important; }
   .mode-switch { width: 100%; display: flex; }
   .mode-btn { flex: 1 1 50%; min-width: 0; }
 }
+
+.time-note { margin: 6px 0 10px; color: var(--muted); font-size: 11px; }
+.claim-list { display: grid; gap: 10px; margin: 10px 0 16px; }
+.claim-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.claim-card h4 { margin: 0 0 6px; font-size: 13px; line-height: 1.6; }
+.claim-quote { margin: 6px 0 0; padding: 8px 10px; border-left: 2px solid var(--accent); background: var(--surface); color: var(--text); font-size: 12px; line-height: 1.65; }
+.claim-quote small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+.cite { color: var(--accent); text-decoration: none; font-weight: 600; }
+.cite:hover { text-decoration: underline; }

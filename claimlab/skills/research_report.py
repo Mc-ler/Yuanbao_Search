@@ -29,6 +29,10 @@ def build_research_report(
         "summary": answer.get("text") or answer.get("answer") or "",
         "engine": answer.get("engine") or "",
         "uncertainty": answer.get("uncertainty") or "",
+        "claims": answer.get("claims") or [],
+        "as_of": answer.get("as_of") or "",
+        "time_sensitive": bool(answer.get("time_sensitive")),
+        "time_context": answer.get("time_context") or {},
         "citations": answer.get("citations") or [],
         "citation_issues": answer.get("citation_issues") or [],
         "screenshots": answer.get("screenshots") or [],
@@ -44,11 +48,23 @@ def render_research_markdown(report: dict[str, Any]) -> str:
     lines: list[str] = [f"# {report.get('title', '研究报告')}", ""]
     lines.append(f"> 问题：{report.get('question', '')}")
     lines.append(f"> 生成：{report.get('generated_at', '')}")
+    if report.get("as_of"):
+        lines.append(f"> 截止：{report.get('as_of')}（Asia/Shanghai）")
     summary = report.get("summary")
     if summary:
         lines.append("")
         lines.append("## 研究综述")
         lines.append(str(summary))
+    claims = report.get("claims") or []
+    if claims:
+        lines.append("")
+        lines.append("## 结论与证据")
+        for claim in claims:
+            ids = "".join(f"[{n}]" for n in claim.get("source_ids") or [])
+            lines.append(f"- {claim.get('text') or ''} {ids}")
+            if claim.get("quote"):
+                lines.append(f"  > {claim.get('quote')}（{claim.get('source_date') or '日期未知'}）")
+        lines.append("")
     citations = report.get("citations") or []
     if citations:
         lines.append("")

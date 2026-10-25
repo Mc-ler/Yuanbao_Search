@@ -24,6 +24,7 @@ from .skills.query import plan_time_series_queries
 from .skills.answer import build_answer, build_citations
 from .skills.content import best_excerpt, content_chars
 from .skills.dedup import cluster_pages, page_key
+from .skills.recency import is_time_sensitive, now_cst, parse_published, stale_evidence
 from .skills.grading import grade_page
 from .skills.judging import FIELD_LABELS
 from .skills.research_report import build_research_report
@@ -40,10 +41,15 @@ def _grade_counts(pages: list[SearchPage], field: str | None) -> dict[str, int]:
     return counts
 
 
-def _rank(page: SearchPage, field: str) -> tuple:
+def _rank(page: SearchPage, field: str, time_sensitive: bool = False) -> tuple:
     grade = grade_page(page, field=field)
     order = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
-    return (order.get(grade.grade, 9), -(page.score or 0.0), page.date or "")
+    parsed = parse_published(page.date)
+    missing = 0 if parsed else 1
+    stamp = -parsed.toordinal() if parsed else 0
+    if time_sensitive:
+        return (missing, stamp, order.get(grade.grade, 9), -(page.score or 0.0))
+    return (order.get(grade.grade, 9), -(page.score or 0.0), missing, stamp)
 
 
 def _top_sources(
@@ -51,15 +57,16 @@ def _top_sources(
     requirement: Requirement,
     page_cluster: dict[str, str],
     limit: int = 6,
+    time_sensitive: bool = False,
 ) -> list[dict[str, Any]]:
     representatives: dict[str, SearchPage] = {}
     for page in pages:
         key = page_key(page)
         cluster = page_cluster.get(key) or key
         current = representatives.get(cluster)
-        if current is None or _rank(page, requirement.field) < _rank(current, requirement.field):
+        if current is None or _rank(page, requirement.field, time_sensitive) < _rank(current, requirement.field, time_sensitive):
             representatives[cluster] = page
-    ordered = sorted(representatives.values(), key=lambda page: _rank(page, requirement.field))
+    ordered = sorted(representatives.values(), key=lambda page: _rank(page, requirement.field, time_sensitive))
     result = []
     for page in ordered[:limit]:
         key = page_key(page)
@@ -74,6 +81,9 @@ def _top_sources(
                 "title": page.title,
                 "url": page.url,
                 "date": page.date,
+                "published_at": page.date or "",
+                "age_days": page.age_days,
+                "score": page.score,
                 "passage": page.passage,
                 "excerpt": best_excerpt(page, requirement.search_terms),
                 "content_excerpt": best_excerpt(page, requirement.search_terms) if page.content else "",
@@ -178,6 +188,9 @@ async def run_research(
         max_initial=settings.research_queries_per_requirement,
         results_per_query=settings.research_results_per_query,
     )
+    time_sensitive = is_time_sensitive(text)
+    as_of_dt = now_cst()
+    as_of = as_of_dt.date().isoformat()
     collected: list[tuple[SearchPage, str, str]] = []
     rows: list[dict[str, Any]] = []
     all_queries = []
@@ -285,7 +298,7 @@ async def run_research(
             relevant_fields.setdefault(page_key(page), []).append(requirement.field)
         counts = _grade_counts(relevant, requirement.field)
         tier = source_tier(relevant, requirement=requirement)
-        top = _top_sources(relevant, requirement, page_cluster)
+        top = _top_sources(relevant, requirement, page_cluster, time_sensitive=time_sensitive)
         row.update(
             {
                 "tier": tier,
@@ -331,7 +344,7 @@ async def run_research(
         best = min(grades, key=lambda item: rank.get(item.grade, 9))
         grade_totals[best.grade] += 1
 
-    citations = build_citations(ledger)
+    citations = build_citations(ledger, time_sensitive=time_sensitive)
     number_by_url = {c["url"]: c["n"] for c in citations}
     for entry in ledger:
         for source in entry["sources"]:
@@ -374,6 +387,8 @@ async def run_research(
         ledger,
         images=images or None,
         screenshots=screenshot_meta,
+        time_sensitive=time_sensitive,
+        as_of=as_of,
     )
 
     total_queries = sum(len(row["executed"]) for row in rows)
@@ -390,8 +405,18 @@ async def run_research(
         for item in row.get("executed", [])
         if item.get("strategy") in {"B/C降级", "再查询"}
     )
+    time_context = answer.get("time_context") or stale_evidence(citations, text)
+    claims = answer.get("claims") or []
     metrics = {
-        "metrics_version": 3,
+        "metrics_version": 4,
+        "time_sensitive": bool(time_sensitive),
+        "latest_source_date": time_context.get("latest_source_date") or "",
+        "latest_source_age_days": time_context.get("latest_source_age_days"),
+        "freshness_days": time_context.get("freshness_days"),
+        "stale_evidence": bool(time_context.get("stale")),
+        "claims_count": len(claims),
+        "claims_with_quote": sum(1 for claim in claims if claim.get("quote")),
+        "claims_with_valid_quote": sum(1 for claim in claims if claim.get("quote_valid")),
         "requirements": len(rows),
         "queries": total_queries,
         "queries_per_requirement": total_queries / len(rows) if rows else 0.0,

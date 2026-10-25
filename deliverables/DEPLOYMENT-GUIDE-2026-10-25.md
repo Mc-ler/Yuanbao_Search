@@ -18,6 +18,19 @@
 | 404 | 返回自定义 404（“这个页面不在项目介绍站里”） |
 | HTTPS | `http://` 301 到 `https://` |
 | 自定义域名 | 未配置（`cname=null`） |
+| About | 已设置 description、homepage 与 10 个 topics（见 GitHub 仓库首页） |
+| 打印版 | `https://mc-ler.github.io/Yuanbao_Search/print.html`；本地 PDF/单文件 HTML 在 `output/` |
+
+GitHub About 当前内容：
+
+- Description：`万物皆可查 / Confirming Everything：本地优先的深度研究与一句话查证工作台。SearchPro 检索、A–E 来源分级、R1–R5 判定、可引用报告。`
+- Homepage：`https://mc-ler.github.io/Yuanbao_Search/`
+- Topics：`ai-research`, `fact-checking`, `llm`, `deepseek`, `searchpro`, `fastapi`, `python`, `evidence`, `citations`, `github-pages`
+
+> 本地宣发文件：
+> - `output/Yuanbao_Search-项目介绍.pdf`（A4 横向 4 页，约 1.6 MB）
+> - `output/Yuanbao_Search-项目介绍.html`（图片内嵌，单文件可直接打印）
+> - 线上打印版：`docs/print.html`；浏览器打开后点“打印 / 另存为 PDF”即可重新导出。
 
 > 第一次 `Configure Pages` 失败，是因为仓库当时尚未启用 Pages，`GITHUB_TOKEN` 没有管理员权限去创建站点；在 Settings → Pages（或用管理员 token 调用 `POST /repos/{owner}/{repo}/pages`，`build_type=workflow`）启用后，重新运行同一 workflow 即成功。以后新 fork/新仓库若未启用 Pages，同样需要先启用一次。
 

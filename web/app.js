@@ -46,6 +46,8 @@ const I18N = {
     'report.emptyText': '选择模式、输入问题并运行；日志和报告会分别保留。',
     'report.summary': '研究综述', 'report.metrics': '指标', 'report.citations': '引用来源',
     'report.sources': '来源分册', 'report.gaps': '证据缺口', 'report.issues': '引用校验',
+    'report.claims': '结论与证据', 'report.asOf': '截止', 'report.stale': '来源已超出时效窗口',
+    'report.quoteValid': '原文已核对', 'report.quoteMissing': '原文未核对', 'report.quoteUnverified': '来源原文（关系未核验）',
     'report.verdict': '判定', 'report.rule': '规则', 'report.cluster': '计票',
     'report.evidence': '证据', 'report.action': '行动含义', 'report.disclaimer': '免责声明',
     'report.aiAdvisory': '模型参考意见（非判定）', 'report.noSources': '没有可用来源。',
@@ -107,6 +109,8 @@ const I18N = {
     'report.emptyText': 'Choose a mode, enter a question and run. Logs and reports are kept separately.',
     'report.summary': 'Research summary', 'report.metrics': 'Metrics', 'report.citations': 'Citations',
     'report.sources': 'Source ledger', 'report.gaps': 'Evidence gaps', 'report.issues': 'Citation checks',
+    'report.claims': 'Claims and evidence', 'report.asOf': 'As of', 'report.stale': 'Sources are outside the freshness window',
+    'report.quoteValid': 'quote verified', 'report.quoteMissing': 'quote not verified', 'report.quoteUnverified': 'source quote (relation unverified)',
     'report.verdict': 'Verdict', 'report.rule': 'Rule', 'report.cluster': 'Cluster votes',
     'report.evidence': 'Evidence', 'report.action': 'Action', 'report.disclaimer': 'Disclaimer',
     'report.aiAdvisory': 'Model note (not a verdict)', 'report.noSources': 'No usable sources.',
@@ -668,9 +672,20 @@ function researchReport(report) {
   const issues = (report.citation_issues || []).length
     ? '<p class="answer-note">' + esc(t('report.issues')) + ': ' + report.citation_issues.map((item) => '[' + esc(item.n) + '] ' + esc(item.reason)).join('; ') + '</p>'
     : '';
+  const claims = (report.claims || []).map((claim) => {
+    const ids = (claim.source_ids || []).map((n) => '<a class="cite" href="#cite-' + esc(n) + '">[' + esc(n) + ']</a>').join('');
+    const quote = claim.quote
+      ? '<blockquote class="claim-quote">' + esc(claim.quote) + '<small>' + esc(claim.source_date || '日期未知') + ' · ' + esc(claim.quote_valid ? (claim.support === 'unverified' ? t('report.quoteUnverified') : t('report.quoteValid')) : t('report.quoteMissing')) + '</small></blockquote>'
+      : '<p class="answer-note">' + esc(t('report.quoteMissing')) + '</p>';
+    return '<article class="claim-card"><h4>' + linkCitations(claim.text || '') + ' ' + ids + '</h4>' + quote + '</article>';
+  }).join('');
+  const timeNote = report.as_of
+    ? '<p class="time-note">' + esc(t('report.asOf')) + ' ' + esc(report.as_of) + (report.time_context && report.time_context.stale ? ' · ' + esc(t('report.stale')) : '') + '</p>'
+    : '';
   return '<section class="report-content">' +
-    '<div class="report-summary"><h3>' + esc(t('report.summary')) + '</h3><p>' + esc(String(report.summary || '')).replace(/\n/g, '<br>') + '</p></div>' +
+    '<div class="report-summary"><h3>' + esc(t('report.summary')) + '</h3>' + timeNote + '<p>' + linkCitations(String(report.summary || '')).replace(/\n/g, '<br>') + '</p></div>' +
     (report.uncertainty ? '<p class="answer-note">' + esc(report.uncertainty) + '</p>' : '') + issues +
+    (claims ? '<h3 class="report-subhead">' + esc(t('report.claims')) + '</h3><div class="claim-list">' + claims + '</div>' : '') +
     '<div class="metric-grid">' +
       metricCard(t('metric.requirements'), (metrics.requirements_with_ab || 0) + '/' + (metrics.requirements || 0)) +
       metricCard(t('metric.ab'), pct(metrics.ab_source_rate)) +
@@ -716,24 +731,29 @@ function verificationReport(report) {
 }
 
 function ledgerCard(entry) {
-  const sources = (entry.sources || []).map((source) => sourceCard(source, source.n)).join('');
+  const sources = (entry.sources || []).map((source) => sourceCard(source, source.n, false)).join('');
   return '<article class="result-card"><div class="result-head"><div><p class="eyebrow">' + esc(entry.field_label || (entry.field === 'unknown' ? '综合' : entry.field) || '') + '</p>' +
     '<h3>' + esc(entry.text || entry.field || '') + '</h3></div><span class="tier">' + esc(entry.tier || '') + '</span></div>' +
     '<p class="result-summary">' + (entry.unique_pages || 0) + ' pages · ' + (entry.clusters || 0) + ' clusters</p>' +
     (sources ? '<ul class="sources">' + sources + '</ul>' : '<p class="empty-source">' + esc(t('report.noSources')) + '</p>') + '</article>';
 }
 
-function sourceCard(source, number) {
+function sourceCard(source, number, withAnchor = true) {
   const cluster = source.cluster_size > 1 ? ' · ' + source.cluster_size + ' same-cluster' : '';
+  const anchor = number && withAnchor ? ' id="cite-' + esc(number) + '"' : '';
   const screenshot = source.screenshot_url
     ? '<a class="shot-link" href="' + esc(safeUrl(source.screenshot_url)) + '" target="_blank" rel="noopener"><img class="shot" loading="lazy" src="' + esc(safeUrl(source.screenshot_url)) + '" alt="source screenshot"></a>'
     : '';
   const passageText = source.excerpt || source.passage;
   const passage = passageText ? '<p class="snippet">' + esc(String(passageText).slice(0, 260)) + '</p>' : '';
-  return '<li class="source"><span class="grade grade-' + esc(source.grade) + '">' + esc(source.grade || '?') + '</span>' +
+  return '<li class="source"' + anchor + '><span class="grade grade-' + esc(source.grade) + '">' + esc(source.grade || '?') + '</span>' +
     '<div class="source-body"><a href="' + esc(safeUrl(source.url)) + '" target="_blank" rel="noopener">' +
     (number ? '[' + number + '] ' : '') + esc(source.title || source.domain) + '</a>' +
     '<p>' + esc(source.domain || '') + (source.date ? ' · ' + esc(source.date) : '') + esc(cluster) + '</p>' + passage + screenshot + '</div></li>';
+}
+
+function linkCitations(text) {
+  return esc(String(text || '')).replace(/\[(\d+)\]/g, '<a class="cite" href="#cite-$1">[$1]</a>').replace(/\n/g, '<br>');
 }
 
 function metricCard(label, value) {

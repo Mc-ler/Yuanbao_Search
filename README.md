@@ -30,7 +30,7 @@
 - <strong>一句话查证</strong>：说法 → 断言抽取 → 定向查询 → 检索 → 去重 → 分级 → 匹配（引文校验）→ <strong>R1–R5 确定性判定</strong> → 报告。R5 时附加“非判定”模型参考意见。
 - 共用检索网关、来源分级、安全护栏、缓存/预算/审计。
 
-当前基线：v4.1；<strong>129 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120。
+当前基线：v4.2；<strong>136 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120。
 
 ---
 
@@ -303,7 +303,7 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
       config.py         Settings/.env
       keys.py           Bearer + provider registry
       search/           api/gateway/normalize/cache/budget/archive/fake
-      skills/           requirements/query/dedup/grading/matching/judging/answer/report/advisory/citations/safety
+      skills/           requirements/query/dedup/grading/matching/judging/answer/report/advisory/citations/recency/safety
       evidence/         Chrome CDP 截图 + 内存图片
       store/            fixtures / 旧 DB 只读
       llm/              OpenAI 兼容客户端 + FakeLLM
@@ -311,7 +311,7 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
     config/             domains / queries / lexicons / llm_providers.json
     fixtures/           测试夹具
     scripts/            configure_keys / test_deepseek / run_research / run_verify / run_plan / probes / git_push
-    tests/              129 个测试
+    tests/              136 个测试
     framework.html      v3.0 双板块架构图
     README.md           本文件
 
@@ -351,7 +351,7 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
     POST /api/research
     {"text": "西安城墙现存主体是什么年代修建的？", "plan_id": "plan-..."}
 
-返回 run_id、plan_id、plan_reused、requirements、queries、source_ledger、metrics、answer、report、citation_issues、screenshots、budget、stop_reason。
+返回 run_id、plan_id、plan_reused、requirements、queries、source_ledger、metrics、answer（含 text/claims/as_of/time_sensitive/time_context）、report、citation_issues、screenshots、budget、stop_reason。
 
 /api/runs 示例：
 
@@ -404,7 +404,7 @@ Python 客户端：
 
     ./.Search/Scripts/python.exe -m pytest -q
 
-当前 129 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
+当前 136 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、时间归一化/时间排序、claim quote 校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
 
 无结果政策：没有可核验结果时，研究综述与断言报告必须明确写“不知道/没有结果/无法确定”，不得用标题或常识补全；抓取失败自动降级，不阻塞流程。
 
@@ -461,6 +461,7 @@ Python 客户端：
 
 ## 15. 变更记录
 
+- v4.2（2026-10-25）：时间归一化与时间优先排序；as-of/时效窗口提示；claim–quote 校验；报告时间线/引用锚点；metrics_version=4。
 - v4.1（2026-10-25）：DeepSeek 散文答案兼容；answer max_tokens 2400；当前配置实测 engine=llm。
 - v4.0（2026-10-25）：完整 LOGO-2 自适应展示；问句自动改写/多断言拆分/汇总；unknown 回退 general_fact；研究综述 A/B 内容节选与规则降级；LLM 401 可诊断。
 - v3.8（2026-10-25）：无结果明确话术；时间遍历增量查询；默认公开页正文抓取+失败降级；问题改写提示限次；rule/模型提示词强化。

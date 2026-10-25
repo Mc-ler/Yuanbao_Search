@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 from dataclasses import asdict
 from typing import Any, Protocol
 
@@ -65,20 +66,35 @@ def _extract_json(text: str) -> dict[str, Any]:
     start = raw.find("{")
     end = raw.rfind("}")
     if start >= 0 and end > start:
-        parsed = json.loads(raw[start : end + 1])
+        try:
+            parsed = json.loads(raw[start : end + 1])
+        except json.JSONDecodeError:
+            parsed = None
         if isinstance(parsed, dict):
             return parsed
     raise LLMError("model did not return a JSON object")
 
 
-def _coerce_content(task: str, content: str) -> dict[str, Any]:
-    """Parse strict JSON; for research answers only, accept prose as text."""
+def _extract_text_field(content: str) -> str:
+    match = re.search(r'"text"\s*:\s*"((?:\\.|[^"\\])*)"', content or "", re.S)
+    if not match:
+        return ""
     try:
-        return _extract_json(content)
-    except LLMError:
-        if task == "answer" and str(content or "").strip():
+        return str(json.loads('"' + match.group(1) + '"')).strip()
+    except json.JSONDecodeError:
+        return ""
+
+
+def _coerce_content(task: str, content: str) -> dict[str, Any]:
+    """Parse strict JSON; for research answers only, accept prose/malformed JSON."""
+    raw = str(content or "")
+    try:
+        return _extract_json(raw)
+    except (LLMError, json.JSONDecodeError):
+        if task == "answer" and raw.strip():
+            text = _extract_text_field(raw) or raw.strip()
             return {
-                "text": str(content).strip(),
+                "text": text,
                 "citations_used": [],
                 "uncertainty": "模型返回非严格 JSON，已按文本读取。",
             }
@@ -280,7 +296,7 @@ class OpenAICompatLLM:
                 "model": candidate,
                 "messages": messages,
                 "temperature": 0,
-                "max_tokens": 2400 if task == "answer" else 1200,
+                "max_tokens": 4096 if task == "answer" else 1200,
                 "response_format": {"type": "json_object"},
             }
             self.calls += 1

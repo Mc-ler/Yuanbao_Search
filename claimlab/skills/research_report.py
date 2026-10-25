@@ -20,6 +20,7 @@ def build_research_report(
     metrics: dict[str, Any],
     *,
     gaps: list[dict[str, Any]] | None = None,
+    degraded: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     answer = answer or {}
     return {
@@ -39,6 +40,7 @@ def build_research_report(
         "source_ledger": source_ledger or [],
         "metrics": metrics or {},
         "gaps": gaps or [],
+        "degraded": degraded or {},
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "disclaimer": DISCLAIMER,
     }
@@ -48,6 +50,9 @@ def render_research_markdown(report: dict[str, Any]) -> str:
     lines: list[str] = [f"# {report.get('title', '研究报告')}", ""]
     lines.append(f"> 问题：{report.get('question', '')}")
     lines.append(f"> 生成：{report.get('generated_at', '')}")
+    reasons = (report.get("degraded") or {}).get("reasons") or []
+    if reasons:
+        lines.append("> 降级：" + "；".join(str(item) for item in reasons))
     if report.get("as_of"):
         lines.append(f"> 截止：{report.get('as_of')}（Asia/Shanghai）")
     summary = report.get("summary")

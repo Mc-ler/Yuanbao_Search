@@ -764,6 +764,9 @@ body::before, body::after { display: none !important; }
 }
 
 .time-note { margin: 6px 0 10px; color: var(--muted); font-size: 11px; }
+.degraded-note { margin: 10px 0 12px; padding: 10px 12px; border-left: 3px solid #d97706; border-radius: 6px; background: rgb(217 119 6 / 9%); color: #92400e; font-size: 12px; line-height: 1.65; }
+.degraded-note strong { font-weight: 700; }
+[data-theme="dark"] .degraded-note { background: rgb(217 119 6 / 16%); color: #fbbf24; }
 .claim-list { display: grid; gap: 10px; margin: 10px 0 16px; }
 .claim-card { padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
 .claim-card h4 { margin: 0 0 6px; font-size: 13px; line-height: 1.6; }

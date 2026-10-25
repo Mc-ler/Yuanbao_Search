@@ -98,6 +98,9 @@ class Settings:
     research_wall_seconds: int = 120
     research_time_traversal_rounds: int = 2
     research_time_traversal_queries: int = 2
+    rerank_enabled: bool = True
+    rerank_top_n: int = 30
+    rerank_threshold: float = 0.5
     content_fetch_enabled: bool = True
     content_fetch_max_pages: int = 3
     content_fetch_timeout_seconds: int = 8
@@ -134,7 +137,13 @@ class Settings:
             return True
         return any(
             os.environ.get(name)
-            for name in ("LLM_API_KEY", "GPT_API_KEY", "CODEX_API_KEY", "TOKLENS_API_KEY")
+            for name in (
+                "DEEPSEEK_API_KEY",
+                "LLM_API_KEY",
+                "GPT_API_KEY",
+                "CODEX_API_KEY",
+                "TOKLENS_API_KEY",
+            )
         )
 
     @property
@@ -165,6 +174,11 @@ class Settings:
                 "wall_seconds": self.run_wall_seconds,
             },
             "dedup_threshold": self.dedup_threshold,
+            "rerank": {
+                "enabled": self.rerank_enabled,
+                "top_n": self.rerank_top_n,
+                "threshold": self.rerank_threshold,
+            },
             "screenshots": {
                 "enabled": self.screenshot_enabled,
                 "max": self.screenshot_max,
@@ -205,6 +219,9 @@ def load_settings(env_file: Path | None = None) -> Settings:
         research_wall_seconds=_env_int("RESEARCH_WALL_SECONDS", 120),
         research_time_traversal_rounds=_env_int("RESEARCH_TIME_TRAVERSAL_ROUNDS", 2),
         research_time_traversal_queries=_env_int("RESEARCH_TIME_TRAVERSAL_QUERIES", 2),
+        rerank_enabled=_env_bool("RERANK_ENABLED", True),
+        rerank_top_n=_env_int("RERANK_TOP_N", 30),
+        rerank_threshold=_env_float("RERANK_THRESHOLD", 0.5),
         content_fetch_enabled=_env_bool("CONTENT_FETCH_ENABLED", True),
         content_fetch_max_pages=_env_int("CONTENT_FETCH_MAX_PAGES", 3),
         content_fetch_timeout_seconds=_env_int("CONTENT_FETCH_TIMEOUT_SECONDS", 8),

@@ -110,15 +110,24 @@ def _csv_safe(value: Any) -> str:
 def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> FastAPI:
     settings = settings or load_settings()
     settings.ensure_dirs()
+    suffix = "" if settings.app_port == 8000 else f"-{settings.app_port}"
     log_path = configure_logging(
         settings.logs_dir,
-        f"app-{datetime.now():%Y%m%d}.log",
+        f"app-{datetime.now():%Y%m%d}{suffix}.log",
         level=settings.log_level,
         max_bytes=settings.log_max_bytes,
         backup_count=settings.log_backup_count,
     )
     api_log = logging.getLogger("claimlab.api")
-    event(api_log, "app.start", version=__version__, log=log_path, search_provider=settings.search_provider)
+    event(
+        api_log,
+        "app.start",
+        version=__version__,
+        log=log_path,
+        pid=os.getpid(),
+        port=settings.app_port,
+        search_provider=settings.search_provider,
+    )
     sandbox = sandbox or build_sandbox(settings)
     store = RunStore()
     semaphore = asyncio.Semaphore(max(1, settings.max_concurrent_research))
@@ -274,11 +283,15 @@ def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> 
             results_per_query=settings.research_results_per_query,
         )
         sandbox.plan_store.put(plan)
-        event(api_log, "plan.done", text_len=len(text), requirements=len(plan.items))
+        event(api_log, "plan.done", text_len=len(text), requirements=len(plan.items), method=plan.method)
         return {
             "plan_id": plan.plan_id,
             "domain": plan.domain,
             "method": plan.method,
+            "degraded": {
+                "method": plan.method,
+                "reason": "" if plan.method == "llm" else "LLM 不可用或返回非法 JSON，已退回规则拆分",
+            },
             "requirements": jsonable([item.requirement for item in plan.items]),
             "queries": jsonable(plan.all_queries()),
             "fallback_queries": jsonable(plan.all_fallbacks()),
@@ -309,7 +322,13 @@ def create_app(settings: Settings | None = None, sandbox: Any | None = None) -> 
             event(api_log, "research.start", text_len=len(text), plan_id=plan.plan_id, plan_reused=plan_reused)
             try:
                 payload = await asyncio.wait_for(
-                    run_research(sandbox, text, plan=plan, refresh=request.refresh),
+                    run_research(
+                        sandbox,
+                        text,
+                        plan=plan,
+                        refresh=request.refresh,
+                        plan_reused=plan_reused,
+                    ),
                     timeout=max(30, settings.research_timeout_seconds),
                 )
             except asyncio.TimeoutError as exc:

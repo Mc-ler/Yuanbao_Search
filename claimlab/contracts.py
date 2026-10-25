@@ -20,7 +20,7 @@ CST = timezone(timedelta(hours=8))
 Anchor = Literal["strong", "weak", "none"]
 TaskMode = Literal["verify_claim", "research_topic"]
 Grade = Literal["A", "B", "C", "D", "E"]
-Relation = Literal["support", "refute", "unrelated"]
+Relation = Literal["support", "refute", "unrelated", "unknown"]
 Verdict = Literal["established", "refuted", "conflict", "suspect", "insufficient"]
 FailureType = Literal["not_exists", "not_indexed", "query_mismatch", "search_disabled"]
 Precision = Literal["precise", "fuzzy"]
@@ -418,6 +418,7 @@ class ResearchReport:
     unverified: list[str] = field(default_factory=list)
     citations: list[str] = field(default_factory=list)
     aggregate: dict[str, Any] = field(default_factory=dict)
+    degraded: dict[str, Any] = field(default_factory=dict)
     guidance: str = ""
     disclaimer: str = "本页只核对公开说法与来源，不评价个人，不构成消费建议。"
     kind: str = "verification"

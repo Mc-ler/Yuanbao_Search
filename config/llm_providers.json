@@ -50,7 +50,15 @@
       "default_model": "deepseek-flash",
       "timeout_seconds": 90,
       "vision": false,
-      "legacy_key": false
+      "legacy_key": false,
+      "thinking": "disabled",
+      "max_tokens": 4096,
+      "task_options": {
+        "answer": {
+          "thinking": "auto",
+          "max_tokens": 8192
+        }
+      }
     }
   },
   "task_routes": {

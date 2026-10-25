@@ -13,14 +13,16 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import re
+import time
 from dataclasses import asdict
 from typing import Any, Protocol
 
 import httpx
 
 from ..config import Settings
-from ..contracts import Claim, ResearchTask, SearchPage
+from ..contracts import Claim, ResearchTask, SearchPage, now_iso
 from ..keys import (
     LLMConfigError,
     LLMProvider,
@@ -29,7 +31,10 @@ from ..keys import (
     load_llm_registry,
     select_llm,
 )
+from ..logging import event
 from ..search.cache import DiskCache, cache_key
+
+logger = logging.getLogger("claimlab.llm")
 
 
 class LLMError(RuntimeError):
@@ -139,6 +144,14 @@ class OpenAICompatLLM:
         self.last_vision_used = False
         self.calls = 0
         self.cache_hits = 0
+        self.last_task = ""
+        self.last_model = ""
+        self.last_finish_reason = ""
+        self.last_error = ""
+        self.last_error_at = ""
+        self.last_ok_at = ""
+        self.last_latency_ms = 0.0
+        self.last_reasoning_tokens = 0
 
     def _client_for(self, provider: LLMProvider) -> httpx.AsyncClient:
         client = self._clients.get(provider.name)
@@ -183,7 +196,8 @@ class OpenAICompatLLM:
             provider = next((item for item in self.registry.providers.values() if item.key_present), None)
         if provider is None:
             raise LLMConfigError(
-                "no LLM key configured; set GPT_API_KEY / CODEX_API_KEY / TOKLENS_API_KEY (or LLM_API_KEY)"
+                "no LLM key configured; set DEEPSEEK_API_KEY "
+                "(or another provider key declared in config/llm_providers.json)"
             )
         return provider
 
@@ -255,6 +269,73 @@ class OpenAICompatLLM:
             raise last_error
         raise httpx.HTTPError("chat completion failed without response")
 
+    @staticmethod
+    def _task_params(provider: LLMProvider, task: str) -> tuple[int, str]:
+        options = provider.task_options.get(task) or {}
+        try:
+            max_tokens = max(256, int(options.get("max_tokens") or provider.max_tokens or 4096))
+        except (TypeError, ValueError):
+            max_tokens = 4096
+        thinking = str(options.get("thinking") or provider.thinking or "auto").strip().lower()
+        if thinking not in {"auto", "disabled"}:
+            thinking = "auto"
+        return max_tokens, thinking
+
+    @staticmethod
+    def _read_choice(data: dict[str, Any]) -> tuple[str, str, dict[str, Any], int]:
+        try:
+            choice = data["choices"][0]
+            content = choice["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMError("unexpected LLM response shape") from exc
+        finish = str(choice.get("finish_reason") or "")
+        usage = data.get("usage") or {}
+        details = usage.get("completion_tokens_details") or {}
+        try:
+            reasoning = int(details.get("reasoning_tokens") or 0)
+        except (TypeError, ValueError):
+            reasoning = 0
+        return str(content or ""), finish, usage, reasoning
+
+    def _record_success(
+        self,
+        task: str,
+        model: str,
+        finish: str,
+        reasoning: int,
+        latency_ms: float,
+    ) -> None:
+        self.last_task = task
+        self.last_model = model
+        self.last_finish_reason = finish
+        self.last_ok_at = now_iso()
+        self.last_latency_ms = round(latency_ms, 1)
+        self.last_reasoning_tokens = reasoning
+        event(
+            logger,
+            "llm.ok",
+            task=task,
+            model=model,
+            finish_reason=finish or None,
+            reasoning_tokens=reasoning,
+            latency_ms=round(latency_ms, 1),
+        )
+
+    def _record_error(self, task: str, model: str, error: str, http_status: int | None = None) -> None:
+        self.last_task = task
+        self.last_model = model
+        self.last_error = error[:400]
+        self.last_error_at = now_iso()
+        event(
+            logger,
+            "llm.error",
+            level=logging.WARNING,
+            task=task,
+            model=model,
+            http=http_status,
+            error=self.last_error,
+        )
+
     async def json(
         self,
         task: str,
@@ -267,12 +348,18 @@ class OpenAICompatLLM:
         images = [image for image in (images or []) if image.get("data_url") or image.get("url")]
         use_images = bool(images) and provider.vision and provider.name not in self._vision_disabled
         image_keys = self._image_hashes(images) if use_images else []
-        key = cache_key("llm", provider.name, chosen_model, task, system_prompt, payload, image_keys)
-        text_key = cache_key("llm", provider.name, chosen_model, task, system_prompt, payload)
+        max_tokens, thinking = self._task_params(provider, task)
+        key = cache_key(
+            "llm", provider.name, chosen_model, task, system_prompt, payload, image_keys, max_tokens, thinking
+        )
+        text_key = cache_key(
+            "llm", provider.name, chosen_model, task, system_prompt, payload, [], max_tokens, thinking
+        )
         cached = self._cache.get(key if use_images else text_key)
         if cached is not None:
             self.cache_hits += 1
             self.last_vision_used = use_images
+            event(logger, "llm.cache_hit", task=task, provider=provider.name, model=chosen_model)
             return cached
 
         messages = self._messages(payload, system_prompt, images if use_images else None)
@@ -291,54 +378,145 @@ class OpenAICompatLLM:
 
         client = self._client_for(provider)
         last_error = ""
-        for index, candidate in enumerate(candidates):
-            body: dict[str, Any] = {
-                "model": candidate,
-                "messages": messages,
-                "temperature": 0,
-                "max_tokens": 4096 if task == "answer" else 1200,
-                "response_format": {"type": "json_object"},
-            }
-            self.calls += 1
-            try:
-                response = await self._post_chat(client, body)
-            except httpx.HTTPError as exc:
-                last_error = f"transport: {type(exc).__name__}"
-                if index + 1 < len(candidates):
-                    continue
-                raise LLMError(last_error) from exc
+
+        async def send(body: dict[str, Any]) -> httpx.Response:
+            response = await self._post_chat(client, body)
             if response.status_code in (400, 422):
                 body.pop("response_format", None)
                 self.calls += 1
                 response = await self._post_chat(client, body)
-            if response.status_code >= 400 and use_images and _is_vision_error(response.status_code, response.text):
-                # The provider rejected image content. Disable vision for this
-                # provider and retry the same candidate with text-only input.
-                self._vision_disabled.add(provider.name)
-                use_images = False
-                key = text_key
-                messages = self._messages(payload, system_prompt, None)
-                body["messages"] = messages
-                body.pop("response_format", None)
+            return response
+
+        # ``auto`` keeps the provider's thinking default; ``disabled`` is the
+        # deterministic JSON fallback. The configured mode runs first, then the
+        # disabled mode if JSON was truncated/empty.
+        modes = [thinking]
+        if thinking != "disabled":
+            modes.append("disabled")
+
+        for index, candidate in enumerate(candidates):
+            for mode in modes:
+                body: dict[str, Any] = {
+                    "model": candidate,
+                    "messages": messages,
+                    "temperature": 0,
+                    "max_tokens": max_tokens,
+                    "response_format": {"type": "json_object"},
+                }
+                if mode == "disabled":
+                    body["thinking"] = {"type": "disabled"}
+                started = time.perf_counter()
                 self.calls += 1
-                response = await self._post_chat(client, body)
-            if response.status_code >= 400:
-                last_error = f"HTTP {response.status_code}: {response.text[:300]}"
-                retryable = _is_model_error(response.status_code, response.text) or response.status_code == 429
-                if retryable and index + 1 < len(candidates):
+                try:
+                    response = await send(body)
+                    if (
+                        response.status_code >= 400
+                        and use_images
+                        and _is_vision_error(response.status_code, response.text)
+                    ):
+                        # The provider rejected image content. Disable vision for
+                        # this provider and retry the same candidate text-only.
+                        self._vision_disabled.add(provider.name)
+                        use_images = False
+                        key = text_key
+                        messages = self._messages(payload, system_prompt, None)
+                        body["messages"] = messages
+                        body.pop("response_format", None)
+                        self.calls += 1
+                        response = await send(body)
+                except httpx.HTTPError as exc:
+                    last_error = f"transport: {type(exc).__name__}"
+                    self._record_error(task, candidate, last_error)
+                    if index + 1 < len(candidates):
+                        break
+                    raise LLMError(last_error) from exc
+                latency_ms = (time.perf_counter() - started) * 1000
+                if response.status_code >= 400:
+                    last_error = f"HTTP {response.status_code}: {response.text[:300]}"
+                    self._record_error(task, candidate, last_error, response.status_code)
+                    retryable = (
+                        _is_model_error(response.status_code, response.text)
+                        or response.status_code == 429
+                    )
+                    if retryable and index + 1 < len(candidates):
+                        break
+                    raise LLMError(last_error)
+                try:
+                    data = response.json()
+                    content, finish, _usage, reasoning = self._read_choice(data)
+                except (ValueError, LLMError) as exc:
+                    last_error = f"{type(exc).__name__}: {exc}"
+                    self._record_error(task, candidate, last_error, response.status_code)
+                    if index + 1 < len(candidates):
+                        break
+                    raise LLMError(last_error) from exc
+                event(
+                    logger,
+                    "llm.call",
+                    task=task,
+                    provider=provider.name,
+                    model=candidate,
+                    thinking=mode,
+                    max_tokens=max_tokens,
+                    http=response.status_code,
+                    finish_reason=finish or None,
+                    reasoning_tokens=reasoning,
+                    content_chars=len(content),
+                    latency_ms=round(latency_ms, 1),
+                )
+                if finish == "length":
+                    last_error = "finish_reason=length"
+                    if mode != "disabled":
+                        event(
+                            logger,
+                            "llm.retry",
+                            level=logging.WARNING,
+                            task=task,
+                            model=candidate,
+                            reason="finish_length",
+                            thinking=mode,
+                        )
+                        continue
+                    if index + 1 < len(candidates):
+                        break
+                    raise LLMError("finish_reason=length after thinking disabled")
+                try:
+                    parsed = _coerce_content(task, content)
+                except (LLMError, json.JSONDecodeError) as exc:
+                    last_error = f"{type(exc).__name__}: {exc}"
+                    self._record_error(task, candidate, last_error, response.status_code)
+                    if mode != "disabled":
+                        event(
+                            logger,
+                            "llm.retry",
+                            level=logging.WARNING,
+                            task=task,
+                            model=candidate,
+                            reason="invalid_json",
+                            thinking=mode,
+                        )
+                        continue
+                    if index + 1 < len(candidates):
+                        break
+                    raise LLMError(last_error) from exc
+                if not isinstance(parsed, dict):
+                    last_error = "model returned a non-object JSON value"
+                    if mode != "disabled":
+                        continue
+                    if index + 1 < len(candidates):
+                        break
+                    raise LLMError(last_error)
+                if not parsed and mode != "disabled":
+                    # A valid but empty JSON object usually means the model spent
+                    # its budget on reasoning; retry once without thinking.
+                    last_error = "empty JSON object"
                     continue
-                raise LLMError(last_error)
-            data = response.json()
-            try:
-                content = data["choices"][0]["message"]["content"]
-            except (KeyError, IndexError, TypeError) as exc:
-                raise LLMError("unexpected LLM response shape") from exc
-            parsed = _coerce_content(task, content)
-            self._selected[(provider.name, task)] = candidate
-            self.model = candidate
-            self.last_vision_used = use_images
-            self._cache.set(key, parsed)
-            return parsed
+                self._selected[(provider.name, task)] = candidate
+                self.model = candidate
+                self.last_vision_used = use_images
+                self._cache.set(key if use_images else text_key, parsed)
+                self._record_success(task, candidate, finish, reasoning, latency_ms)
+                return parsed
         raise LLMError(last_error or "LLM request failed")
 
     def describe(self) -> dict[str, Any]:
@@ -368,6 +546,16 @@ class OpenAICompatLLM:
             "vision": any(item.get("vision") for item in public["providers"]),
             "vision_disabled": sorted(self._vision_disabled),
             "last_vision_used": self.last_vision_used,
+            "last_task": self.last_task or None,
+            "last_model": self.last_model or None,
+            "last_finish_reason": self.last_finish_reason or None,
+            "last_error": self.last_error or None,
+            "last_error_at": self.last_error_at or None,
+            "last_ok_at": self.last_ok_at or None,
+            "last_latency_ms": self.last_latency_ms or None,
+            "last_reasoning_tokens": self.last_reasoning_tokens,
+            "calls": self.calls,
+            "cache_hits": self.cache_hits,
         }
 
     async def close(self) -> None:

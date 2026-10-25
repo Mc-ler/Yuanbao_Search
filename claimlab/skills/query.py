@@ -13,12 +13,95 @@ per requirement must carry Site= or Industry=.
 from __future__ import annotations
 
 import json
+import logging
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 from ..config import CONFIG_DIR
 from ..contracts import Claim, QueryPlan, Requirement, make_id, normalize_cnt
+from ..logging import event
+
+logger = logging.getLogger("claimlab.query")
+
+# SearchPro treats ``Site`` as an exact indexed host: ``www.stats.gov.cn``
+# returns pages while ``stats.gov.cn`` / ``gov.cn`` silently return zero.
+# Only this allowlist (plus exact ``www.*.gov.cn`` hosts) may reach the API.
+SITE_ALLOWLIST = {
+    "www.stats.gov.cn",
+    "www.gov.cn",
+    "www.ncha.gov.cn",
+    "www.mohurd.gov.cn",
+    "www.shaanxi.gov.cn",
+    "www.xa.gov.cn",
+    "www.beijing.gov.cn",
+    "www.shanghai.gov.cn",
+    "www.mct.gov.cn",
+    "www.samr.gov.cn",
+    "www.court.gov.cn",
+    "www.creditchina.gov.cn",
+    "www.12315.cn",
+    "www.ndrc.gov.cn",
+    "www.mwr.gov.cn",
+    "www.moe.gov.cn",
+    "www.mot.gov.cn",
+    "www.miit.gov.cn",
+    "www.nhc.gov.cn",
+    "www.mca.gov.cn",
+    "www.mof.gov.cn",
+    "www.pbc.gov.cn",
+    "www.customs.gov.cn",
+    "www.cnipa.gov.cn",
+    "www.people.com.cn",
+    "www.xinhuanet.com",
+    "www.news.cn",
+    "www.cctv.com",
+    "www.cnr.cn",
+    "www.thepaper.cn",
+    "www.caixin.com",
+    "www.jiemian.com",
+    "www.bjnews.com.cn",
+    "www.chinanews.com.cn",
+    "www.gmw.cn",
+    "www.youth.cn",
+    "www.ce.cn",
+    "www.chinadaily.com.cn",
+    "www.stdaily.com",
+    "163.com",
+    "qq.com",
+    "news.qq.com",
+    "baike.baidu.com",
+    "dianping.com",
+    "amap.com",
+    "ctrip.com",
+    "mp.weixin.qq.com",
+}
+
+_SITE_OPERATOR_RE = re.compile(r"(?i)(?:^|\s)site:\S+\s*")
+
+
+def normalize_site(value: Any) -> str | None:
+    """Return an exact indexed host, or None for apex/unknown/invalid values."""
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return None
+    host = (urlsplit(raw).hostname or "") if "://" in raw else raw.split("/")[0].strip()
+    host = host.strip(".")
+    if not host:
+        return None
+    if host in SITE_ALLOWLIST:
+        return host
+    if host.startswith("www.") and host.endswith(".gov.cn"):
+        return host
+    return None
+
+
+def strip_site_operator(query: str) -> str:
+    """Remove ``site:host`` tokens; SearchPro ignores the operator and treats it
+    as plain text, which silently lowers relevance."""
+    return re.sub(r"\s+", " ", _SITE_OPERATOR_RE.sub(" ", str(query or ""))).strip()
 
 
 @lru_cache(maxsize=1)
@@ -125,7 +208,8 @@ def plan_queries(
     source_preference = getattr(target, "source_preference", None)
     variants = field_cfg.get("variants") or ["{focus}"]
     precise = dict(field_cfg.get("precise") or {})
-    if source_preference and not precise.get("site") and not precise.get("industry"):
+    precise_site = normalize_site(precise.get("site"))
+    if source_preference and not precise_site and not precise.get("industry"):
         precise["industry"] = source_preference
     target_window = getattr(target, "time_window", None)
     freshness = target_window if target_window and target_window != "12m" else field_cfg.get("freshness")
@@ -164,7 +248,7 @@ def plan_queries(
             candidates = [
                 make(
                     variants[0],
-                    site=precise.get("site"),
+                    site=precise_site,
                     industry=precise.get("industry"),
                     precision="precise",
                     strategy="定向检索",
@@ -183,7 +267,7 @@ def plan_queries(
                 make(variants[0], precision="fuzzy", strategy="裸查询"),
                 make(
                     variants[1] if len(variants) > 1 else variants[0],
-                    site=precise.get("site"),
+                    site=precise_site,
                     industry=precise.get("industry"),
                     precision="precise",
                     strategy="定向检索",
@@ -195,16 +279,16 @@ def plan_queries(
     else:
         # A retry must change the strategy: swap the directed parameter and
         # use a different phrasing. Never re-run the same query.
-        if precise.get("site"):
+        if precise_site:
             alt_industry = "gov" if field in OFFICIAL_FIELDS else "news"
             candidates = [
                 make(variants[0], industry=alt_industry, precision="precise", strategy="换 Industry"),
-                make(variants[-1], site=precise.get("site"), precision="precise", strategy="换表述 + Site"),
+                make(variants[-1], site=precise_site, precision="precise", strategy="换表述 + Site"),
             ]
         elif field in OFFICIAL_FIELDS:
             candidates = [
                 make(variants[0], industry="gov", precision="precise", strategy="换 Industry"),
-                make(variants[-1], site="gov.cn", precision="precise", strategy="换表述 + Site"),
+                make(variants[-1], site="www.gov.cn", precision="precise", strategy="换表述 + Site"),
             ]
         else:
             alt_site = "dianping.com" if field in {"price", "hours"} else "ctrip.com"
@@ -405,10 +489,12 @@ def coerce_llm_queries(
     for index, item in enumerate(raw_items):
         if not isinstance(item, dict):
             continue
-        query = str(item.get("query") or "").strip()
+        query = strip_site_operator(str(item.get("query") or ""))
         if not query:
             continue
-        site = str(item.get("site") or "").strip() or None
+        # A5/B: never forward an apex or unknown host. SearchPro fails closed
+        # with HTTP 200 + zero pages, so a bad Site costs a full query.
+        site = normalize_site(item.get("site"))
         industry = str(item.get("industry") or "").strip() or None
         if industry and industry not in _ALLOWED_INDUSTRY:
             industry = None
@@ -452,7 +538,7 @@ async def build_queries_llm(
         "输出格式：{\"queries\":[{\"query\":\"...\",\"site\":null,\"industry\":null,\"freshness\":null,\"mode\":0,\"cnt\":10}]}\n"
         "规则：\n"
         "1. 生成 4-6 条查询，每条 query 用自然语言写全（把主体、城市、年份、指标都写进 query），可独立命中网页；至少包含实体查询、官方原文、数据/统计或历史、反证/争议、时间窗口五个角度中的三个。\n"
-        "2. 根据问题自动判断每条是否需要 site（站内域名）、industry（gov/news/acad）、freshness（d30/m3/m6/y1/y2/y5）或 cnt；不需要的字段填 null，cnt 默认 10。\n"
+        "2. site 默认填 null；只有确切知道站点索引 host 时才填（必须带 www 前缀，例如 www.stats.gov.cn、www.xa.gov.cn），不要写 site: 运算符。industry 取 gov/news/acad；freshness 取 d30/m3/m6/y1/y2/y5；不需要的字段填 null，cnt 默认 10。\n"
         "3. 只输出 JSON，不要解释。"
     )
     payload = {
@@ -464,6 +550,22 @@ async def build_queries_llm(
     }
     try:
         data = await llm.json("build_queries", payload, prompt)
-    except Exception:
+    except Exception as exc:
+        event(
+            logger,
+            "queries.fallback",
+            level=logging.WARNING,
+            method="template",
+            reason=f"{type(exc).__name__}: {str(exc)[:200]}",
+        )
         return []
-    return coerce_llm_queries(data, requirement)
+    plans = coerce_llm_queries(data, requirement)
+    if not plans:
+        event(
+            logger,
+            "queries.fallback",
+            level=logging.WARNING,
+            method="template",
+            reason="invalid or empty queries JSON",
+        )
+    return plans

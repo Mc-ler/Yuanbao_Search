@@ -29,6 +29,7 @@ from .contracts import (
 )
 from .search.archive import ArchiveWriter
 from .search.budget import Budget
+from .search.fallback import search_with_site_fallback
 from .search.gateway import SearchGateway
 from .search.normalize import strip_html
 from .skills import advisory as advisory_skill
@@ -138,6 +139,24 @@ class Pipeline:
             )
         return result
 
+    def _degraded(self, extraction: ExtractionResult) -> dict[str, Any]:
+        unknown = sum(
+            1
+            for unit in self.units
+            for item in unit.evidence
+            if item.relation == "unknown"
+        )
+        reasons: list[str] = []
+        if extraction.method != "llm":
+            reasons.append(f"extract={extraction.method}")
+        if unknown:
+            reasons.append(f"match=unknown:{unknown}")
+        return {
+            "extraction_method": extraction.method,
+            "unknown_evidence": unknown,
+            "reasons": reasons,
+        }
+
     async def run(
         self,
         task: ResearchTask,
@@ -201,6 +220,7 @@ class Pipeline:
                 [],
                 self.trace,
                 ReportStats(stop_reason=extraction.reason or "no_falsifiable_claim", duration_ms=int((time.monotonic() - started) * 1000)),
+                degraded=self._degraded(extraction),
             )
             safety.lint_report_text(report)
             await self._emit("run.done", {"report": reporting.report_to_dict(report), "stop_reason": report.stats.stop_reason})
@@ -251,7 +271,9 @@ class Pipeline:
                 duration_ms=int((time.monotonic() - started) * 1000),
                 stop_reason="search_off",
             )
-            report = reporting.build_report(task, extraction, self.units, [], self.trace, stats)
+            report = reporting.build_report(
+                task, extraction, self.units, [], self.trace, stats, degraded=self._degraded(extraction)
+            )
             safety.lint_report_text(report)
             await self._emit("run.stats", {"calls": 0, "cache_hits": 0, "results": 0, "clusters": 0, "stop_reason": "search_off"})
             await self._emit("run.done", {"report": reporting.report_to_dict(report), "stop_reason": "search_off"})
@@ -329,7 +351,9 @@ class Pipeline:
                         },
                     )
                     await self._emit("search.started", {"claim_id": claim.claim_id, "query_id": plan.plan_id, "query": plan.query})
-                    batch = await self.gateway.search(self.run_id, claim.claim_id, plan)
+                    batch = await search_with_site_fallback(
+                        self.gateway, self.run_id, claim.claim_id, plan
+                    )
                     query_trace = QueryTrace(
                         query_id=plan.plan_id,
                         query=plan.query,
@@ -518,7 +542,9 @@ class Pipeline:
             duration_ms=int((time.monotonic() - started) * 1000),
             stop_reason=self.budget.stop_reason or "completed",
         )
-        report = reporting.build_report(task, extraction, self.units, self.rounds, self.trace, stats)
+        report = reporting.build_report(
+            task, extraction, self.units, self.rounds, self.trace, stats, degraded=self._degraded(extraction)
+        )
         safety.lint_report_text(report)
         await self._emit(
             "run.stats",

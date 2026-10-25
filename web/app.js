@@ -27,6 +27,7 @@ const I18N = {
     'status.screenshotTitle': '截图证据开关（需要 Chrome）', 'status.theme': '切换主题',
     'status.lang': '切换语言', 'status.settings': '配置',
     'status.checking': '检查中', 'status.missing': '未配置', 'status.ready': '就绪',
+    'status.recentError': '最近调用失败',
     'status.unavailable': '不可用', 'status.available': '可用',
     'status.screenshotOn': '截图 · 已启用', 'status.screenshotOff': '截图 · 已关闭', 'status.screenshotUnavailable': '截图 · 不可用',
     'hero.title': '今天想查什么？',
@@ -51,6 +52,8 @@ const I18N = {
     'report.verdict': '判定', 'report.rule': '规则', 'report.cluster': '计票',
     'report.evidence': '证据', 'report.action': '行动含义', 'report.disclaimer': '免责声明',
     'report.aiAdvisory': '模型参考意见（非判定）', 'report.noSources': '没有可用来源。',
+    'report.degraded': '本次有降级', 'report.degradedHint': '以下结果不是完整链路产出，请按提示排查。',
+    'relation.support': '支持', 'relation.refute': '反驳', 'relation.unrelated': '无关', 'relation.unknown': '未判定',
     'metric.requirements': '需求覆盖 A/B', 'metric.ab': 'A/B 来源占比', 'metric.unique': '去重后页数',
     'metric.duplicates': '去重条数', 'metric.directed': '定向查询占比', 'metric.screenshots': '截图',
     'metric.queries': '查询数', 'metric.contentPages': '内容页', 'metric.domains': '独立域',
@@ -71,6 +74,7 @@ const I18N = {
     'log.ledger': '来源分册：{field} / {tier} / 去重后 {unique} 页 / {clusters} 簇',
     'log.dedup': '去重：原始 {raw} 页 → 唯一 {unique} 页，移除 {removed} 条重复', 'log.screenshot': '截图证据：{n} 张',
     'log.answer': '研究综述：引擎 {engine}，引用 {citations} 条', 'log.done': '完成：{reason}',
+    'log.degraded': '本次有降级：{reasons}',
     'log.split': '拆出 {n} 条断言', 'log.searchResult': '检索：{pages} 页{error}', 'log.round': '第 {round} 轮：{verdict}（{rule}）',
     'log.unit': '判定：{text} → {verdict}（{rule}）', 'log.stats': '统计：检索 {calls} 次，缓存 {hits} 次，簇 {clusters} 个',
     'log.advisory': '已生成 R5 参考意见（非判定）', 'log.connected': 'SSE 已连接，等待事件…', 'log.polling': 'SSE 中断，切换轮询',
@@ -90,6 +94,7 @@ const I18N = {
     'status.screenshotTitle': 'Screenshot evidence toggle (Chrome required)', 'status.theme': 'Toggle theme',
     'status.lang': 'Switch language', 'status.settings': 'Settings',
     'status.checking': 'checking', 'status.missing': 'not configured', 'status.ready': 'ready',
+    'status.recentError': 'last call failed',
     'status.unavailable': 'unavailable', 'status.available': 'available',
     'status.screenshotOn': 'Shots · on', 'status.screenshotOff': 'Shots · off', 'status.screenshotUnavailable': 'Shots · n/a',
     'hero.title': 'What would you like to verify?',
@@ -114,6 +119,8 @@ const I18N = {
     'report.verdict': 'Verdict', 'report.rule': 'Rule', 'report.cluster': 'Cluster votes',
     'report.evidence': 'Evidence', 'report.action': 'Action', 'report.disclaimer': 'Disclaimer',
     'report.aiAdvisory': 'Model note (not a verdict)', 'report.noSources': 'No usable sources.',
+    'report.degraded': 'This run is degraded', 'report.degradedHint': 'The result is not a full-chain output; see the reasons.',
+    'relation.support': 'support', 'relation.refute': 'refute', 'relation.unrelated': 'unrelated', 'relation.unknown': 'not judged',
     'metric.requirements': 'Requirements A/B', 'metric.ab': 'A/B source rate', 'metric.unique': 'Unique pages',
     'metric.duplicates': 'Duplicates removed', 'metric.directed': 'Directed queries', 'metric.screenshots': 'Screenshots',
     'metric.queries': 'Queries', 'metric.contentPages': 'Content pages', 'metric.domains': 'Domains',
@@ -134,6 +141,7 @@ const I18N = {
     'log.ledger': 'Source ledger: {field} / {tier} / {unique} unique pages / {clusters} clusters',
     'log.dedup': 'Dedupe: {raw} raw pages → {unique} unique, {removed} duplicates', 'log.screenshot': 'Screenshot evidence: {n}',
     'log.answer': 'Synthesis: engine {engine}, {citations} citations', 'log.done': 'Done: {reason}',
+    'log.degraded': 'Degraded run: {reasons}',
     'log.split': 'Extracted {n} claims', 'log.searchResult': 'Search: {pages} pages{error}', 'log.round': 'Round {round}: {verdict} ({rule})',
     'log.unit': 'Verdict: {text} → {verdict} ({rule})', 'log.stats': 'Stats: {calls} searches, {hits} cache hits, {clusters} clusters',
     'log.advisory': 'R5 model note generated (not a verdict)', 'log.connected': 'SSE connected, waiting for events…', 'log.polling': 'SSE interrupted; falling back to polling',
@@ -298,12 +306,18 @@ function renderStatus() {
   const settings = health.settings || {};
   const llm = health.llm || {};
   const llmReady = Boolean(llm.key_present);
+  const llmErrorAt = String(llm.last_error_at || '');
+  const llmOkAt = String(llm.last_ok_at || '');
+  const llmError = Boolean(llm.last_error) && (!llmOkAt || llmErrorAt > llmOkAt);
+  const llmHealthy = llmReady && !llmError;
   const llmChip = $('llmStatus');
-  llmChip.className = 'status-chip ' + (llmReady ? 'ok' : 'warn');
-  $('llmStatusText').textContent = llmReady
-    ? (llm.provider || 'LLM') + ' / ' + (llm.model || t('status.ready'))
-    : t('status.missing');
-  llmChip.title = t('status.llmTitle');
+  llmChip.className = 'status-chip ' + (llmHealthy ? 'ok' : 'warn');
+  $('llmStatusText').textContent = !llmReady
+    ? t('status.missing')
+    : (llmError ? t('status.recentError') : (llm.provider || 'LLM') + ' / ' + (llm.model || t('status.ready')));
+  llmChip.title = llmError
+    ? t('status.llmTitle') + ': ' + String(llm.last_error || '')
+    : t('status.llmTitle');
 
   const searchReady = Boolean(health.search_ready || settings.search_ready);
   const searchChip = $('searchStatus');
@@ -321,13 +335,16 @@ function renderStatus() {
   shotToggle.disabled = !canShots || state.busy;
   shotToggle.title = !canShots
     ? (shots.reason || t('status.unavailable'))
-    : (enabled ? t('config.shotEnabled') : t('config.shotDisabled'));
+    : (enabled ? t('config.shotEnabled') : t('config.shotDisabled')) +
+      (shots.last_error ? ' / ' + String(shots.last_error) : '');
   $('screenshotLabel').textContent = !canShots
     ? t('status.screenshotUnavailable')
     : (enabled ? t('status.screenshotOn') : t('status.screenshotOff'));
 
-  $('llmConfigStatus').textContent = llmReady ? t('config.statusReady') : t('config.statusMissing');
-  $('llmConfigStatus').className = 'config-status ' + (llmReady ? 'ok' : 'warn');
+  $('llmConfigStatus').textContent = !llmReady
+    ? t('config.statusMissing')
+    : (llmError ? t('status.recentError') : t('config.statusReady'));
+  $('llmConfigStatus').className = 'config-status ' + (llmHealthy ? 'ok' : 'warn');
   $('searchConfigStatus').textContent = searchReady ? t('config.searchReady') : t('config.searchMissing');
   $('searchConfigStatus').className = 'config-status ' + (searchReady ? 'ok' : 'warn');
 
@@ -520,7 +537,11 @@ function renderLogs() {
 function buildResearchLogs(data) {
   const metrics = data.metrics || {};
   const answer = data.answer || {};
+  const degradedReasons = (data.degraded && data.degraded.reasons) || [];
   state.logs.research = [];
+  if (degradedReasons.length) {
+    addLog('research', 'error', t('log.degraded', { reasons: degradedReasons.join('；') }), 'error');
+  }
   addLog('research', 'plan', t('log.plan', { n: metrics.requirements || 0, method: data.method || '-' }));
   (data.queries || []).forEach((query) => {
     addLog('research', 'query', t('log.query', { query: query.query || '' }));
@@ -682,8 +703,14 @@ function researchReport(report) {
   const timeNote = report.as_of
     ? '<p class="time-note">' + esc(t('report.asOf')) + ' ' + esc(report.as_of) + (report.time_context && report.time_context.stale ? ' · ' + esc(t('report.stale')) : '') + '</p>'
     : '';
+  const degradedReasons = (report.degraded && report.degraded.reasons) || [];
+  const degradedNote = degradedReasons.length
+    ? '<p class="degraded-note"><strong>' + esc(t('report.degraded')) + '</strong> · ' +
+      esc(t('report.degradedHint')) + '<br>' + esc(degradedReasons.join('；')) + '</p>'
+    : '';
   return '<section class="report-content">' +
     '<div class="report-summary"><h3>' + esc(t('report.summary')) + '</h3>' + timeNote + '<p>' + linkCitations(String(report.summary || '')).replace(/\n/g, '<br>') + '</p></div>' +
+    degradedNote +
     (report.uncertainty ? '<p class="answer-note">' + esc(report.uncertainty) + '</p>' : '') + issues +
     (claims ? '<h3 class="report-subhead">' + esc(t('report.claims')) + '</h3><div class="claim-list">' + claims + '</div>' : '') +
     '<div class="metric-grid">' +
@@ -703,18 +730,44 @@ function researchReport(report) {
     '</section>';
 }
 
+function aggregateSummary(aggregate) {
+  const counts = (aggregate && aggregate.counts) || {};
+  const labels = { established: '成立', refuted: '不成立', conflict: '结论冲突', suspect: '存疑', insufficient: '无法确定' };
+  const order = ['established', 'refuted', 'conflict', 'suspect', 'insufficient'];
+  const parts = [];
+  let total = 0;
+  order.forEach((key) => {
+    const n = Number(counts[key] || 0);
+    if (n > 0) { total += n; parts.push(n + ' 条' + labels[key]); }
+  });
+  if (!total) return (aggregate && aggregate.overall_label) || '未拆出可核验断言。';
+  const overall = aggregate && aggregate.overall;
+  if (parts.length === 1 && ['all_established', 'all_refuted', 'insufficient'].includes(overall)) {
+    return '共 ' + total + ' 条断言：' + (aggregate.overall_label || parts[0].replace(/^\d+ 条/, '')) + '。';
+  }
+  return '共 ' + total + ' 条断言：' + parts.join('、') + '。';
+}
+
 function verificationReport(report) {
   const guidance = report.guidance ? '<p class="answer-note">' + esc(report.guidance) + '</p>' : '';
-  const aggregateLabels = { all_established: '全部成立', all_refuted: '全部不成立', insufficient: '无法确定', mixed: '结论混合', partial: '部分可判定', no_claim: '未拆出断言' };
   const aggregate = report.aggregate && report.aggregate.overall
-    ? '<p class="result-summary">' + esc(aggregateLabels[report.aggregate.overall] || report.aggregate.overall) + ' · ' + esc(JSON.stringify(report.aggregate.counts || {})) + '</p>'
+    ? '<p class="result-summary">' + esc(report.aggregate.summary || aggregateSummary(report.aggregate)) + '</p>'
+    : '';
+  const relationLabels = {
+    support: t('relation.support'), refute: t('relation.refute'),
+    unrelated: t('relation.unrelated'), unknown: t('relation.unknown')
+  };
+  const degradedReasons = (report.degraded && report.degraded.reasons) || [];
+  const degradedNote = degradedReasons.length
+    ? '<p class="degraded-note"><strong>' + esc(t('report.degraded')) + '</strong> · ' +
+      esc(t('report.degradedHint')) + '<br>' + esc(degradedReasons.join('；')) + '</p>'
     : '';
   const units = (report.units || []).map((unit) => {
     const evidence = (unit.evidence || []).map((item) => {
       const quote = item.quote ? '<blockquote>' + esc(item.quote) + '</blockquote>' : '';
       return '<li class="source"><span class="grade grade-' + esc(item.grade) + '">' + esc(item.grade || '?') + '</span>' +
         '<div class="source-body"><a href="' + esc(safeUrl(item.url)) + '" target="_blank" rel="noopener">' + esc(item.title || item.domain) + '</a>' +
-        '<p>' + esc(item.relation || '') + (item.date ? ' · ' + esc(item.date) : '') + '</p>' + quote + '</div></li>';
+        '<p>' + esc(relationLabels[item.relation] || item.relation || '') + (item.date ? ' · ' + esc(item.date) : '') + '</p>' + quote + '</div></li>';
     }).join('');
     const advisory = unit.advisory ? '<p class="advisory">' + esc(t('report.aiAdvisory')) + ': ' + esc(unit.advisory.text || '') + '</p>' : '';
     return '<article class="result-card"><div class="result-head"><div><p class="eyebrow">' + esc(unit.assertion && unit.assertion.field || '') + '</p>' +
@@ -726,7 +779,7 @@ function verificationReport(report) {
       (evidence ? '<ul class="sources">' + evidence + '</ul>' : '') + '</article>';
   }).join('');
   return '<section class="report-content"><div class="report-summary"><h3>' + esc(t('report.verdict')) + '</h3>' +
-    '<p>' + esc(report.task && report.task.text || '') + '</p>' + aggregate + '</div>' + guidance + units +
+    '<p>' + esc(report.task && report.task.text || '') + '</p>' + aggregate + '</div>' + degradedNote + guidance + units +
     '<p class="answer-note">' + esc(report.disclaimer || '') + '</p></section>';
 }
 

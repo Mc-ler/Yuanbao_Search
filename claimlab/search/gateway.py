@@ -12,7 +12,7 @@ from dataclasses import asdict
 from typing import Any
 
 from ..config import Settings
-from ..contracts import SearchBatch, SearchPage, SearchRequest
+from ..contracts import SearchBatch, SearchPage, SearchRequest, now_iso
 from ..logging import event
 from .archive import ArchiveWriter
 from .base import ProviderHealth, SearchProvider
@@ -20,6 +20,12 @@ from .budget import Budget, BudgetExceeded
 from .cache import DiskCache, cache_key
 
 logger = logging.getLogger("claimlab.search")
+
+_LAST_ZERO: dict[str, str] = {"at": "", "query": "", "provider": ""}
+
+
+def search_zero_status() -> dict[str, str]:
+    return dict(_LAST_ZERO)
 
 
 def _official(domain: str) -> bool:
@@ -181,6 +187,8 @@ class SearchGateway:
                 provider_key = cache_key("search", name, request.to_api_body())
                 if batch.pages:
                     self.cache.set(provider_key, _batch_to_cache(batch))
+                else:
+                    _LAST_ZERO.update(at=now_iso(), query=request.query, provider=name)
                 self.archive.write_search(run_id, request.to_api_body(), batch, name, False)
                 event(
                     logger,

@@ -159,7 +159,7 @@ def _verdict(pool: list[Evidence], only_a: bool = False, claim_text: str = "") -
 def _cluster_votes(pool: list[Evidence]) -> ClusterVotes:
     groups: dict[str, list[Evidence]] = {}
     for item in pool:
-        if item.relation == "unrelated":
+        if item.relation in {"unrelated", "unknown"}:
             continue
         key = item.cluster_id or item.evidence_id
         groups.setdefault(key, []).append(item)

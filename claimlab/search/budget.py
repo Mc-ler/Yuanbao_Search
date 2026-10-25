@@ -8,10 +8,12 @@ process; cache hits are counted separately and never charged.
 from __future__ import annotations
 
 import json
+import os
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from ..contracts import CST
 from ..fsutil import atomic_write_text
@@ -57,9 +59,43 @@ class Budget:
         except (OSError, ValueError, TypeError):
             return 0
 
-    def _save_daily(self) -> None:
-        payload = {"date": self._day_key, "calls": self._daily_calls}
+    def _save_daily(self, calls: int | None = None) -> None:
+        value = self._daily_calls if calls is None else calls
+        payload = {"date": self._day_key, "calls": value}
         atomic_write_text(self._daily_path, json.dumps(payload))
+
+    @contextmanager
+    def _daily_lock(self) -> Iterator[None]:
+        """Cross-process lock for the read-modify-write daily counter.
+
+        Two local instances (8000 + 8010) previously raced on this JSON file and
+        lost calls, which silently raised the effective daily quota.
+        """
+        lock_path = self._daily_path.with_suffix(".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(lock_path, "a+b") as handle:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"0")
+                handle.flush()
+            handle.seek(0)
+            if os.name == "nt":
+                import msvcrt
+
+                msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+                try:
+                    yield
+                finally:
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                try:
+                    yield
+                finally:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
     @property
     def elapsed_seconds(self) -> float:
@@ -79,17 +115,22 @@ class Budget:
         if self.calls >= self.max_per_run:
             self.stop_reason = "run_budget"
             raise BudgetExceeded("run_budget", {"calls": self.calls})
-        if self._daily_calls >= self.max_per_day:
-            self.stop_reason = "daily_budget"
-            raise BudgetExceeded("daily_budget", {"daily_calls": self._daily_calls})
         used = self.per_assertion.get(assertion_id, 0)
         if used >= self.max_per_assertion:
             self.stop_reason = "assertion_budget"
             raise BudgetExceeded("assertion_budget", {"assertion_id": assertion_id, "calls": used})
+        # Read-modify-write under a cross-process lock: the daily counter is
+        # shared by every local instance, not just this process.
+        with self._daily_lock():
+            daily = self._load_daily()
+            if daily >= self.max_per_day:
+                self.stop_reason = "daily_budget"
+                raise BudgetExceeded("daily_budget", {"daily_calls": daily})
+            daily += 1
+            self._save_daily(daily)
+            self._daily_calls = daily
         self.calls += 1
-        self._daily_calls += 1
         self.per_assertion[assertion_id] = used + 1
-        self._save_daily()
 
     def hit(self) -> None:
         self.cache_hits += 1

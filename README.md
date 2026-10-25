@@ -30,7 +30,7 @@
 - <strong>一句话查证</strong>：说法 → 断言抽取 → 定向查询 → 检索 → 去重 → 分级 → 匹配（引文校验）→ <strong>R1–R5 确定性判定</strong> → 报告。R5 时附加“非判定”模型参考意见。
 - 共用检索网关、来源分级、安全护栏、缓存/预算/审计。
 
-当前基线：v4.2；<strong>136 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120。
+当前基线：v4.3；<strong>157 个测试通过</strong>；检索 100% 走 SearchPro；无预置示例/演示；主路径不持久化（截图仅内存）；查证预算 4/28/400，研究预算 12/48/120；DeepSeek 结构化任务默认关闭 thinking、answer 保留思考并使用 8192 输出预算；研究链路含 LLM 相关性重排。
 
 ---
 
@@ -89,7 +89,7 @@ macOS/Linux：
 | LLM_PROVIDER | deepseek | 默认 LLM 供应商 |
 | DEEPSEEK_API_KEY | 空 | DeepSeek 官方 key |
 | DEEPSEEK_BASE_URL | https://api.deepseek.com/v1 | DeepSeek OpenAI 兼容基址 |
-| LLM_MODEL | 空 | 显式模型；空则按 preferred/default + /models |
+| LLM_MODEL | deepseek-flash | 显式模型；空则按 preferred/default + /models |
 | LLM_API_KEY | 空 | 旧版单供应商回退；DeepSeek 不复用 |
 | TOKLENS/GPT/CODEX_API_KEY | 空 | 可选旧供应商 |
 | APP_HOST / APP_PORT | 127.0.0.1 / 8000 | 监听 |
@@ -106,6 +106,9 @@ macOS/Linux：
 | RESEARCH_WALL_SECONDS | 120 | 研究墙钟上限 |
 | RESEARCH_TIME_TRAVERSAL_ROUNDS | 2 | 去重后时间遍历轮次 |
 | RESEARCH_TIME_TRAVERSAL_QUERIES | 2 | 每轮时间查询上限 |
+| RERANK_ENABLED | true | 研究链路 LLM 相关性重排（D4 C） |
+| RERANK_TOP_N | 30 | 每个需求参与重排的候选数 |
+| RERANK_THRESHOLD | 0.5 | 规则过滤为 0 时用重排分数兜底 |
 | CONTENT_FETCH_ENABLED | true | 默认开启公开 A/B 页面正文抓取 |
 | CONTENT_FETCH_MAX_PAGES | 3 | 单次抓取上限 |
 | CONTENT_FETCH_TIMEOUT_SECONDS | 8 | 抓取超时 |
@@ -169,19 +172,25 @@ config/llm_providers.json 的 deepseek 片段：
       "default_model": "deepseek-flash",
       "timeout_seconds": 90,
       "vision": false,
-      "legacy_key": false
+      "legacy_key": false,
+      "thinking": "disabled",
+      "max_tokens": 4096,
+      "task_options": {
+        "answer": {"thinking": "auto", "max_tokens": 8192}
+      }
     }
 
-legacy_key=false 很关键：DeepSeek 不会误用旧的 LLM_API_KEY/TOKLENS_API_KEY，避免把 Toklens key 发给 DeepSeek 造成 401。
+legacy_key=false 很关键：DeepSeek 不会误用旧的 LLM_API_KEY/TOKLENS_API_KEY，避免把 Toklens key 发给 DeepSeek 造成 401。当前 `.env` 已删除 Toklens 的 legacy key；GPT/Codex/Toklens 的接入定义仍保留在 `config/llm_providers.json`，留空 key 即禁用。
 
 ### 5.3 稳定性
 
 - 每个 provider 独立 timeout（DeepSeek 90 秒），连接超时 10 秒。
 - 429/500/502/503/504/传输异常最多重试 3 次（指数退避）。
+- DeepSeek V4.1 Flash 是推理模型：结构化任务（decompose/build_queries/match_evidence/extract_claims/rerank_pages）默认 `thinking: {"type": "disabled"}`、`max_tokens=4096`；answer 保留思考并使用 `max_tokens=8192`。出现 `finish_reason=length` 时自动用无思考模式重试一次。
 - 模型候选：LLM_MODEL → preferred_models → default_model → /models；模型不存在时尝试下一个。
-- JSON mode 失败自动去掉 response_format 重试。
-- 缺 key/401/402 明确报错；应用层退回规则摘要，不阻塞报告。
-- 健康检查只显示 key 是否存在，不保证余额/权限；演示前必须跑 test_deepseek.py。
+- JSON mode 失败自动去掉 response_format 重试；空 JSON / 截断 JSON 也会触发无思考重试。
+- 缺 key/401/402 明确报错；应用层退回规则摘要，不阻塞报告；响应中的 `degraded` / `answer.degraded_reason` 会标明降级原因。
+- 健康检查显示 key、最近一次成功/失败时间、last_error、last_finish_reason；仍不保证余额/权限，演示前必须跑 test_deepseek.py。
 
 ### 5.4 调用示例
 
@@ -232,7 +241,9 @@ curl（bash）：
 
 - 基址 https://api.wsa.cloud.tencent.com，接口 POST /SearchPro。
 - Header Authorization: Bearer <SEARCH_API_KEY>；应用只拼一次 Bearer。
-- Body：Query、Cnt（字符串 10/20/30/40/50）、Mode，可选 Site/Industry/Freshness。
+- Body：Query、Cnt（10/20/30/40/50，整数或字符串均可；应用发字符串）、Mode，可选 Site/Industry/Freshness。
+- **Site 必须与索引 host 完全一致**：`www.xa.gov.cn` 有结果，`xa.gov.cn` / `gov.cn` / `stats.gov.cn` 会返回 HTTP 200 + 0 条。应用只允许精确 host（`www.*.gov.cn` 或白名单），并在 0 结果时自动去掉 Site 重试一次。
+- `site:` 运算符不被 SearchPro 识别（会当普通文本），查询构造器会剥离它；`Mode=1` 是 VR 垂类，通用查询通常返回 0，研究默认用 Mode 0。
 - 响应：Response.Pages（JSON 字符串/数组/双层编码，已归一化）、RequestId、Version。
 - 配置：scripts/configure_keys.py yuanbao。
 - 健康检查不发起真实检索；演示前先跑一条短问题。
@@ -269,7 +280,7 @@ curl（bash）：
 UI（v3.7 双模式工作台，简洁 LLM 风格）：
 
 - 顶部栏：LOGO + 品牌名；LLM 状态；元宝搜索状态；截图开关；主题、语言。没有通用齿轮/综合设置面板，三个组件各自独立。
-- LLM 状态：绿色=已配置，琥珀=未配置；点击只打开 LLM 专属对话框（Provider / API Key / Base URL / Model），保存只调用 /api/config/llm。
+- LLM 状态：绿色=已配置且最近一次调用成功；琥珀=未配置或最近一次调用失败（hover 看 last_error）；点击只打开 LLM 专属对话框（Provider / API Key / Base URL / Model），保存只调用 /api/config/llm。
 - 元宝搜索状态：点击只打开搜索专属对话框（Key / Base URL），保存只调用 /api/config/search。
 - 截图开关：直接独立开关；仅当检测到 Chrome/Edge 且 websockets 可用时可开启，不可用时禁用并显示原因；保存到 EVIDENCE_SCREENSHOTS，不影响 LLM/搜索。
 - 页面中心：唯一查询框，框内只保留占位提示；上方切换「深度研究 / 一句话查证」，模式按钮不显示副标题，输入框下不再显示解释性提示。两种模式共用同一个输入框，切换模式会恢复该模式上次的日志与报告。
@@ -285,7 +296,8 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
 深度研究：
 
     问题 → S1 需求拆分（focus）→ S2 共享 planner（3 条/需求）→ S3 检索网关
-      → S4 全局去重 → S5 分级/来源分册 → S8 综述（截图 + [n]）→ 报告
+      → S4 全局去重 → S4b LLM 相关性重排（每需求 top 30）→ S5 分级/来源分册
+      → S8 综述（全部 top sources + 截图 + [n]）→ 报告
 
 一句话查证：
 
@@ -303,16 +315,18 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
       contracts.py      数据契约
       config.py         Settings/.env
       keys.py           Bearer + provider registry
-      search/           api/gateway/normalize/cache/budget/archive/fake
-      skills/           requirements/query/dedup/grading/matching/judging/answer/report/advisory/citations/recency/safety
+      search/           api/gateway/normalize/cache/budget/archive/fake/fallback
+      skills/           requirements/query/dedup/grading/rerank/matching/judging/answer/report/advisory/citations/recency/safety
       evidence/         Chrome CDP 截图 + 内存图片
       store/            fixtures / 旧 DB 只读
       llm/              OpenAI 兼容客户端 + FakeLLM
     web/                index.html / app.js / styles.css / rules.html
+    docs/               GitHub Pages 项目介绍页（静态；不含后端）
+    .github/workflows/  pages.yml（push main 自动发布 docs/）
     config/             domains / queries / lexicons / llm_providers.json
     fixtures/           测试夹具
-    scripts/            configure_keys / test_deepseek / run_research / run_verify / run_plan / probes / git_push
-    tests/              136 个测试
+    scripts/            configure_keys / test_deepseek / run_research / run_verify / run_plan / diagnose_connections / probes / git_push
+    tests/              157 个测试
     framework.html      v3.0 双板块架构图
     README.md           本文件
 
@@ -345,21 +359,21 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
     POST /api/plan
     {"text": "西安城墙现存主体是什么年代修建的？"}
 
-返回 plan_id、domain、method、requirements、queries、fallback_queries、requery_queries。
+返回 plan_id、domain、method、degraded（method + reason）、requirements、queries、fallback_queries、requery_queries。`method=heuristic` 表示 LLM 拆分不可用，degraded.reason 会说明。
 
 /api/research 示例：
 
     POST /api/research
     {"text": "西安城墙现存主体是什么年代修建的？", "plan_id": "plan-..."}
 
-返回 run_id、plan_id、plan_reused、requirements、queries、source_ledger、metrics、answer（含 text/claims/as_of/time_sensitive/time_context）、report、citation_issues、screenshots、budget、stop_reason。
+返回 run_id、plan_id、plan_reused、requirements、queries、source_ledger、metrics、answer（含 text/claims/as_of/time_sensitive/time_context/degraded_reason）、report（含 degraded）、degraded、citation_issues、screenshots、budget、stop_reason。`degraded.reasons` 为空表示 plan/answer/rerank 都走了完整链路。
 
 /api/runs 示例：
 
     POST /api/runs
     {"text": "该店人均68元，周一闭店。"}
 
-返回 run_id；用 /api/runs/{id}/events 接收 SSE，或轮询 /api/runs/{id}。
+返回 run_id；用 /api/runs/{id}/events 接收 SSE，或轮询 /api/runs/{id}。查证报告含 `degraded`（extraction_method、unknown_evidence、reasons）；`relation=unknown` 表示规则无法判定，不再等同于 unrelated。
 
 错误码：400 空/安全/plan_id 不匹配/配置校验；422 字段/超长；429 研究并发已满；503 未配置 Search；504 研究超时；502 研究异常；404 不存在/过期。
 
@@ -381,6 +395,8 @@ Python 客户端：
 | scripts/configure_keys.py llm --provider deepseek | 写入 DeepSeek key |
 | scripts/configure_keys.py show | 查看 key/模型选择 |
 | scripts/test_deepseek.py | 真实 DeepSeek 连接测试 |
+| scripts/diagnose_connections.py --base-url http://127.0.0.1:8000 --plan | 配置/health/LLM/SearchPro/Site 一键诊断 |
+| scripts/test_capture.py --url ... --save state/shot.jpg | 独立验证无头 Chrome 截图 |
 | scripts/run_research.py --text "..." --report | 终端深度研究 |
 | scripts/run_verify.py --text "..." --report | 终端一句话查证 |
 | scripts/run_plan.py --text "..." | 只生成计划 |
@@ -392,8 +408,11 @@ Python 客户端：
 
 ## 11. 证据、截图与引用
 
-- 回答阶段只传引用元数据（标题/域名/日期/URL）与截图，不传完整正文。
+- 回答阶段只传引用元数据（标题/域名/日期/URL/内容节选）与截图，不传完整正文。
+- 深度研究引用默认保留全部 top sources（3 需求 × 6，最多 18 条）；截图仍只取前 3 条。
 - 截图：无头 Chrome 打开公开页面 → 查找摘要 → 高亮滚动 → JPEG；SSRF 校验只允许公网 http/https。
+- 截图失败排查见 <a href="deliverables/SCREENSHOT-GUIDE-2026-10-25.md">SCREENSHOT-GUIDE-2026-10-25.md</a>；独立测试用 `scripts/test_capture.py`。
+- 临时 profile 在 `state/screenshot-profiles/`，Chrome stderr 写入 profile 内文件；启动失败会重试一次并把 stderr 尾部写进 error。
 - 截图存内存（TTL 30 分钟），通过 /api/evidence/{run_id}/{n} 提供；不落盘。
 - 登录墙/反爬/动态页可能超时，失败标记并降级，不阻塞报告。
 - [n] 由程序校验；越界标记 [n?]；无有效引用退回规则摘要。
@@ -405,39 +424,44 @@ Python 客户端：
 
     ./.Search/Scripts/python.exe -m pytest -q
 
-当前 136 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、时间归一化/时间排序、claim quote 校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite。
+当前 157 passed。覆盖：通用 Claim 抽取（历史/统计/问题/观点）、需求拆分/focus/plan_id、查询 facet、研究密度、去重与指标、R1–R5、advisory、回答不含 passage、内容节选、引用校验、时间归一化/时间排序、claim quote 校验、截图白名单/TTL/vision 形状、API 422/503/400、深度研究不写 SQLite；新增 Site 精确 host/`site:` 剥离、LLM 重排解析、Site 0 结果回退、unknown 关系、全部 top sources 引用、degraded 报告、自然语言汇总。
 
-无结果政策：没有可核验结果时，研究综述与断言报告必须明确写“不知道/没有结果/无法确定”，不得用标题或常识补全；抓取失败自动降级，不阻塞流程。
+无结果政策：没有可核验结果时，研究综述与断言报告必须明确写“不知道/没有结果/无法确定”，不得用标题或常识补全；抓取失败自动降级，不阻塞流程。`relation=unknown` 只表示规则未判定，不等同于“无关”。
 
 一句话查证现在允许输入问句：LLM 只改写问句中已明确的命题，不替用户回答；开放问题返回 guidance 并建议深度研究。一次输入最多拆 5 条独立子断言，逐条查证后由 aggregate 汇总。
 
-真实 DeepSeek 验证：配置 key → test_deepseek.py OK → 重启 → 深度研究 answer.engine=llm → 一句话查证 R1–R5。历史/统计类陈述会走通用 Claim 抽取；开放问题返回 guidance 并建议改用深度研究。没有 key 或 key 失效时 test_deepseek.py 明确提示；应用层回退来源要点摘要，不抛 500。
+真实 DeepSeek 验证：配置 key → test_deepseek.py OK → 重启 → 深度研究 answer.engine=llm（claims/quote 校验通过）→ 一句话查证 R1–R5。结构化任务默认关闭 thinking，answer 保留思考且 8192；出现 finish_reason=length 会自动无思考重试。没有 key 或 key 失效时 test_deepseek.py 明确提示；应用层回退来源要点摘要，不抛 500，并在 `degraded` / `degraded_reason` 标明。
 
 ---
 
 ## 13. 日志与排障
 
-日志在 logs/（gitignored）：app-YYYYMMDD.log、research-*.log、verify-*.log、probe-*.log；RotatingFileHandler（5MB×5）；默认 INFO；排障可 LOG_LEVEL=DEBUG。事件格式一行一个 event=...，含 query/pages/domains/latency，不记录 key。
+日志在 logs/（gitignored）：默认端口 8000 写 `app-YYYYMMDD.log`，其他端口写 `app-YYYYMMDD-<port>.log`；另有 research-*.log、verify-*.log、probe-*.log；RotatingFileHandler（5MB×5）；默认 INFO；排障可 LOG_LEVEL=DEBUG。事件格式一行一个 event=...，含 query/pages/domains/latency、`llm.call`（task/model/thinking/finish_reason/reasoning_tokens/content_chars）、`llm.retry`、`llm.error`、`matching.batch`、`rerank.done`、`search.site_fallback`，不记录 key。app.start 含 pid/port。
 
 | 现象 | 排查 |
 |---|---|
 | 503 | 检查 SEARCH_API_KEY、/api/health.search_ready |
 | LLM 401/402 | 检查 DEEPSEEK_API_KEY、余额、base_url；跑 test_deepseek.py |
 | LLM 429/5xx | 客户端已重试；降低并发/稍后；看 logs |
-| engine=rule | LLM 不可用或无有效引用；看 test_deepseek/logs |
+| engine=rule | 先看 `answer.degraded_reason` 与 /api/health 的 `llm.last_error`/`last_finish_reason`；LLM 不可用、无有效引用或 finish_reason=length 都会降级；跑 test_deepseek.py 与 scripts/diagnose_connections.py |
 | 截图 404 | TTL 过期或 run_id 不对；重新研究 |
 | 截图超时 | 登录墙/反爬；可 EVIDENCE_SCREENSHOTS=false；全局最多 2 个 Chrome |
 | Failed to fetch / 连接中断 | 本地服务已停止或重启；确认 8000 正在运行；UI 已有 300s 超时与明确提示 |
 | 研究返回 429/504 | 并发研究已满或超过 180s；等待后重试/关闭截图 |
 | 一句话查证无响应 | 确认服务在线；SSE 断开会自动轮询；刷新页面加载新 app.js |
 | 深度研究显示 unknown | 旧 plan/旧缓存或 LLM 未给出 field；新代码无匹配时回退 general_fact，并在 source ledger 使用 field_label；重启并重新生成 plan |
-| 深度研究 engine=rule / 无模型综述 | 查看 logs 的 answer.llm_error。HTTP 401 表示 key 无效或更新后未重启；model did not return a JSON object 表示服务端返回散文，新代码会按 answer 文本接收并校验引用；确认 LLM_PROVIDER=deepseek、DEEPSEEK_API_KEY/DEEPSEEK_BASE_URL 生效、LLM_MODEL 为空或 DeepSeek 模型 |
+| 深度研究 engine=rule / 无模型综述 | 查看 logs 的 `llm.error`/`llm.retry`。HTTP 401 表示 key 无效或更新后未重启；`finish_reason=length` 表示输出预算不足（answer 8192、其余 4096，且会自动无思考重试）；`model did not return a JSON object` 表示空/截断 JSON；确认 LLM_PROVIDER=deepseek、DEEPSEEK_API_KEY/DEEPSEEK_BASE_URL 生效、LLM_MODEL=deepseek-flash |
+| 报告顶部出现“本次有降级” | 看 `degraded.reasons`：`plan=heuristic` 表示拆分 LLM 失败；`answer=rule (...)` 表示综述降级；`rerank=partial_or_failed` 表示 LLM 重排未覆盖全部需求。对应 /api/health 的 last_error 与 logs |
+| 查证全部 insufficient / 关系为 unknown | 先看 `matching.batch` 与 `llm.error`。非传统字段的规则匹配现在返回 unknown（未判定），不再伪装成 unrelated；若 LLM 分批调用失败，会记录 `matching.fallback` |
+| 带 Site 的查询 0 结果 | Site 必须是索引 host（`www.xa.gov.cn`），apex（`xa.gov.cn`/`gov.cn`）会静默 0；应用会剥离 `site:` 并自动无 Site 重试一次，日志见 `search.site_fallback` |
+| 研究变慢 | 新增 3 个并行 rerank 调用；看 `rerank.done`/`rerank.fallback`。可临时 RERANK_ENABLED=false 对比；answer 8192 + thinking 约 10–20s |
+| 截图仍失败 | /api/health 的 `screenshots.last_error` 会带 Chrome stderr 尾部；临时 profile 在 state/screenshot-profiles；仍失败可 EVIDENCE_SCREENSHOTS=false |
 | 拆分 0 条断言 | 若输入是问题/纯观点，这是预期分类；按 guidance 改写。历史/统计陈述若仍为 0，检查 cache/llm 是否命中旧 prompt，重启并清理 cache/llm |
 | 研究正文抓取失败 | 默认自动降级到 SearchPro 的 passage/content；不影响报告。检查 URL 是否为登录墙/非 HTML/私网 |
 | 时间遍历查询过多 | 调整 RESEARCH_TIME_TRAVERSAL_ROUNDS / QUERIES 或 RESEARCH_MAX_QUERIES_PER_RUN |
 | 研究查询仍为 3 条 | 确认 env 的 RESEARCH_QUERIES_PER_REQUIREMENT，重启服务；旧 plan_id 缓存计划仍是旧数量 |
 | 旧客户端 422 | 删除 subject/city/example_id/fixture_id |
-| 端口占用 / 重启后仍旧行为 | 旧 claimlab.api 子进程可能仍占用 8000；运行 powershell -ExecutionPolicy Bypass -File scripts/restart_api.ps1，脚本只清理自身旧进程，再启动新进程 |
+| 端口占用 / 重启后仍旧行为 | 旧 claimlab.api 子进程可能仍占用 8000；`netstat -ano | findstr :8000` 查 PID，确认命令行后停止；或运行 powershell -ExecutionPolicy Bypass -File scripts/restart_api.ps1。重启后必须核对 /api/health 的 `deepseek.base_url` 与 `settings.llm_model`，不要只看端口是否响应 |
 | 缓存旧结果 | 删除 cache/ 或用 refresh（CLI） |
 
 ---
@@ -446,7 +470,7 @@ Python 客户端：
 
 安全：不提交 .env/key/Authorization/原始正文；默认 127.0.0.1；公网前启用 APP_API_TOKEN、限流、HTTPS；截图 SSRF 防护；入口拦截时政/个人/超长；日志脱敏；不评价个人，不构成消费/法律建议。
 
-边界：深度研究是综述不是判定；不抓全文；主路径不持久化（刷新/重启丢报告，/api/db/* 旧数据只读）；截图 best-effort；DeepSeek 当前未配置 vision；无鉴权限流；plan_id 存内存；仅文字输入，不做 OCR/持续盯梢/B 端后台/公网部署。
+边界：深度研究是综述不是判定；不抓全文；主路径不持久化（刷新/重启丢报告，/api/db/* 旧数据只读）；截图 best-effort；DeepSeek 当前未配置 vision；无鉴权限流；plan_id 存内存；仅文字输入，不做 OCR/持续盯梢/B 端后台/公网部署。LLM 重排与 answer 会消耗较多 token；GPT/Codex/Toklens 接入保留但默认无 key。
 
 ### 14.1 深度研究与一句话查证是否应该合并
 
@@ -462,6 +486,7 @@ Python 客户端：
 
 ## 15. 变更记录
 
+- v4.3（2026-10-25）：修复 DeepSeek 推理 token 吃满导致的空/截断 JSON（结构化任务 thinking disabled + 4096，answer auto + 8192，finish=length 自动无思考重试）；引用改为全部 top sources；新增每需求 LLM 相关性重排；Site 精确 host 白名单 + `site:` 剥离 + 0 结果无 Site 回退；匹配分批 8 条 + 非传统字段 unknown；`degraded`/`llm.last_error` 可观测；截图 profile/stderr/重试；按端口日志与预算文件锁；157 tests；一句话查证汇总改为自然语言（不再显示 `{"refuted":2,"suspect":1}` 这样的 counts 对象）；深度研究 `uncertainty` 中的 `as_of`/`stale` 等内部字段自然化（不再出现 `as_of 为 2026-10-25`）。
 - v4.2（2026-10-25）：时间归一化与时间优先排序；as-of/时效窗口提示；claim–quote 校验；报告时间线/引用锚点；metrics_version=4。
 - v4.1（2026-10-25）：DeepSeek 散文答案兼容；answer max_tokens 2400；当前配置实测 engine=llm。
 - v4.0（2026-10-25）：完整 LOGO-2 自适应展示；问句自动改写/多断言拆分/汇总；unknown 回退 general_fact；研究综述 A/B 内容节选与规则降级；LLM 401 可诊断。
@@ -477,4 +502,4 @@ Python 客户端：
 
 ---
 
-相关文件：.env.example、config/llm_providers.json、web/rules.html、framework.html、deliverables/screenshots/v3*.png。
+相关文件：.env.example、config/llm_providers.json、web/rules.html、framework.html、deliverables/screenshots/v3*.png、deliverables/DIAGNOSIS-2026-10-25.md、deliverables/IMPLEMENTATION-2026-10-25.md、deliverables/SCREENSHOT-GUIDE-2026-10-25.md、deliverables/DEPLOYMENT-GUIDE-2026-10-25.md、docs/index.html。

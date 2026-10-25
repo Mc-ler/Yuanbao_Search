@@ -8,12 +8,20 @@ The heuristic is the offline fallback and a useful regression baseline.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any
 
 from ..config import CONFIG_DIR
 from ..contracts import Claim, SearchPage
+from ..logging import event
+
+logger = logging.getLogger("claimlab.matching")
+
+# A reasoning model spends output tokens on each evidence item. Eight items per
+# call keeps the JSON well inside the budget while avoiding 20+ round trips.
+BATCH_SIZE = 8
 
 SYSTEM_PROMPT = """你是证据匹配器。给定一条断言和一批检索结果，判断每条结果与断言的关系。
 只输出 JSON。每条结果必须返回一个 match：
@@ -174,7 +182,9 @@ def heuristic_match(claim: Claim, page: SearchPage) -> MatchResult:
             return MatchResult(-1, "support", _sentence_with(text, "点击") or _sentence_with(text, "团购"), "cta")
         return MatchResult(-1, "unrelated")
 
-    return MatchResult(-1, "unrelated")
+    # Unknown fields have no deterministic matcher. "unknown" means "not
+    # judged", which is honest; "unrelated" would assert evidence of absence.
+    return MatchResult(-1, "unknown")
 
 
 def _validate_quote(quote: str, page: SearchPage) -> tuple[bool, str]:
@@ -187,11 +197,12 @@ def _validate_quote(quote: str, page: SearchPage) -> tuple[bool, str]:
     return False, ""
 
 
-async def match_evidence(llm: Any | None, claim: Claim, pages: list[SearchPage]) -> list[MatchResult]:
-    if not pages:
-        return []
-    if llm is None:
-        return [heuristic_match(claim, page) for page in pages]
+async def _match_batch(
+    llm: Any,
+    claim: Claim,
+    pages: list[SearchPage],
+    offset: int,
+) -> list[MatchResult]:
     evidence_payload = [
         {
             "evidence_id": f"e{index}",
@@ -209,26 +220,49 @@ async def match_evidence(llm: Any | None, claim: Claim, pages: list[SearchPage])
     }
     try:
         data = await llm.json("match_evidence", payload, SYSTEM_PROMPT)
-    except Exception:
+    except Exception as exc:
+        event(
+            logger,
+            "matching.fallback",
+            level=logging.WARNING,
+            offset=offset,
+            batch=len(pages),
+            error=f"{type(exc).__name__}: {str(exc)[:200]}",
+        )
         return [heuristic_match(claim, page) for page in pages]
     if not isinstance(data, dict):
+        event(
+            logger,
+            "matching.fallback",
+            level=logging.WARNING,
+            offset=offset,
+            batch=len(pages),
+            error="model did not return an object",
+        )
         return [heuristic_match(claim, page) for page in pages]
-    raw_matches = {str(item.get("evidence_id")): item for item in data.get("matches") or [] if isinstance(item, dict)}
+    raw_matches = {
+        str(item.get("evidence_id")): item
+        for item in data.get("matches") or []
+        if isinstance(item, dict)
+    }
     results: list[MatchResult] = []
     for index, page in enumerate(pages):
+        global_index = offset + index
         item = raw_matches.get(f"e{index}")
         if not item:
-            results.append(MatchResult(index, "unrelated"))
+            results.append(
+                MatchResult(global_index, "unknown", reason="missing from model output")
+            )
             continue
-        relation = str(item.get("relation") or "unrelated")
-        if relation not in {"support", "refute", "unrelated"}:
-            relation = "unrelated"
+        relation = str(item.get("relation") or "unknown")
+        if relation not in {"support", "refute", "unrelated", "unknown"}:
+            relation = "unknown"
         quote = str(item.get("quote") or "")
         valid, clean_quote = _validate_quote(quote, page)
-        if relation != "unrelated" and not valid:
+        if relation in {"support", "refute"} and not valid:
             results.append(
                 MatchResult(
-                    page_index=index,
+                    page_index=global_index,
                     relation="unrelated",
                     quote="",
                     observed_value=item.get("observed_value"),
@@ -239,11 +273,24 @@ async def match_evidence(llm: Any | None, claim: Claim, pages: list[SearchPage])
             continue
         results.append(
             MatchResult(
-                page_index=index,
+                page_index=global_index,
                 relation=relation,
                 quote=clean_quote if valid else "",
                 observed_value=(str(item.get("observed_value")) if item.get("observed_value") is not None else None),
                 reason=str(item.get("reason") or ""),
             )
         )
+    return results
+
+
+async def match_evidence(llm: Any | None, claim: Claim, pages: list[SearchPage]) -> list[MatchResult]:
+    if not pages:
+        return []
+    if llm is None:
+        return [heuristic_match(claim, page) for page in pages]
+    results: list[MatchResult] = []
+    for offset in range(0, len(pages), BATCH_SIZE):
+        batch = pages[offset : offset + BATCH_SIZE]
+        event(logger, "matching.batch", offset=offset, batch=len(batch), total=len(pages))
+        results.extend(await _match_batch(llm, claim, batch, offset))
     return results

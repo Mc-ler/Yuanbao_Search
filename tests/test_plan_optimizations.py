@@ -54,7 +54,7 @@ def test_coerce_llm_queries_validates_fields():
     req = Requirement(requirement_id="r1", text="t", field="scenic_history")
     data = {
         "queries": [
-            {"query": "西安城墙 历史沿革", "site": "gov.cn", "industry": "gov", "freshness": "y5", "mode": 0, "cnt": 20},
+            {"query": "西安城墙 历史沿革", "site": "www.gov.cn", "industry": "gov", "freshness": "y5", "mode": 0, "cnt": 20},
             {"query": "bad", "industry": "bogus", "freshness": "bogus", "cnt": 999},
         ]
     }
@@ -62,7 +62,7 @@ def test_coerce_llm_queries_validates_fields():
     assert len(plans) == 2
     assert plans[0].cnt == 20
     assert plans[0].industry == "gov"
-    assert plans[0].site == "gov.cn"
+    assert plans[0].site == "www.gov.cn"
     assert plans[1].industry is None
     assert plans[1].freshness is None
 

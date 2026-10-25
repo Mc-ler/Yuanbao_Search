@@ -116,8 +116,19 @@ async def build_research_plan(
                 requeries=requeries,
             )
         )
+    query_signature = "|".join(
+        f"{item.requirement.field}:{item.requirement.focus}:"
+        + ",".join(plan.query for plan in item.queries)
+        for item in items
+    )
     return ResearchPlan(
-        plan_id=make_id("plan", text, PROMPT_VERSION),
+        plan_id=make_id(
+            "plan",
+            text,
+            PROMPT_VERSION,
+            decomposition.method,
+            query_signature,
+        ),
         text=text,
         domain=decomposition.domain,
         method=decomposition.method,

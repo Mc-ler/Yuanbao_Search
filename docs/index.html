@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f4ee">
+  <title>万物皆可查 · Confirming Everything</title>
+  <meta name="description" content="万物皆可查：输入一句话，完成需求拆分、SearchPro 检索、来源分级、去重与可引用报告。深度研究与一句话查证双模式。">
+  <meta property="og:title" content="万物皆可查 · Confirming Everything">
+  <meta property="og:description" content="本地优先的研究与核验工作台：SearchPro 检索、A–E 来源分级、R1–R5 判定、可引用报告。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mc-ler.github.io/Yuanbao_Search/">
+  <meta property="og:image" content="https://mc-ler.github.io/Yuanbao_Search/assets/desktop.png">
+  <link rel="canonical" href="https://mc-ler.github.io/Yuanbao_Search/">
+  <link rel="icon" type="image/png" href="assets/logo-light.png">
+  <style>
+    :root {
+      --bg: #f7f4ee;
+      --bg-deep: #efe9df;
+      --surface: rgba(255, 252, 247, .86);
+      --surface-solid: #fffdf9;
+      --ink: #182522;
+      --ink-soft: #445550;
+      --muted: #71817b;
+      --line: rgba(24, 37, 34, .12);
+      --line-strong: rgba(24, 37, 34, .22);
+      --teal: #0f766e;
+      --teal-soft: #d9ece7;
+      --amber: #c56a12;
+      --amber-soft: #f6e5cf;
+      --shadow: 0 24px 70px rgba(32, 45, 40, .14);
+      --shadow-soft: 0 10px 30px rgba(32, 45, 40, .08);
+      --radius: 22px;
+      --radius-sm: 14px;
+      --display: "Iowan Old Style", "Palatino Linotype", "Noto Serif SC", "Songti SC", "STSong", serif;
+      --sans: "Aptos", "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    html[data-theme="dark"] {
+      --bg: #0b1210;
+      --bg-deep: #07100d;
+      --surface: rgba(16, 28, 24, .82);
+      --surface-solid: #101c18;
+      --ink: #edf5f0;
+      --ink-soft: #b9cbc3;
+      --muted: #8ba39a;
+      --line: rgba(237, 245, 240, .12);
+      --line-strong: rgba(237, 245, 240, .24);
+      --teal: #6fd8c7;
+      --teal-soft: rgba(111, 216, 199, .14);
+      --amber: #f2b36b;
+      --amber-soft: rgba(242, 179, 107, .14);
+      --shadow: 0 28px 80px rgba(0, 0, 0, .45);
+      --shadow-soft: 0 10px 30px rgba(0, 0, 0, .28);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(900px 460px at 12% -8%, rgba(15, 118, 110, .13), transparent 62%),
+        radial-gradient(760px 420px at 92% 4%, rgba(197, 106, 18, .11), transparent 58%),
+        var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 17px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      text-wrap: pretty;
+    }
+    a { color: inherit; }
+    img { max-width: 100%; display: block; }
+    button { font: inherit; }
+    .wrap { width: min(1180px, calc(100% - 44px)); margin: 0 auto; }
+    .mono { font-family: var(--mono); font-size: .82em; letter-spacing: .02em; }
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--teal);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      border-bottom: 1px solid var(--line);
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 76px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .brand img { height: 36px; width: auto; object-fit: contain; }
+    .brand .logo-dark { display: none; }
+    html[data-theme="dark"] .brand .logo-light { display: none; }
+    html[data-theme="dark"] .brand .logo-dark { display: block; }
+    .brand-copy { display: grid; gap: 1px; }
+    .brand-copy strong { font-family: var(--display); font-size: 18px; font-weight: 600; letter-spacing: .02em; }
+    .brand-copy span { color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+    .nav { display: flex; align-items: center; gap: 22px; }
+    .nav a { color: var(--ink-soft); text-decoration: none; font-size: 14px; }
+    .nav a:hover { color: var(--teal); }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .icon-btn {
+      width: 38px; height: 38px;
+      display: inline-grid; place-items: center;
+      border: 1px solid var(--line); border-radius: 999px;
+      background: var(--surface); color: var(--ink);
+      cursor: pointer; transition: transform .18s ease, border-color .18s ease;
+    }
+    .icon-btn:hover { transform: translateY(-1px); border-color: var(--line-strong); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      min-height: 46px; padding: 0 20px;
+      border-radius: 999px; border: 1px solid transparent;
+      text-decoration: none; font-size: 14px; font-weight: 650;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--ink); color: var(--bg); box-shadow: var(--shadow-soft); }
+    .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+    .btn-small { min-height: 38px; padding: 0 15px; font-size: 13px; }
+    main { overflow: clip; }
+    .hero { padding: 78px 0 44px; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, .98fr); gap: 54px; align-items: center; }
+    .hero h1 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: clamp(52px, 7.2vw, 92px);
+      line-height: .98;
+      letter-spacing: -.035em;
+      font-weight: 600;
+    }
+    .hero h1 em { color: var(--teal); font-style: normal; }
+    .hero-sub {
+      margin: 24px 0 0;
+      max-width: 560px;
+      color: var(--ink-soft);
+      font-size: clamp(17px, 1.6vw, 20px);
+      line-height: 1.7;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+    .hero-note {
+      display: flex; gap: 10px; align-items: flex-start;
+      margin-top: 26px; padding: 14px 16px;
+      border: 1px solid var(--line); border-left: 3px solid var(--amber);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      background: var(--amber-soft);
+      color: var(--ink-soft);
+      font-size: 13px; line-height: 1.65;
+    }
+    .hero-note strong { color: var(--ink); }
+    .hero-visual { position: relative; }
+    .shot-frame {
+      position: relative;
+      padding: 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 28px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      transform: rotate(.6deg);
+    }
+    .shot-frame::before {
+      content: "";
+      position: absolute; inset: 22px -18px -18px 22px;
+      z-index: -1; border-radius: 30px;
+      background: linear-gradient(135deg, var(--teal-soft), var(--amber-soft));
+      filter: blur(2px);
+    }
+    .shot-frame img { border-radius: 20px; width: 100%; height: auto; }
+    .shot-caption {
+      display: flex; justify-content: space-between; gap: 12px;
+      padding: 10px 6px 0; color: var(--muted);
+      font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    }
+    .stats {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px; margin: 34px 0 0;
+      border: 1px solid var(--line); border-radius: var(--radius);
+      overflow: hidden; background: var(--line);
+    }
+    .stat { padding: 22px 20px; background: var(--surface-solid); }
+    .stat strong { display: block; font-family: var(--display); font-size: 30px; line-height: 1; font-weight: 600; }
+    .stat span { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    section { padding: 74px 0; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+    .section-head h2 { margin: 0; font-family: var(--display); font-size: clamp(32px, 4vw, 48px); line-height: 1.08; letter-spacing: -.02em; font-weight: 600; }
+    .section-head p { max-width: 470px; margin: 0; color: var(--muted); font-size: 14px; }
+    .feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .feature {
+      position: relative; padding: 26px;
+      border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--surface); box-shadow: var(--shadow-soft);
+      text-decoration: none; overflow: hidden;
+      transition: transform .2s ease, border-color .2s ease;
+    }
+    .feature:hover { transform: translateY(-3px); border-color: var(--line-strong); }
+    .feature .num { color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .12em; }
+    .feature h3 { margin: 26px 0 8px; font-family: var(--display); font-size: 25px; font-weight: 600; }
+    .feature p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.7; }
+    .feature .tag { display: inline-block; margin-top: 18px; padding: 5px 9px; border-radius: 999px; background: var(--teal-soft); color: var(--teal); font-family: var(--mono); font-size: 10px; letter-spacing: .04em; }
+    .flow {
+      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0;
+      margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius);
+      overflow: hidden; background: var(--surface);
+    }
+    .flow-step { position: relative; padding: 24px 18px; min-height: 150px; border-right: 1px solid var(--line); }
+    .flow-step:last-child { border-right: 0; }
+    .flow-step .idx { color: var(--amber); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; }
+    .flow-step h4 { margin: 22px 0 6px; font-size: 15px; }
+    .flow-step p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .flow-step::after {
+      content: ""; position: absolute; right: -5px; top: 50%;
+      width: 9px; height: 9px; border-top: 1px solid var(--line-strong); border-right: 1px solid var(--line-strong);
+      transform: rotate(45deg); background: var(--bg); display: none;
+    }
+    .split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 20px; align-items: stretch; }
+    .panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-soft); }
+    .code-panel { padding: 24px; }
+    .code-panel h3 { margin: 0 0 14px; font-family: var(--display); font-size: 24px; font-weight: 600; }
+    .code-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .code-head span { color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; }
+    pre {
+      margin: 0; padding: 18px; overflow: auto;
+      border: 1px solid var(--line); border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--bg-deep) 78%, transparent);
+      color: var(--ink); font-family: var(--mono); font-size: 12px; line-height: 1.85;
+    }
+    .copy-btn { border: 1px solid var(--line-strong); background: transparent; color: var(--ink-soft); border-radius: 999px; padding: 5px 11px; cursor: pointer; font-size: 11px; }
+    .copy-btn:hover { color: var(--teal); border-color: var(--teal); }
+    .status-panel { padding: 26px; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; }
+    .status-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+    .status-list li { display: flex; justify-content: space-between; gap: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .status-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+    .status-list span:first-child { color: var(--muted); }
+    .status-list span:last-child { text-align: right; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: var(--teal-soft); color: var(--teal); font-family: var(--mono); font-size: 10px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .mobile-showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
+    .phone-frame { width: min(300px, 100%); margin: 0 auto; padding: 9px; border-radius: 38px; border: 1px solid var(--line-strong); background: var(--surface); box-shadow: var(--shadow); }
+    .phone-frame img { border-radius: 30px; }
+    .quote { padding: 30px; border-left: 3px solid var(--teal); background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0; }
+    .quote p { margin: 0; font-family: var(--display); font-size: clamp(22px, 2.6vw, 32px); line-height: 1.4; }
+    .quote small { display: block; margin-top: 12px; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .site-footer { border-top: 1px solid var(--line); padding: 34px 0 46px; color: var(--muted); font-size: 12px; }
+    .footer-inner { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+    .footer-inner a { text-decoration: none; }
+    .footer-inner a:hover { color: var(--teal); }
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .7s ease, transform .7s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+    @media (max-width: 900px) {
+      .hero-grid, .split, .mobile-showcase { grid-template-columns: 1fr; }
+      .hero { padding-top: 52px; }
+      .hero-visual { order: -1; }
+      .shot-frame { transform: none; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr 1fr; }
+      .flow-step { border-bottom: 1px solid var(--line); }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .nav { display: none; }
+    }
+    @media (max-width: 560px) {
+      .wrap { width: calc(100% - 28px); }
+      .brand-copy span { display: none; }
+      .header-actions .btn { display: none; }
+      .hero h1 { font-size: 56px; }
+      .flow { grid-template-columns: 1fr; }
+      .flow-step { min-height: 0; border-right: 0; }
+      .stats { grid-template-columns: 1fr; }
+      section { padding: 54px 0; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; animation: none !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="./" aria-label="万物皆可查 · Confirming Everything">
+        <img class="logo-light" src="assets/logo-light.png" alt="GOLDEN-US">
+        <img class="logo-dark" src="assets/logo-dark.png" alt="">
+        <span class="brand-copy">
+          <strong>万物皆可查</strong>
+          <span>Confirming Everything</span>
+        </span>
+      </a>
+      <nav class="nav" aria-label="主导航">
+        <a href="#capabilities">能力</a>
+        <a href="#workflow">链路</a>
+        <a href="#run">运行</a>
+        <a href="#status">状态</a>
+        <a href="https://github.com/Mc-ler/Yuanbao_Search" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn" id="themeBtn" type="button" aria-label="切换主题" title="切换主题">◐</button>
+        <a class="btn btn-primary btn-small" href="https://github.com/Mc-ler/Yuanbao_Search" target="_blank" rel="noopener">查看源码</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap">
+        <div class="hero-grid">
+          <div>
+            <p class="eyebrow">Local-first research agent · v4.3</p>
+            <h1 id="hero-title">万物<br>皆可<em>查</em></h1>
+            <p class="hero-sub">输入一句话，完成需求拆分、SearchPro 检索、全局去重、来源分级与可引用报告。深度研究与一句话查证，共用同一套证据链。</p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="https://github.com/Mc-ler/Yuanbao_Search" target="_blank" rel="noopener">进入 GitHub 仓库</a>
+              <a class="btn btn-secondary" href="#run">查看本地运行</a>
+            </div>
+            <div class="hero-note">
+              <span class="mono">NOTE</span>
+              <div><strong>GitHub Pages 只托管这个项目介绍页。</strong> 完整的检索、查证与截图依赖本地 FastAPI 后端、SearchPro 与 DeepSeek；在线页面不会伪装成可用产品。</div>
+            </div>
+          </div>
+          <div class="hero-visual">
+            <div class="shot-frame">
+              <img src="assets/desktop.png" alt="万物皆可查桌面端界面" width="1200" height="900">
+              <div class="shot-caption"><span>Workspace · desktop</span><span>v4.2</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="stats" aria-label="项目事实">
+          <div class="stat"><strong>157</strong><span>tests collected</span></div>
+          <div class="stat"><strong>A–E</strong><span>source grading</span></div>
+          <div class="stat"><strong>R1–R5</strong><span>deterministic verdict</span></div>
+          <div class="stat"><strong>2</strong><span>research / verify modes</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="capabilities">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">What it does</p>
+            <h2>不是“搜一下”，<br>而是留下证据链。</h2>
+          </div>
+          <p>从问题到报告，每一段都可回看：查询、域名、日期、去重簇、引用编号与判定规则。</p>
+        </div>
+        <div class="feature-grid">
+          <a class="feature reveal" href="https://github.com/Mc-ler/Yuanbao_Search/blob/main/README.md" target="_blank" rel="noopener">
+            <span class="num">01 / RESEARCH</span>
+            <h3>深度研究</h3>
+            <p>需求拆分 → 5 条查询/需求 → SearchPro → 去重 → LLM 相关性重排 → 来源分册 → 研究综述。输出综述，不输出成立/不成立。</p>
+            <span class="tag">citations + ledger</span>
+          </a>
+          <a class="feature reveal" href="https://github.com/Mc-ler/Yuanbao_Search/blob/main/README.md" target="_blank" rel="noopener">
+            <span class="num">02 / VERIFY</span>
+            <h3>一句话查证</h3>
+            <p>断言抽取 → 定向查询 → 分批匹配 → quote 校验 → R1–R5 确定性判定。证据不足时只给非约束性参考意见，不编造结论。</p>
+            <span class="tag">R1–R5 · quote check</span>
+          </a>
+          <a class="feature reveal" href="https://github.com/Mc-ler/Yuanbao_Search/blob/main/README.md" target="_blank" rel="noopener">
+            <span class="num">03 / SOURCES</span>
+            <h3>来源分级与分册</h3>
+            <p>A 政府/官方、B 主流媒体、C 平台结构化页、D 自媒体、E UGC。按域名与时效降级，每个需求单独成册。</p>
+            <span class="tag">A–E · freshness</span>
+          </a>
+          <a class="feature reveal" href="https://github.com/Mc-ler/Yuanbao_Search/blob/main/README.md" target="_blank" rel="noopener">
+            <span class="num">04 / PRIVACY</span>
+            <h3>本地优先</h3>
+            <p>默认只监听 127.0.0.1；密钥只写入本地 .env；报告与截图不落盘；刷新页面即丢失，适合演示与敏感内容核验。</p>
+            <span class="tag">local · no persistence</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Pipeline</p>
+            <h2>一条主链路，<br>两种交付。</h2>
+          </div>
+          <p>检索网关、去重、分级、引用、安全、截图全部共享；研究综述与 R1–R5 判定各自保留边界。</p>
+        </div>
+        <div class="flow reveal" aria-label="处理链路">
+          <div class="flow-step"><span class="idx">S1</span><h4>需求 / 断言</h4><p>问题拆成 1–3 个可检索需求；说法拆成独立断言。</p></div>
+          <div class="flow-step"><span class="idx">S2</span><h4>查询构造</h4><p>LLM 查询 + 模板查询；精确 host 与 industry 受控。</p></div>
+          <div class="flow-step"><span class="idx">S3</span><h4>SearchPro</h4><p>统一检索网关，缓存、预算、审计与零结果回退。</p></div>
+          <div class="flow-step"><span class="idx">S4</span><h4>去重 / 重排</h4><p>5-gram 聚类；每需求 top 30 做 LLM 相关性重排。</p></div>
+          <div class="flow-step"><span class="idx">S5</span><h4>分级 / 报告</h4><p>A–E 来源分级、引用校验、研究综述或 R1–R5。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="run">
+      <div class="wrap">
+        <div class="split">
+          <div class="panel code-panel reveal">
+            <p class="eyebrow">Run locally</p>
+            <h3>三步启动</h3>
+            <div class="code-head"><span>PowerShell</span><button class="copy-btn" data-copy="#quickstart" type="button">复制</button></div>
+            <pre id="quickstart"><code>git clone https://github.com/Mc-ler/Yuanbao_Search.git
+cd Yuanbao_Search
+Copy-Item .env.example .env
+
+./.Search/Scripts/python.exe scripts/configure_keys.py yuanbao
+./.Search/Scripts/python.exe scripts/configure_keys.py llm --provider deepseek
+powershell -ExecutionPolicy Bypass -File scripts/restart_api.ps1
+
+# http://127.0.0.1:8000</code></pre>
+            <p class="hero-note" style="margin-top:18px"><span class="mono">TIP</span><div>没有配置 Search key 时，研究和查证会返回 503，不会退回示例数据。截图需要本机 Chrome/Edge。</div></p>
+          </div>
+          <div class="panel status-panel reveal">
+            <div>
+              <p class="eyebrow">Verified surface</p>
+              <h3 style="margin:0 0 12px;font-family:var(--display);font-size:26px;font-weight:600;">当前验证状态</h3>
+              <ul class="status-list">
+                <li><span>SearchPro</span><span>standard · 20 条/查询</span></li>
+                <li><span>LLM</span><span>DeepSeek deepseek-flash</span></li>
+                <li><span>深度研究</span><span><span class="pill"><span class="dot"></span>engine=llm</span></span></li>
+                <li><span>一句话查证</span><span><span class="pill"><span class="dot"></span>R1–R5</span></span></li>
+                <li><span>测试</span><span>157 collected</span></li>
+              </ul>
+            </div>
+            <div>
+              <p style="margin:0 0 10px;color:var(--muted);font-size:12px;">截图、地图与第三方页面依赖本机网络与浏览器环境；失败会降级，不阻塞报告。</p>
+              <a class="btn btn-secondary btn-small" href="https://github.com/Mc-ler/Yuanbao_Search/blob/main/deliverables/SCREENSHOT-GUIDE-2026-10-25.md" target="_blank" rel="noopener">截图排查指南</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap mobile-showcase">
+        <div class="phone-frame reveal">
+          <img src="assets/mobile.png" alt="万物皆可查移动端界面" loading="lazy">
+        </div>
+        <div>
+          <p class="eyebrow">Built for the small screen</p>
+          <h2 style="margin:0;font-family:var(--display);font-size:clamp(32px,4vw,48px);line-height:1.1;font-weight:600;">桌面与移动端，<br>同一套证据。</h2>
+          <p style="color:var(--ink-soft);margin:18px 0 0;max-width:480px;">工作台在窄屏下重新排布，日志与报告分开保留；主题与语言切换写入 localStorage。</p>
+          <div class="quote reveal" style="margin-top:26px;">
+            <p>“不知道就是不知道。没有可核验结果时，报告必须明确写‘无法确定’，不能用标题或常识补全。”</p>
+            <small>No-result policy · README</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="status">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <div>
+            <p class="eyebrow">Project status</p>
+            <h2>清楚边界，<br>再谈上线。</h2>
+          </div>
+          <p>这个仓库是可运行的研究工作台，不是纯静态网站。GitHub Pages 负责介绍与文档；后端应按 README 在本机或独立服务器运行。</p>
+        </div>
+        <div class="feature-grid">
+          <div class="feature reveal">
+            <span class="num">DEPLOY / A</span>
+            <h3>GitHub Pages</h3>
+            <p>本页由 GitHub Pages 托管，用于项目介绍、截图与文档入口。自定义域名和 HTTPS 可在仓库 Settings → Pages 配置。</p>
+            <span class="tag">static · docs</span>
+          </div>
+          <div class="feature reveal">
+            <span class="num">DEPLOY / B</span>
+            <h3>完整应用</h3>
+            <p>需要 Python 3.11+、SearchPro key、DeepSeek key 与本机 Chrome/Edge。按 README 启动 127.0.0.1:8000；不要把它误认为 Pages 能运行。</p>
+            <span class="tag">FastAPI · local-first</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>万物皆可查 · Confirming Everything · GOLDEN-US</div>
+      <div>
+        <a href="https://github.com/Mc-ler/Yuanbao_Search" target="_blank" rel="noopener">GitHub</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/Mc-ler/Yuanbao_Search/blob/main/README.md" target="_blank" rel="noopener">README</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/Mc-ler/Yuanbao_Search/blob/main/web/rules.html" target="_blank" rel="noopener">Rules</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const stored = localStorage.getItem('pages.theme');
+      if (stored === 'dark' || stored === 'light') root.dataset.theme = stored;
+      const btn = document.getElementById('themeBtn');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+          localStorage.setItem('pages.theme', root.dataset.theme);
+        });
+      }
+      const copy = document.querySelector('[data-copy]');
+      if (copy) {
+        copy.addEventListener('click', async function () {
+          const target = document.querySelector(copy.getAttribute('data-copy'));
+          if (!target) return;
+          try {
+            await navigator.clipboard.writeText(target.innerText);
+            copy.textContent = '已复制';
+            setTimeout(function () { copy.textContent = '复制'; }, 1600);
+          } catch (e) {
+            copy.textContent = '复制失败';
+          }
+        });
+      }
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.12 });
+        document.querySelectorAll('.reveal').forEach(function (el) { observer.observe(el); });
+      } else {
+        document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('visible'); });
+      }
+    })();
+  </script>
+</body>
+</html>

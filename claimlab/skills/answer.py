@@ -13,6 +13,7 @@ import re
 from typing import Any
 
 from .citations import citation_numbers, validate_citations
+from ..logging import event
 from .recency import (
     age_days,
     now_cst,
@@ -33,9 +34,10 @@ SYSTEM_PROMPT = """你是研究综述生成器。给定一个研究问题、一�
 4. 这是研究综述，不是 R1–R5 判定；不要输出“成立/不成立/已证实”等判定词，除非来源本身明确写了。
 5. 综述至少包含：结论（2–4 句）、主要依据（2–4 点，逐点带 [n]）、证据缺口；不要只列标题或写“尚无模型综述”。
 6. 优先使用 A/B 来源的内容节选组织具体表述；C/D 来源只能作为弱补充。不能把“没有检索到”写成“不存在”。
-7. 必须先看 as_of 与 time_context。用户问“今天/目前/最新/最近/本周/今年”时，只按 as_of 之前且落在时效窗口内的来源回答；如果最新来源已过期（stale=true），必须写“最新来源截至 YYYY-MM-DD，无法确定当前状态”，不能拿旧数据冒充当前。
-8. 相对时间按 as_of 解析；来源日期与 as_of 的差距要写出来。新旧来源冲突时，分别列出日期、口径和适用范围，不能只挑支持结论的一条。
+7. 必须先看给定的当前日期与时效信息；这些是内部字段，回答里不要出现字段名或 true/false。用户问“今天/目前/最新/最近/本周/今年”时，只按当前日期之前且落在时效窗口内的来源回答；如果最新来源已过期，必须写“最新来源截至 YYYY-MM-DD，无法确定当前状态”，不能拿旧数据冒充当前。
+8. 相对时间按给定当前日期解析；用“截至 2026年10月25日”“距今 86 天”这类自然语言写出来源日期与当前日期的差距。新旧来源冲突时，分别列出日期、口径和适用范围，不能只挑支持结论的一条。
 9. claims 必须是可核对的 claim–quote–source 结构：每条 quote 必须是来源中的原文片段，不能改写；找不到原文时 claims 留空并写证据缺口，不要编造 quote。
+10. text、uncertainty、time_note 必须是自然语言；禁止出现 as_of、time_context、stale、time_sensitive、freshness_days、latest_source_date、latest_source_age_days、has_dated_source 等内部字段名，禁止 JSON、对象字面量、键值对或统计字典（例如 {"refuted":2,"suspect":1}）。日期写成“2026年10月25日”或“2026-10-25”；引用只用 [n]。
 输出：{"text":"...","claims":[{"text":"...","source_ids":[1],"quote":"来源原文片段","source_date":"YYYY-MM-DD","support":"direct|indirect|unverified"}],"citations_used":[1,2],"uncertainty":"...","time_note":"..."}
 """
 
@@ -47,9 +49,13 @@ def _sources_for(row: dict[str, Any]) -> list[dict[str, Any]]:
 def build_citations(
     rows: list[dict[str, Any]],
     time_sensitive: bool = False,
-    limit: int = 3,
+    limit: int | None = None,
 ) -> list[dict[str, Any]]:
-    """Dedupe sources, optionally order newest-first, then assign [1..N]."""
+    """Dedupe sources, optionally order newest-first, then assign [1..N].
+
+    ``limit=None`` keeps every top source (D3: breadth over token cost). The
+    answer stage sees the full ledger instead of an arbitrary first three.
+    """
     seen: dict[str, dict[str, Any]] = {}
     order: list[str] = []
     for row in rows or []:
@@ -65,7 +71,8 @@ def build_citations(
     sources = [seen[key] for key in order]
     if time_sensitive:
         sources = sort_sources(sources, time_sensitive=True)
-    sources = sources[: max(1, limit)]
+    if limit is not None:
+        sources = sources[: max(1, limit)]
     citations: list[dict[str, Any]] = []
     for index, src in enumerate(sources, start=1):
         parsed = parse_published(src.get("date"))
@@ -180,6 +187,86 @@ def _clean_model_text(text: Any) -> str:
         value = raw.split(marker, 1)[1]
         return value.rsplit('"', 1)[0].replace("\\n", "\n").strip()
     return raw
+
+
+def _date_cn(raw: str) -> str:
+    match = re.match(r"(\d{4})[-/](\d{1,2})[-/](\d{1,2})", raw or "")
+    if not match:
+        return raw
+    year, month, day = match.groups()
+    return f"{year}年{int(month)}月{int(day)}日"
+
+
+def _naturalize_time_text(value: Any) -> str:
+    """Turn leaked internal time fields into readable Chinese.
+
+    The model sometimes copies prompt keys such as ``as_of`` / ``stale=false``
+    into uncertainty or prose. The data stays machine-readable in
+    ``time_context``; user-facing text must not expose those keys.
+    """
+    text = str(value or "")
+    if not text:
+        return ""
+    text = re.sub(
+        r"(?i)[\"'`]?as[_-]?of[\"'`]?\s*(?:为|是|[:：=])?\s*[\"'`]?(20\d{2}[-/]\d{1,2}[-/]\d{1,2})[\"'`]?",
+        lambda match: "截至 " + _date_cn(match.group(1)),
+        text,
+    )
+    text = re.sub(r"(?i)[\"'`]?as[_-]?of[\"'`]?", "当前日期", text)
+    text = re.sub(r"(?i)[\"'`]?time_context[\"'`]?", "时效信息", text)
+    text = re.sub(
+        r"(?i)[\"'`]?time_sensitive[\"'`]?\s*(?:为|是|[:：=])?\s*[\"'`]?(true|false)",
+        lambda match: "涉及时效" if match.group(1).lower() == "true" else "不涉及时效",
+        text,
+    )
+    text = re.sub(
+        r"(?i)[\"'`]?stale[\"'`]?\s*(?:为|是|[:：=])?\s*[\"'`]?(true|false)",
+        lambda match: "来源已超出时效窗口" if match.group(1).lower() == "true" else "来源仍在时效窗口内",
+        text,
+    )
+    text = re.sub(
+        r"(?i)[\"'`]?freshness_days[\"'`]?\s*(?:为|是|[:：=])?\s*[\"'`]?(\d+)",
+        r"时效窗口为 \1 天",
+        text,
+    )
+    text = re.sub(
+        r"(?i)[\"'`]?latest_source_date[\"'`]?\s*(?:为|是|[:：=])?\s*[\"'`]?(20\d{2}[-/]\d{1,2}[-/]\d{1,2})[\"'`]?",
+        lambda match: "最新来源日期为 " + _date_cn(match.group(1)),
+        text,
+    )
+    text = re.sub(r"(?i)[\"'`]?latest_source_date[\"'`]?", "最新来源日期", text)
+    text = re.sub(
+        r"(?i)[\"'`]?latest_source_age_days[\"'`]?\s*(?:为|是|[:：=])?\s*[\"'`]?(\d+)",
+        r"最新来源距今 \1 天",
+        text,
+    )
+    text = re.sub(
+        r"(?i)[\"'`]?has_dated_source[\"'`]?\s*(?:为|是|[:：=])?\s*[\"'`]?(true|false)",
+        lambda match: "有来源日期" if match.group(1).lower() == "true" else "无来源日期",
+        text,
+    )
+    had_braces = "{" in text or "}" in text
+    text = text.replace("{", "").replace("}", "")
+    if had_braces:
+        # A leaked dict survives as quotes/commas after key replacement.
+        text = text.replace('"', "").replace("'", "").replace("`", "")
+        text = re.sub(r"\s*,\s*", "，", text)
+    text = re.sub(r"距\s+当前日期", "距当前日期", text)
+    text = re.sub(r"^\s*[。；，、]+", "", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    for noise in ("。；", "；；", "；。", "。。"):
+        text = text.replace(noise, noise[0])
+    return text.strip()
+
+
+def _join_clauses(left: str, right: str) -> str:
+    left = str(left or "").strip().rstrip("。；; ")
+    right = str(right or "").strip()
+    if not left:
+        return right
+    if not right:
+        return left
+    return left + "；" + right
 
 
 def _compact(text: Any) -> str:
@@ -315,6 +402,7 @@ def _response(
     as_of: str = "",
     time_sensitive: bool = False,
     time_context: dict[str, Any] | None = None,
+    degraded_reason: str = "",
 ) -> dict[str, Any]:
     screenshot_list = [
         {
@@ -339,6 +427,7 @@ def _response(
         "as_of": as_of,
         "time_sensitive": time_sensitive,
         "time_context": time_context or {},
+        "degraded_reason": degraded_reason,
     }
 
 
@@ -362,6 +451,7 @@ async def build_answer(
     if not time_sensitive:
         time_context["stale"] = False
     if not citations:
+        event(logger, "answer.fallback", level=logging.WARNING, reason="no_citations")
         return _response(
             NO_RESULT_TEXT,
             "rule",
@@ -372,6 +462,7 @@ async def build_answer(
             as_of=as_of,
             time_sensitive=time_sensitive,
             time_context=time_context,
+            degraded_reason="no_citations",
         )
 
     data = None
@@ -435,9 +526,12 @@ async def build_answer(
 
     if isinstance(data, dict) and (str(data.get("text") or data.get("answer") or "")).strip():
         text, issues = validate_citations(
-            _clean_model_text(data.get("text") or data.get("answer")), citations
+            _naturalize_time_text(_clean_model_text(data.get("text") or data.get("answer"))),
+            citations,
         )
         claims, claim_issues = _normalize_claims(data, citations)
+        for claim in claims:
+            claim["text"] = _naturalize_time_text(claim.get("text"))
         issues.extend(claim_issues)
         if not claims:
             claims = _claims_from_text(text, citations)
@@ -445,6 +539,13 @@ async def build_answer(
         if citations and not valid_refs:
             issues.append({"n": 0, "reason": "no_valid_citation"})
             logger.warning("answer.no_valid_citation sources=%s", len(citations))
+            event(
+                logger,
+                "answer.fallback",
+                level=logging.WARNING,
+                reason="no_valid_citation",
+                sources=len(citations),
+            )
             fallback = _rule_answer(rows, citations, time_context)
             return _response(
                 fallback,
@@ -457,19 +558,25 @@ async def build_answer(
                 as_of=as_of,
                 time_sensitive=time_sensitive,
                 time_context=time_context,
+                degraded_reason="no_valid_citation",
             )
         used = [
             int(x)
             for x in (data.get("citations_used") or [])
             if isinstance(x, (int, float)) and 1 <= int(x) <= len(citations)
         ]
-        uncertainty = str(data.get("uncertainty") or "")
+        uncertainty = _naturalize_time_text(str(data.get("uncertainty") or ""))
         if data.get("time_note"):
-            uncertainty = (uncertainty + "；" if uncertainty else "") + str(data["time_note"])
+            uncertainty = _join_clauses(
+                uncertainty, _naturalize_time_text(str(data["time_note"]))
+            )
         if time_context.get("stale"):
-            uncertainty = (
-                uncertainty + "；" if uncertainty else ""
-            ) + "最新来源日期为 " + str(time_context.get("latest_source_date") or "未知") + "，已超出时效窗口"
+            uncertainty = _join_clauses(
+                uncertainty,
+                "最新来源日期为 "
+                + str(time_context.get("latest_source_date") or "未知")
+                + "，已超出时效窗口",
+            )
         return _response(
             text,
             "llm",
@@ -483,6 +590,13 @@ async def build_answer(
             time_context=time_context,
         )
 
+    event(
+        logger,
+        "answer.fallback",
+        level=logging.WARNING,
+        reason="llm_unavailable_or_invalid_json",
+        sources=len(citations),
+    )
     return _response(
         _rule_answer(rows, citations, time_context),
         "rule",
@@ -494,4 +608,5 @@ async def build_answer(
         as_of=as_of,
         time_sensitive=time_sensitive,
         time_context=time_context,
+        degraded_reason="llm_unavailable_or_invalid_json",
     )

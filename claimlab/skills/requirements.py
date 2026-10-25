@@ -10,10 +10,14 @@ entry point for the reporting/query interface.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 from ..contracts import Requirement, RequirementPlan, ResearchTask, make_id
+from ..logging import event
+
+logger = logging.getLogger("claimlab.requirements")
 
 # Active query scope: municipal notices, history/heritage, national statistics.
 # Restaurant price/hours/license fields remain available only to the legacy
@@ -264,7 +268,23 @@ async def decompose_requirements(llm: Any, task: ResearchTask) -> RequirementPla
             },
             prompt,
         )
-    except Exception:
+    except Exception as exc:
+        event(
+            logger,
+            "requirements.fallback",
+            level=logging.WARNING,
+            method="heuristic",
+            reason=f"{type(exc).__name__}: {str(exc)[:200]}",
+        )
         return heuristic_decompose(task)
     normalized = _normalize_llm_plan(task, data or {})
-    return normalized or heuristic_decompose(task)
+    if normalized is None:
+        event(
+            logger,
+            "requirements.fallback",
+            level=logging.WARNING,
+            method="heuristic",
+            reason="invalid or empty requirements JSON",
+        )
+        return heuristic_decompose(task)
+    return normalized

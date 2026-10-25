@@ -20,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -151,6 +152,7 @@ class ScreenshotCapturer:
         # repeated UI calls can spawn several Chrome instances at once and
         # exhaust the desktop session.
         self._gate = asyncio.Semaphore(2)
+        self.last_error = ""
 
     async def capture(self, url: str, snippet: str = "", timeout_ms: int | None = None) -> Screenshot:
         if not self.enabled:
@@ -160,11 +162,22 @@ class ScreenshotCapturer:
         timeout = (timeout_ms or self.settings.screenshot_timeout_ms) / 1000
         try:
             async with self._gate:
-                return await asyncio.wait_for(self._capture(url, snippet), timeout=timeout + 2)
+                shot = await asyncio.wait_for(self._capture(url, snippet), timeout=timeout + 2)
+                # Chrome occasionally exits before it writes DevToolsActivePort
+                # (profile lock, antivirus, first-run). One fresh-profile retry
+                # is cheap and turns a transient failure into evidence.
+                if shot.error and (
+                    "chrome exited" in shot.error or "DevTools port" in shot.error
+                ):
+                    shot = await asyncio.wait_for(self._capture(url, snippet), timeout=timeout + 2)
+                self.last_error = shot.error or ""
+                return shot
         except asyncio.TimeoutError:
-            return Screenshot(url=url, error="screenshot timeout")
+            self.last_error = "screenshot timeout"
+            return Screenshot(url=url, error=self.last_error)
         except Exception as exc:
-            return Screenshot(url=url, error=f"{type(exc).__name__}: {str(exc)[:160]}")
+            self.last_error = f"{type(exc).__name__}: {str(exc)[:160]}"
+            return Screenshot(url=url, error=self.last_error)
 
     async def capture_many(self, sources: list[dict[str, Any]], limit: int | None = None) -> dict[int, Screenshot]:
         if not self.enabled:
@@ -190,41 +203,69 @@ class ScreenshotCapturer:
         return output
 
     async def _capture(self, url: str, snippet: str) -> Screenshot:
-        profile = tempfile.mkdtemp(prefix="claimlab-shot-")
+        # Keep profiles inside the project state dir. The system temp dir can be
+        # ACL-restricted or cleaned by other processes, which is exactly the
+        # "chrome exited before DevTools started" failure mode we saw.
+        profile_root = Path(getattr(self.settings, "state_dir", None) or tempfile.gettempdir()) / "screenshot-profiles"
+        try:
+            profile_root.mkdir(parents=True, exist_ok=True)
+            # Do not use tempfile.mkdtemp here: on Windows under a restricted
+            # token it can create a child directory whose ACL rejects every
+            # subsequent write (including Chrome's own profile files).
+            profile = profile_root / f"shot-{uuid.uuid4().hex[:10]}"
+            profile.mkdir(parents=True, exist_ok=False)
+        except OSError as exc:
+            return Screenshot(
+                url=url,
+                error=f"profile dir unavailable: {type(exc).__name__}: {str(exc)[:160]}",
+            )
+        stderr_path = Path(profile) / "chrome-stderr.log"
+        stderr_handle = None
         process: subprocess.Popen[bytes] | None = None
         try:
             args = [
                 self.chrome,
                 "--headless=new",
                 "--disable-gpu",
+                "--disable-dev-shm-usage",
                 "--hide-scrollbars",
                 "--no-first-run",
                 "--no-default-browser-check",
                 "--disable-extensions",
                 "--disable-background-networking",
                 "--disable-sync",
+                "--disable-breakpad",
+                "--disable-crash-reporter",
                 "--window-size=1200,900",
                 "--remote-debugging-port=0",
                 f"--user-data-dir={profile}",
                 "about:blank",
             ]
-            kwargs: dict[str, Any] = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+            stderr_handle = open(stderr_path, "wb")
+            kwargs: dict[str, Any] = {"stdout": subprocess.DEVNULL, "stderr": stderr_handle}
             if sys.platform == "win32":
                 kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             process = subprocess.Popen(args, **kwargs)
             port_file = Path(profile) / "DevToolsActivePort"
             port = 0
-            for _ in range(60):
+            for _ in range(150):  # 15s: cold Chrome start on Windows is slow
                 if port_file.exists():
                     lines = port_file.read_text(encoding="utf-8", errors="ignore").splitlines()
                     if lines:
                         port = int(lines[0])
                         break
                 if process.poll() is not None:
-                    return Screenshot(url=url, error="chrome exited before DevTools started")
+                    stderr_handle.flush()
+                    tail = stderr_path.read_text(encoding="utf-8", errors="ignore")[-300:].replace("\n", " ")
+                    return Screenshot(
+                        url=url,
+                        error=f"chrome exited before DevTools started: {tail}".strip(),
+                    )
                 await asyncio.sleep(0.1)
             if not port:
-                return Screenshot(url=url, error="chrome DevTools port not found")
+                stderr_handle.flush()
+                tail = stderr_path.read_text(encoding="utf-8", errors="ignore")[-200:].replace("\n", " ")
+                return Screenshot(url=url, error=f"chrome DevTools port not found: {tail}".strip())
             target = await asyncio.to_thread(self._page_target, port)
             if not target:
                 return Screenshot(url=url, error="no page target")
@@ -300,6 +341,11 @@ class ScreenshotCapturer:
                     process.wait(timeout=3)
                 except Exception:
                     process.kill()
+            if stderr_handle is not None:
+                try:
+                    stderr_handle.close()
+                except Exception:
+                    pass
             shutil.rmtree(profile, ignore_errors=True)
 
     @staticmethod

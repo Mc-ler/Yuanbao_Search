@@ -10,6 +10,7 @@ Results are not persisted: no SQLite rows, no files, screenshots only in memory.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 import re
@@ -27,8 +28,10 @@ from .skills.dedup import cluster_pages, page_key
 from .skills.recency import is_time_sensitive, now_cst, parse_published, stale_evidence
 from .skills.grading import grade_page
 from .skills.judging import FIELD_LABELS
+from .skills.rerank import rerank_pages
 from .skills.research_report import build_research_report
 from .search.content_fetch import ContentFetcher
+from .search.fallback import search_with_site_fallback
 from .skills.source_policy import is_relevant, source_tier
 
 logger = logging.getLogger("claimlab.research")
@@ -41,12 +44,20 @@ def _grade_counts(pages: list[SearchPage], field: str | None) -> dict[str, int]:
     return counts
 
 
-def _rank(page: SearchPage, field: str, time_sensitive: bool = False) -> tuple:
+def _rank(
+    page: SearchPage,
+    field: str,
+    time_sensitive: bool = False,
+    relevance: dict[str, float] | None = None,
+) -> tuple:
     grade = grade_page(page, field=field)
     order = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
     parsed = parse_published(page.date)
     missing = 0 if parsed else 1
     stamp = -parsed.toordinal() if parsed else 0
+    if relevance:
+        llm_score = float(relevance.get(page_key(page), 0.0))
+        return (-llm_score, order.get(grade.grade, 9), -(page.score or 0.0), missing, stamp)
     if time_sensitive:
         return (missing, stamp, order.get(grade.grade, 9), -(page.score or 0.0))
     return (order.get(grade.grade, 9), -(page.score or 0.0), missing, stamp)
@@ -58,15 +69,21 @@ def _top_sources(
     page_cluster: dict[str, str],
     limit: int = 6,
     time_sensitive: bool = False,
+    relevance: dict[str, float] | None = None,
 ) -> list[dict[str, Any]]:
     representatives: dict[str, SearchPage] = {}
     for page in pages:
         key = page_key(page)
         cluster = page_cluster.get(key) or key
         current = representatives.get(cluster)
-        if current is None or _rank(page, requirement.field, time_sensitive) < _rank(current, requirement.field, time_sensitive):
+        if current is None or _rank(
+            page, requirement.field, time_sensitive, relevance
+        ) < _rank(current, requirement.field, time_sensitive, relevance):
             representatives[cluster] = page
-    ordered = sorted(representatives.values(), key=lambda page: _rank(page, requirement.field, time_sensitive))
+    ordered = sorted(
+        representatives.values(),
+        key=lambda page: _rank(page, requirement.field, time_sensitive, relevance),
+    )
     result = []
     for page in ordered[:limit]:
         key = page_key(page)
@@ -116,7 +133,8 @@ async def _execute_queries(
 ) -> list[SearchPage]:
     pages: list[SearchPage] = []
     for plan in plans:
-        batch: SearchBatch = await gateway.search(
+        batch: SearchBatch = await search_with_site_fallback(
+            gateway,
             run_id,
             requirement.requirement_id,
             plan,
@@ -178,6 +196,7 @@ async def run_research(
     plan: ResearchPlan | None = None,
     refresh: bool = False,
     run_id: str | None = None,
+    plan_reused: bool = False,
 ) -> dict[str, Any]:
     gateway = sandbox.new_gateway(budget=sandbox.new_budget(profile="research"))
     run_id = run_id or f"research-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
@@ -291,14 +310,58 @@ async def run_research(
     ledger: list[dict[str, Any]] = []
     relevant_fields: dict[str, list[str]] = {}
     page_by_key = {page_key(page): page for page in unique_pages}
-    for row, item in zip(rows, plan.items):
+    settings_local = sandbox.settings
+    rerank_enabled = bool(getattr(settings_local, "rerank_enabled", True))
+    rerank_top_n = int(getattr(settings_local, "rerank_top_n", 30))
+    rerank_threshold = float(getattr(settings_local, "rerank_threshold", 0.5))
+    rerank_scores: list[dict[str, float]] = [{} for _ in plan.items]
+    if rerank_enabled and plan.items and unique_pages:
+        # Three small calls in parallel; each only sees its own top candidates.
+        raw_scores = await asyncio.gather(
+            *[
+                rerank_pages(
+                    sandbox.llm,
+                    text,
+                    item.requirement,
+                    unique_pages,
+                    top_n=rerank_top_n,
+                )
+                for item in plan.items
+            ],
+            return_exceptions=True,
+        )
+        for index, result in enumerate(raw_scores):
+            if isinstance(result, dict):
+                rerank_scores[index] = result
+            else:
+                event(
+                    logger,
+                    "research.rerank_failed",
+                    level=logging.WARNING,
+                    field=plan.items[index].requirement.field,
+                    error=f"{type(result).__name__}: {str(result)[:200]}",
+                )
+    for index, (row, item) in enumerate(zip(rows, plan.items)):
         requirement = item.requirement
+        scores = rerank_scores[index] if index < len(rerank_scores) else {}
         relevant = [page for page in unique_pages if is_relevant(page, requirement)]
+        if not relevant and scores:
+            relevant = [
+                page
+                for page in unique_pages
+                if scores.get(page_key(page), 0.0) >= rerank_threshold
+            ]
         for page in relevant:
             relevant_fields.setdefault(page_key(page), []).append(requirement.field)
         counts = _grade_counts(relevant, requirement.field)
         tier = source_tier(relevant, requirement=requirement)
-        top = _top_sources(relevant, requirement, page_cluster, time_sensitive=time_sensitive)
+        top = _top_sources(
+            relevant,
+            requirement,
+            page_cluster,
+            time_sensitive=time_sensitive,
+            relevance=scores,
+        )
         row.update(
             {
                 "tier": tier,
@@ -453,13 +516,15 @@ async def run_research(
         "c_source_rate": grade_totals["C"] / relevant_total if relevant_total else 0.0,
         "requirements_with_ab": sum(1 for row in rows if row["tier"] == "A/B"),
         "requirements_covered": sum(1 for row in rows if row["tier"] in {"A/B", "B/C"}),
-        "zero_requirements": sum(1 for row in rows if row["pages"] == 0),
+        "zero_requirements": sum(1 for row in rows if row.get("relevant_pages", 0) == 0),
         "cache_hits": sum(
             1
             for row in rows
             for item in row["executed"]
             if item.get("cache_hit")
         ),
+        "rerank_calls": sum(1 for scores in rerank_scores if scores) if rerank_enabled else 0,
+        "rerank_scored": sum(len(scores) for scores in rerank_scores),
         "screenshots": len(images),
         "stop_reason": gateway.budget.stop_reason or "completed",
     }
@@ -476,11 +541,28 @@ async def run_research(
         for row in rows
         if row["tier"] == "insufficient"
     ]
-    report = build_research_report(text, ledger, answer, metrics, gaps=gaps)
+    degraded_reasons: list[str] = []
+    if plan.method != "llm":
+        degraded_reasons.append(f"plan={plan.method}")
+    if answer.get("engine") != "llm":
+        degraded_reasons.append(
+            f"answer={answer.get('engine') or 'unknown'}"
+            + (f" ({answer.get('degraded_reason')})" if answer.get("degraded_reason") else "")
+        )
+    if rerank_enabled and any(not scores for scores in rerank_scores):
+        degraded_reasons.append("rerank=partial_or_failed")
+    degraded = {
+        "plan_method": plan.method,
+        "answer_engine": answer.get("engine") or "",
+        "answer_reason": answer.get("degraded_reason") or "",
+        "rerank_enabled": rerank_enabled,
+        "reasons": degraded_reasons,
+    }
+    report = build_research_report(text, ledger, answer, metrics, gaps=gaps, degraded=degraded)
     return {
         "run_id": run_id,
         "plan_id": plan.plan_id,
-        "plan_reused": True,
+        "plan_reused": plan_reused,
         "mode": "deep",
         "domain": plan.domain,
         "method": plan.method,
@@ -494,6 +576,7 @@ async def run_research(
         "metrics": metrics,
         "answer": answer,
         "report": report,
+        "degraded": degraded,
         "citation_issues": answer.get("citation_issues") or [],
         "screenshots": answer.get("screenshots") or [],
         "budget": gateway.budget.summary(),

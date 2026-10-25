@@ -105,6 +105,12 @@ class LLMProvider:
     headers: dict[str, str] = field(default_factory=dict)
     vision: bool = False
     timeout_seconds: float = 60.0
+    # Structured-output controls. ``auto`` keeps the provider default (thinking
+    # on for reasoning models); ``disabled`` sends the provider-specific switch
+    # that produced valid JSON in the live DeepSeek probe.
+    thinking: str = "auto"
+    max_tokens: int = 4096
+    task_options: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
     def key_present(self) -> bool:
@@ -120,6 +126,8 @@ class LLMProvider:
             "preferred_models": list(self.preferred_models),
             "default_model": self.default_model or None,
             "vision": bool(self.vision),
+            "thinking": self.thinking,
+            "max_tokens": self.max_tokens,
         }
 
 
@@ -187,6 +195,19 @@ def load_llm_registry(settings: Settings, config_path: Path | None = None) -> LL
                 api_key = ""
             preferred = [str(item).strip() for item in (raw.get("preferred_models") or []) if str(item).strip()]
             default_model = str(raw.get("default_model") or (preferred[0] if preferred else "") or settings.llm_model)
+            thinking = str(raw.get("thinking") or "auto").strip().lower()
+            if thinking not in {"auto", "disabled"}:
+                thinking = "auto"
+            try:
+                max_tokens = max(256, int(raw.get("max_tokens") or 4096))
+            except (TypeError, ValueError):
+                max_tokens = 4096
+            task_options: dict[str, dict[str, Any]] = {}
+            raw_options = raw.get("task_options")
+            if isinstance(raw_options, dict):
+                for task_name, value in raw_options.items():
+                    if isinstance(value, dict):
+                        task_options[str(task_name)] = dict(value)
             providers[name] = LLMProvider(
                 name=name,
                 label=str(raw.get("label") or name),
@@ -200,6 +221,9 @@ def load_llm_registry(settings: Settings, config_path: Path | None = None) -> LL
                 headers={str(key): str(value) for key, value in (raw.get("headers") or {}).items()},
                 vision=bool(raw.get("vision", False)),
                 timeout_seconds=float(raw.get("timeout_seconds") or 60.0),
+                thinking=thinking,
+                max_tokens=max_tokens,
+                task_options=task_options,
             )
 
     legacy = False

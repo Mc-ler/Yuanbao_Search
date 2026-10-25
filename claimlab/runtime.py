@@ -14,7 +14,7 @@ from .search.archive import ArchiveWriter
 from .search.budget import Budget
 from .search.cache import DiskCache
 from .search.fake import FakeSearchProvider
-from .search.gateway import SearchGateway
+from .search.gateway import SearchGateway, search_zero_status
 from .store.db import Store
 from .store.fixtures import fixture_pages, load_all_fixtures
 
@@ -78,11 +78,13 @@ class Sandbox:
                 "key_present": self.settings.llm_key_present,
             },
             "cache": self.cache.stats(),
+            "search": search_zero_status(),
             "store": self.store.stats(),
             "screenshots": {
                 "enabled": self.screenshots.enabled,
                 "reason": self.screenshots.reason,
                 "chrome": bool(self.screenshots.chrome),
+                "last_error": getattr(self.screenshots, "last_error", ""),
             },
             "plans": len(getattr(self.plan_store, "_items", {})),
         }

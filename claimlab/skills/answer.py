@@ -406,7 +406,10 @@ async def build_answer(
                 except Exception as exc:
                     logger.warning("answer.repair_error %s: %s", type(exc).__name__, str(exc)[:300])
 
-    if not isinstance(data, dict) or not str(data.get("text") or data.get("answer") or "").strip():
+    if llm is not None and (
+        not isinstance(data, dict)
+        or not str(data.get("text") or data.get("answer") or "").strip()
+    ):
         # Some providers return an empty answer when the evidence block is
         # large. Retry once with the strongest three sources only; the full
         # citation list remains available for the report.

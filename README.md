@@ -5,7 +5,7 @@
 本 README 是统一入口文档，整合了架构、环境、DeepSeek/SearchPro 配置、运行、API、验证、日志、安全与路线图。交互规则见 <a href="web/rules.html">rules.html</a>，架构图见 <a href="framework.html">framework.html</a>。
 
 > **在线项目页（静态介绍）**：<a href="https://mc-ler.github.io/Yuanbao_Search/">https://mc-ler.github.io/Yuanbao_Search/</a><br>
-> GitHub Pages 只托管 `docs/` 的项目介绍与截图；完整的检索/查证仍需按下方“快速开始”在本机启动 FastAPI 后端。
+> GitHub Pages 只托管 `docs/` 的项目介绍与截图；完整的检索/查证仍需按下方“快速开始”在本机启动 FastAPI 后端。打印版为 `docs/print.html`；本地 PDF/单文件 HTML 在 `output/`（gitignored）。
 
 ## 目录
 
@@ -324,7 +324,7 @@ UI（v3.7 双模式工作台，简洁 LLM 风格）：
       store/            fixtures / 旧 DB 只读
       llm/              OpenAI 兼容客户端 + FakeLLM
     web/                index.html / app.js / styles.css / rules.html
-    docs/               GitHub Pages 项目介绍页（静态；不含后端）
+    docs/               GitHub Pages 项目介绍页 + print.html（A4 打印版；不含后端）
     .github/workflows/  pages.yml（push main 自动发布 docs/）
     config/             domains / queries / lexicons / llm_providers.json
     fixtures/           测试夹具
